@@ -438,6 +438,13 @@ export default function Home() {
               <option value="">请选择版式</option>
               {LAYOUTS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
+            {layout && (
+              <img
+                src="https://raw.githubusercontent.com/ying0503/gift/refs/heads/master/image/WechatIMG312.jpg"
+                alt="版式预览"
+                style={{ width: '100%', marginTop: 8, borderRadius: 6, border: '1px solid #eee' }}
+              />
+            )}
           </div>
         </div>
         </div>
