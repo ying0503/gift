@@ -157,7 +157,7 @@ async function handleGenerate(request, env) {
   if (!raw) return error('Invalid token', 401)
   const session = JSON.parse(raw)
 
-  const { config, excel } = await request.json()
+  const { config, excel, images } = await request.json()
   if (!config || !excel) return error('Missing config or excel data', 400)
 
   const prompt = buildPrompt(config, excel)
@@ -166,6 +166,13 @@ async function handleGenerate(request, env) {
   if (config.layoutImage) {
     content.push({ image: config.layoutImage })
   }
+  if (images && images.length) {
+    for (const img of images) {
+      content.push({ image: img })
+    }
+  }
+
+  const hasImages = config.layoutImage || (images && images.length)
 
   const sizeMap = {
     '768×1024': '768*1024',
@@ -181,7 +188,7 @@ async function handleGenerate(request, env) {
       'X-DashScope-Async': 'enable',
     },
     body: JSON.stringify({
-      model: config.layoutImage ? 'wan2.7-image-pro' : (config.model || 'wan2.7-image'),
+      model: hasImages ? 'wan2.7-image-pro' : (config.model || 'wan2.7-image'),
       input: {
         messages: [{ role: 'user', content }],
       },
