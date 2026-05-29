@@ -6,12 +6,14 @@ import { API } from '../AuthContext'
 
 const SIZES = ['768×1024', '1200×1600']
 const COLORS = ['暖色调', '冷色调', '黑白灰', '红金搭配', '蓝白搭配']
+const LAYOUTS = ['顶通+礼品列表']
 
 export default function Home() {
   const navigate = useNavigate()
 
   const [size, setSize] = useState('')
   const [color, setColor] = useState('')
+  const [layout, setLayout] = useState('')
   const [model, setModel] = useState('wan2.7-image')
   const [excelData, setExcelData] = useState(null)
   const [excelFileName, setExcelFileName] = useState('')
@@ -179,11 +181,12 @@ export default function Home() {
     setExcelMerges(null)
   }
 
-  const canGenerate = size && color && model && excelData
+  const canGenerate = size && color && layout && model && excelData
 
   const handleGenerate = async () => {
     if (!size) return alert('请选择画册尺寸')
     if (!color) return alert('请选择画册色调')
+    if (!layout) return alert('请选择画册版式')
     if (!model) return alert('请选择模型')
     if (!excelData) return alert('请导入 Excel 数据')
 
@@ -208,7 +211,7 @@ export default function Home() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          config: { size, color, model },
+          config: { size, color, layout, model },
           excel: excelData,
           images: sendImages.length ? sendImages : undefined,
         }),
@@ -220,7 +223,7 @@ export default function Home() {
       navigate('/generate', {
         state: {
           taskId: r.taskId,
-          config: { size, color, model },
+          config: { size, color, layout, model },
           excel: excelData,
         },
       })
@@ -427,6 +430,13 @@ export default function Home() {
             <select value={color} onChange={e => setColor(e.target.value)}>
               <option value="">请选择色调</option>
               {COLORS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="config-item">
+            <label>画册版式 *</label>
+            <select value={layout} onChange={e => setLayout(e.target.value)}>
+              <option value="">请选择版式</option>
+              {LAYOUTS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
           </div>
         </div>

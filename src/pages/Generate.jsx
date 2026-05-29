@@ -103,7 +103,7 @@ export default function Generate() {
             </div>
             <div style={{ flex: 1, fontSize: 14, color: '#444', lineHeight: 2.2 }}>
               <div style={{ borderBottom: '1px solid #eee', paddingBottom: 14, marginBottom: 18 }}>
-                <div><strong>版式：</strong>顶通+礼品列表</div>
+                <div><strong>版式：</strong>{data.config.layout || '顶通+礼品列表'}</div>
                 <div><strong>尺寸：</strong>{data.config.size}</div>
                 <div><strong>色调：</strong>{data.config.color}</div>
                 <div><strong>礼品数：</strong>{data.excel?.length - 1 || 0} 件</div>
