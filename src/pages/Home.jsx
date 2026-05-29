@@ -14,6 +14,7 @@ export default function Home() {
   const [size, setSize] = useState('')
   const [color, setColor] = useState('')
   const [layout, setLayout] = useState('')
+  const [layoutImage, setLayoutImage] = useState('')
   const [model, setModel] = useState('wan2.7-image')
   const [excelData, setExcelData] = useState(null)
   const [excelFileName, setExcelFileName] = useState('')
@@ -211,7 +212,7 @@ export default function Home() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          config: { size, color, layout, model },
+          config: { size, color, layout, layoutImage, model },
           excel: excelData,
           images: sendImages.length ? sendImages : undefined,
         }),
@@ -434,7 +435,26 @@ export default function Home() {
           </div>
           <div className="config-item">
             <label>画册版式 *</label>
-            <select value={layout} onChange={e => setLayout(e.target.value)}>
+            <select value={layout} onChange={async e => {
+              const v = e.target.value
+              setLayout(v)
+              if (v) {
+                try {
+                  const resp = await fetch('https://raw.githubusercontent.com/ying0503/gift/refs/heads/master/image/WechatIMG312.jpg')
+                  const blob = await resp.blob()
+                  const dataUrl = await new Promise(resolve => {
+                    const r = new FileReader()
+                    r.onloadend = () => resolve(r.result)
+                    r.readAsDataURL(blob)
+                  })
+                  setLayoutImage(dataUrl)
+                } catch {
+                  setLayoutImage('')
+                }
+              } else {
+                setLayoutImage('')
+              }
+            }}>
               <option value="">请选择版式</option>
               {LAYOUTS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>

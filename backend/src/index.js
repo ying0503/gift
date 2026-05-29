@@ -162,6 +162,11 @@ async function handleGenerate(request, env) {
 
   const prompt = buildPrompt(config, excel)
 
+  const content = [{ text: prompt }]
+  if (config.layoutImage) {
+    content.push({ image: config.layoutImage })
+  }
+
   const sizeMap = {
     '768×1024': '768*1024',
     '1200×1600': '1200*1600',
@@ -176,9 +181,9 @@ async function handleGenerate(request, env) {
       'X-DashScope-Async': 'enable',
     },
     body: JSON.stringify({
-      model: config.model || 'wan2.7-image',
+      model: config.layoutImage ? 'wan2.7-image-pro' : (config.model || 'wan2.7-image'),
       input: {
-        messages: [{ role: 'user', content: [{ text: prompt }] }],
+        messages: [{ role: 'user', content }],
       },
       parameters: { size: apiSize, n: 1, watermark: false },
     }),
