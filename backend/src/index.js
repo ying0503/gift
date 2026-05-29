@@ -139,7 +139,7 @@ function buildPrompt(config, excel) {
   const bannerCount = Math.min(3, total)
   const gridCount = total - bannerCount
 
-  return `设计一张完整的礼品画册，板式为"${config.layout}"，色调：${config.color}。
+  return `设计一张完整的礼品画册，板式为"顶通+礼品列表"，色调：${config.color}。
 顶部是通栏广告位区域（占画面约30%高度），展示前${bannerCount}个产品，生成对应的产品图片。
 ${gridCount > 0 ? `下方是产品列表网格区域（3列），展示剩余${gridCount}个产品，每个产品生成对应的产品图片。` : ''}
 每个产品展示：产品图片 + 品名。
