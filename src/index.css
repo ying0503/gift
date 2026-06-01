@@ -353,8 +353,7 @@ body {
   align-items: flex-start;
 }
 .home-sidebar {
-  width: 340px;
-  flex-shrink: 0;
+  flex: 1;
 }
 @media (max-width: 768px) {
   .home-layout {

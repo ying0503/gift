@@ -30,6 +30,9 @@ export default {
       if (path === '/api/albums' && request.method === 'GET') {
         return handleAlbums(request, env)
       }
+      if (path === '/api/ping' && request.method === 'GET') {
+        return json({ ok: true, hasMaiziaiKey: !!env.MAIZIAI_API_KEY })
+      }
       return json({ error: 'Not found' }, 404)
     } catch (e) {
       return error(e.message || 'Internal error', 500)
@@ -152,22 +155,71 @@ ${productList}`
 async function handleGenerate(request, env) {
   const auth = request.headers.get('Authorization')
   if (!auth || !auth.startsWith('Bearer ')) return error('Unauthorized', 401)
-  const token = auth.slice(7)
+  const token = auth.slice(7).trim()
+  if (token.length < 10) return error('Invalid token format', 401)
   const raw = await env.AUTH_KV.get(`token:${token}`)
   if (!raw) return error('Invalid token', 401)
   const session = JSON.parse(raw)
 
-  const { config, excel } = await request.json()
+  const { config, excel, images } = await request.json()
   if (!config || !excel) return error('Missing config or excel data', 400)
 
-  const prompt = buildPrompt(config, excel)
+  const hasImages = images && images.length
 
-  const sizeMap = {
-    '768×1024': '768*1024',
-    '1200×1600': '1200*1600',
+  const prompt = config.prompt || buildPrompt(config, excel)
+
+  const isMaiziai = config.model === 'maiziai-chatgpt-image-2' || config.model === 'gpt-image-2-official'
+
+  const wanSizeMap = {
+    'auto': '1024*1024',
+    '1:1': '1024*1024',
+    '16:9': '1920*1080',
+    '9:16': '1080*1920',
+    '4:3': '1024*768',
+    '3:4': '768*1024',
   }
-  const apiSize = sizeMap[config.size] || '1024*1024'
+  const apiSize = wanSizeMap[config.size] || '1024*1024'
 
+  if (isMaiziai) {
+    const maiziaiKey = env.MAIZIAI_API_KEY
+    if (!maiziaiKey) return error('MAIZIAI_API_KEY not configured', 500)
+
+    const apiModel = config.model === 'maiziai-chatgpt-image-2' ? 'gpt-image-2' : config.model
+    const body = JSON.stringify({
+      model: apiModel,
+      prompt,
+      size: config.size === 'auto' ? undefined : config.size,
+      image_size: config.image_size || '1K',
+      images: hasImages ? images : undefined,
+      n: 1,
+    })
+    const res = await fetch('https://www.maizitech.cn/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${maiziaiKey}`,
+      },
+      body,
+    })
+    const data = await res.json()
+    if (!res.ok) return error(data.error?.message || 'MaiziAI API call failed', res.status)
+
+    const maiziaiTaskId = data.data?.[0]?.task_id
+    if (!maiziaiTaskId) return error('No task_id from MaiziAI', 500)
+
+    const taskId = maiziaiTaskId
+    await env.GIFT_KV.put(`task:${taskId}`, JSON.stringify({
+      userId: session.userId, config, prompt,
+      status: 'PENDING',
+      createdAt: Date.now(),
+      productCount: excel.length - 1,
+      maiziaiTaskId,
+    }), { expirationTtl: 86400 * 7 })
+
+    return json({ taskId })
+  }
+
+  // WAN API
   const res = await fetch(WAN_API, {
     method: 'POST',
     headers: {
@@ -190,9 +242,7 @@ async function handleGenerate(request, env) {
   if (!taskId) return error('No task_id returned', 500)
 
   await env.GIFT_KV.put(`task:${taskId}`, JSON.stringify({
-    userId: session.userId,
-    config,
-    prompt,
+    userId: session.userId, config, prompt,
     status: 'PENDING',
     createdAt: Date.now(),
     productCount: excel.length - 1,
@@ -205,6 +255,49 @@ async function handleGenerateStatus(request, env) {
   const taskId = new URL(request.url).searchParams.get('taskId')
   if (!taskId) return error('Missing taskId', 400)
 
+  // Check KV first (for synchronous model)
+  const taskData = await env.GIFT_KV.get(`task:${taskId}`)
+  if (taskData) {
+    const task = JSON.parse(taskData)
+    if (task.status === 'SUCCEEDED') {
+      return json({ taskStatus: 'SUCCEEDED', progress: 100, statusText: '生成完成', imageUrl: task.imageUrl })
+    }
+    if (task.status === 'FAILED') {
+      return json({ taskStatus: 'FAILED', progress: -1, statusText: task.statusText || '生成失败', imageUrl: null })
+    }
+    if (task.status === 'PENDING' && task.maiziaiTaskId) {
+      const maiziaiKey = env.MAIZIAI_API_KEY
+      if (!maiziaiKey) return json({ taskStatus: 'PENDING', progress: 0, statusText: '等待生成...', imageUrl: null })
+
+      const mRes = await fetch(`https://www.maizitech.cn/v1/tasks/${task.maiziaiTaskId}`, {
+        headers: { Authorization: `Bearer ${maiziaiKey}` },
+      })
+      if (!mRes.ok) return json({ taskStatus: 'PENDING', progress: 0, statusText: '查询中...', imageUrl: null })
+
+      const mData = await mRes.json()
+      if (mData.status === 'completed') {
+        const relativeUrl = mData.result_urls?.[0]
+        const imageUrl = relativeUrl ? `https://www.maizitech.cn${relativeUrl}` : null
+        if (imageUrl) {
+          await env.GIFT_KV.put(`task:${taskId}`, JSON.stringify({ ...task, status: 'SUCCEEDED', imageUrl }), { expirationTtl: 86400 * 7 })
+          const albumId = crypto.randomUUID().slice(0, 8)
+          const album = { id: albumId, userId: task.userId, taskId, imageUrl, config: task.config, prompt: task.prompt, productCount: task.productCount, createdAt: task.createdAt }
+          await env.GIFT_KV.put(`album:${albumId}`, JSON.stringify(album), { expirationTtl: 86400 * 30 })
+          const listData = await env.GIFT_KV.get(`user_albums:${task.userId}`)
+          const list = listData ? JSON.parse(listData) : []
+          list.unshift(albumId)
+          await env.GIFT_KV.put(`user_albums:${task.userId}`, JSON.stringify(list.slice(0, 50)), { expirationTtl: 86400 * 30 })
+          return json({ taskStatus: 'SUCCEEDED', progress: 100, statusText: '生成完成', imageUrl })
+        }
+      } else if (mData.status === 'failed') {
+        await env.GIFT_KV.put(`task:${taskId}`, JSON.stringify({ ...task, status: 'FAILED', statusText: mData.error_msg || '生成失败' }), { expirationTtl: 86400 * 7 })
+        return json({ taskStatus: 'FAILED', progress: -1, statusText: mData.error_msg || '生成失败', imageUrl: null })
+      }
+      return json({ taskStatus: 'PENDING', progress: mData.progress || 0, statusText: '生成中...', imageUrl: null })
+    }
+  }
+
+  // Fallback to WAN API query
   const res = await fetch(`https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`, {
     headers: { Authorization: `Bearer ${env.DASHSCOPE_API_KEY}` },
   })

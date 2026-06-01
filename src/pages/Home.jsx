@@ -1,24 +1,46 @@
-import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import JSZip from 'jszip'
 import { API } from '../AuthContext'
 
-const SIZES = ['768×1024', '1200×1600']
-const COLORS = ['暖色调', '冷色调', '黑白灰', '红金搭配', '蓝白搭配']
+const RATIOS = ['auto', '1:1', '16:9', '9:16', '4:3', '3:4']
 
 export default function Home() {
-  const navigate = useNavigate()
-
-  const [size, setSize] = useState('')
-  const [color, setColor] = useState('')
-  const [model, setModel] = useState('wan2.7-image')
+  const [size, setSize] = useState('auto')
+  const [image_size, setImageSize] = useState('1K')
+  const [model, setModel] = useState('maiziai-chatgpt-image-2')
   const [excelData, setExcelData] = useState(null)
   const [excelFileName, setExcelFileName] = useState('')
   const [excelError, setExcelError] = useState('')
   const [excelImages, setExcelImages] = useState(null)
   const [excelMerges, setExcelMerges] = useState(null)
   const [generating, setGenerating] = useState(false)
+  const [promptText, setPromptText] = useState('')
+
+  const [generations, setGenerations] = useState([])
+  const pollTimers = useRef({})
+
+  const computedPrompt = useMemo(() => {
+    const rows = excelData ? excelData.slice(1) : []
+    let products
+    if (rows.length) {
+      products = rows.map((row, i) => {
+        const name = row[1] || row[0]
+        const desc = row[2] ? String(row[2]).slice(0, 80) : ''
+        return `${i + 1}. ${name}${desc ? ` - ${desc}` : ''}`
+      }).join('\n')
+    } else {
+      products = '（请导入 Excel 数据）'
+    }
+    return `${size && size !== 'auto' ? `比例为${size}的` : ''}营销图片
+
+礼品规格：
+${products}`
+  }, [size, excelData])
+
+  useEffect(() => {
+    setPromptText(computedPrompt)
+  }, [computedPrompt])
 
   const excelInputRef = useRef()
 
@@ -166,10 +188,12 @@ export default function Home() {
 
   const onExcelDrop = (e) => {
     e.preventDefault()
-    e.currentTarget.classList.remove('dragover')
-    const file = e.dataTransfer.files[0]
+    const file = e.dataTransfer?.files?.[0]
     if (file) onExcelFile(file)
   }
+
+  const onExcelDragOver = (e) => { e.preventDefault(); e.currentTarget.style.background = 'rgba(26,26,46,0.06)' }
+  const onExcelDragLeave = (e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.85)' }
 
   const clearExcel = () => {
     setExcelData(null)
@@ -179,11 +203,9 @@ export default function Home() {
     setExcelMerges(null)
   }
 
-  const canGenerate = size && color && model && excelData
+  const canGenerate = model && excelData
 
   const handleGenerate = async () => {
-    if (!size) return alert('请选择画册尺寸')
-    if (!color) return alert('请选择画册色调')
     if (!model) return alert('请选择模型')
     if (!excelData) return alert('请导入 Excel 数据')
 
@@ -195,6 +217,9 @@ export default function Home() {
       setGenerating(false)
       return
     }
+
+    const id = Date.now()
+    setGenerations(g => [...g, { id, taskId: null, progress: 0, statusText: '准备中...', imageUrl: null, error: null, finished: false }])
 
     try {
       const imgs = getOrderedImageUrls(excelImages)
@@ -208,7 +233,7 @@ export default function Home() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          config: { size, color, model },
+          config: { size, model, image_size, prompt: promptText },
           excel: excelData,
           images: sendImages.length ? sendImages : undefined,
         }),
@@ -217,17 +242,69 @@ export default function Home() {
       const r = await res.json()
       if (!res.ok) throw new Error(r.error || '请求失败')
 
-      navigate('/generate', {
-        state: {
-          taskId: r.taskId,
-          config: { size, color, model },
-          excel: excelData,
-        },
-      })
+      setGenerations(g => g.map(item => item.id === id ? { ...item, taskId: r.taskId, statusText: '任务已提交' } : item))
+      startPolling(id, r.taskId, token)
     } catch (err) {
-      alert('生成失败：' + err.message)
+      setGenerations(g => g.map(item => item.id === id ? { ...item, error: err.message } : item))
       setGenerating(false)
     }
+  }
+
+  function startPolling(id, taskId, token) {
+    let cancelled = false, realDone = false
+
+    const sim = setInterval(() => {
+      if (cancelled || realDone) return
+      setGenerations(g => g.map(item => {
+        if (item.id !== id) return item
+        const p = item.progress >= 95 ? item.progress : Math.min(item.progress + Math.floor(Math.random() * 5) + 1, 95)
+        let s = item.statusText
+        if (p < 20) s = '正在提交任务...'
+        else if (p < 40) s = 'AI 模型加载中...'
+        else if (p < 60) s = '正在生成画册...'
+        else if (p < 80) s = '正在优化画面细节...'
+        else s = '即将完成...'
+        return { ...item, progress: p, statusText: s }
+      }))
+    }, 800)
+
+    const poll = async () => {
+      try {
+        const r = await fetch(`${API}/api/generate/status?taskId=${taskId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const res = await r.json()
+        if (!r.ok || cancelled) return
+
+        if (res.progress === -1) {
+          realDone = true; clearInterval(sim)
+          setGenerations(g => g.map(item => item.id === id ? { ...item, error: res.statusText || '生成失败' } : item))
+          setGenerating(false)
+          return
+        }
+        if (res.imageUrl) {
+          realDone = true; clearInterval(sim)
+          setGenerations(g => g.map(item => item.id === id ? { ...item, progress: 100, imageUrl: res.imageUrl, statusText: '生成完成！', finished: true } : item))
+          setGenerating(false)
+          return
+        }
+        if (res.taskStatus === 'FAILED') {
+          realDone = true; clearInterval(sim)
+          setGenerations(g => g.map(item => item.id === id ? { ...item, error: res.statusText || '生成失败' } : item))
+          setGenerating(false)
+          return
+        }
+        pollTimers.current[id] = setTimeout(poll, 2000)
+      } catch (e) {
+        if (!cancelled) {
+          setGenerations(g => g.map(item => item.id === id ? { ...item, error: e.message } : item))
+          setGenerating(false)
+        }
+      }
+    }
+
+    poll()
+    pollTimers.current[id] = { sim, poll: true }
   }
 
   function ensureMinSize(url) {
@@ -306,203 +383,149 @@ export default function Home() {
   }
 
   return (
-    <div className="home-layout">
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Excel */}
-        <div className="card">
-          <div className="card-title">导入 Excel 数据</div>
-        <div
-          className="excel-zone"
-          onClick={() => excelInputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('dragover') }}
-          onDragLeave={(e) => e.currentTarget.classList.remove('dragover')}
-          onDrop={onExcelDrop}
-        >
-          <p>点击或拖拽 Excel 文件到此处</p>
-          <div className="upload-hint">支持 .xlsx / .xls 格式</div>
-          <input
-            ref={excelInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            style={{ display: 'none' }}
-            onChange={e => { if (e.target.files[0]) onExcelFile(e.target.files[0]); e.target.value = '' }}
-          />
-        </div>
-        {excelError && <div className="excel-error">{excelError}</div>}
+    <div className="home-layout" style={{ display: 'flex', alignItems: 'flex-start' }}>
+      <div style={{ flex: 1, minWidth: 0, marginTop: -24, marginLeft: -32 }}>
+        <input
+          ref={excelInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          style={{ display: 'none' }}
+          onChange={e => { if (e.target.files[0]) onExcelFile(e.target.files[0]); e.target.value = '' }}
+        />
 
-        {excelData && (
-          <>
-            <div className="excel-actions">
-              <span style={{ fontSize: 13, color: '#666' }}>已导入：{excelFileName}（共 {excelData.length} 行）</span>
-              {excelImages?.data && (
-                <span style={{ fontSize: 12, color: '#27ae60' }}>（已提取 {Object.values(excelImages.data).flat().length} 张嵌入图片）</span>
-              )}
-              <button className="btn btn-danger" onClick={clearExcel}>清空数据</button>
-            </div>
-            <div className="excel-table-wrap">
-              <table className="excel-table">
-                <thead>
-                  <tr>
-                    {excelData[0].map((h, ci) => {
-                      const mk = `0:${ci}`
-                      const m = excelMerges?.[mk]
-                      if (m && !m.anchor) return null
-                      return (
-                        <th key={ci} colSpan={m?.colSpan || 1} rowSpan={m?.rowSpan || 1}>
-                          {h || `列${ci + 1}`}
-                        </th>
-                      )
-                    })}
-                    {excelImages?.data && <th style={{ width: 100 }}>图片</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {excelData.slice(1).map((row, ri) => {
-                    const dataRow = ri + 1
-                    const imgs = excelImages?.data?.[dataRow]
-                    const allImgs = excelImages?.data?._all
-                    return (
-                      <tr key={ri}>
-                        {row.map((cell, ci) => {
-                          const mk = `${dataRow}:${ci}`
-                          const m = excelMerges?.[mk]
-                          if (m && !m.anchor) return null
-                          return (
-                            <td key={ci} colSpan={m?.colSpan || 1} rowSpan={m?.rowSpan || 1}>
-                              {String(cell)}
-                            </td>
-                          )
-                        })}
-                        {excelImages?.data && (
-                          <td>
-                            {imgs?.map((img, ii) => (
-                              <img
-                                key={ii}
-                                src={img.url}
-                                style={{ maxWidth: 80, maxHeight: 60, borderRadius: 4, margin: '2px 0', display: 'block', objectFit: 'contain' }}
-                                alt=""
-                              />
-                            ))}
-                            {allImgs && !imgs && (
-                              <span style={{ fontSize: 11, color: '#999' }}>（未匹配行位置）</span>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {/* Fallback: show unmatched images as gallery */}
-            {excelImages?.data?._all && excelImages.data._all.length > 0 && (
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>嵌入图片（未匹配到具体行）：</div>
-                <div className="thumb-grid">
-                  {excelImages.data._all.map((img, i) => (
-                    <div className="thumb-item" key={i}>
-                      <img src={img.url} alt="" />
-                    </div>
-                  ))}
-                </div>
+        {/* Prompt & Config */}
+        <div className="card">
+          <div className="card-title">当前提示词</div>
+          <div style={{ position: 'relative' }}>
+            {!excelData && (
+              <div
+                onClick={() => excelInputRef.current?.click()}
+                style={{
+                  position: 'absolute', inset: 0, zIndex: 10,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(255,255,255,0.85)',
+                  cursor: 'pointer', fontSize: 15, color: '#666', fontWeight: 500,
+                  borderRadius: 6,
+                }}
+                onDragOver={onExcelDragOver}
+                onDragLeave={onExcelDragLeave}
+                onDrop={onExcelDrop}
+              >
+                点击或拖拽导入 Excel 数据
+                {excelError && <div style={{ color: '#e74c3c', fontSize: 13, marginTop: 8 }}>{excelError}</div>}
               </div>
             )}
-          </>
-        )}
-      </div>
-
-      {/* Config */}
-      <div className="card">
-        <div className="card-title">画册配置</div>
-        <div className="config-row">
-          <div className="config-item">
-            <label>画册尺寸 *</label>
-            <select value={size} onChange={e => setSize(e.target.value)}>
-              <option value="">请选择尺寸</option>
-              {SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div className="config-item">
-            <label>画册色调 *</label>
-            <select value={color} onChange={e => setColor(e.target.value)}>
-              <option value="">请选择色调</option>
-              {COLORS.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-        </div>
-        </div>
-      </div>
-
-      {/* Right: Generate */}
-      <div className="home-sidebar">
-        <div className="card">
-          <div className="card-title">生成画册</div>
-
-        {/* Prompt preview */}
-        {(size || color || excelData) && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>当前提示词（预览）：</div>
             <textarea
-              readOnly
-              rows={4}
-              style={{
-                width: '100%',
-                padding: 10,
-                fontSize: 12,
-                color: '#666',
-                border: '1px solid #e8e8e8',
-                borderRadius: 6,
-                background: '#fafafa',
-                resize: 'none',
-                lineHeight: 1.6,
-              }}
-              value={(() => {
-                const rows = excelData ? excelData.slice(1) : []
-                let products
-                if (rows.length) {
-                  products = rows.map((row, i) => {
-                    const name = row[1] || row[0]
-                    const desc = row[2] ? String(row[2]).slice(0, 80) : ''
-                    return `${i + 1}. ${name}${desc ? ` - ${desc}` : ''}`
-                  }).join('\n')
-                } else {
-                  products = '（请导入 Excel 数据）'
-                }
-                 return `版式：顶通+礼品列表
-模型：${model}
-色调：${color || '（请选择）'}
-尺寸：${size || '（请选择）'}
-说明：顶部生成一个通栏，选取3个产品生成顶部广告位。
-顶部广告位下是所有上传的产品列表，一行3个，上下结构。
-每个礼品展示：礼品图 + 品名 + 产品介绍文案。
+            style={{
+              width: '100%',
+              height: 300,
+              padding: 10,
+              fontSize: 12,
+              color: '#333',
+              border: '1px solid #d9d9d9',
+              borderRadius: 6,
+              background: '#fff',
+              resize: 'vertical',
+              lineHeight: 1.6,
+              boxSizing: 'border-box',
+            }}
+            value={promptText}
+            onChange={e => setPromptText(e.target.value)}
+          />
 
-礼品列表：
-${products}`
-              })()}
-              onChange={() => {}}
-            />
+          <div style={{ marginTop: 16, borderTop: '1px solid #eee', paddingTop: 16 }}>
+            <div className="config-row">
+              <div className="config-item">
+                <label>比例</label>
+                <select value={size} onChange={e => setSize(e.target.value)}>
+                  {RATIOS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="config-item">
+                <label>分辨率</label>
+                <select value={image_size} onChange={e => setImageSize(e.target.value)}>
+                  <option value="1K">1K</option>
+                  <option value="2K">2K</option>
+                  <option value="4K">4K</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>参考图片</div>
+              {excelImages?.data ? (() => {
+                const allRefs = Object.values(excelImages.data).flat().slice(0, 9)
+                return allRefs.length > 0 ? (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {allRefs.map((img, i) => (
+                      <img key={i} src={img.url} alt="" style={{ width: 60, height: 60, borderRadius: 4, objectFit: 'cover', border: '1px solid #e0e0e0' }} />
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 13, color: '#999' }}>暂无参考图片</div>
+                )
+              })() : (
+                <div style={{ fontSize: 13, color: '#999' }}>导入 Excel 后自动提取</div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: '#555', display: 'block', marginBottom: 6 }}>选择模型 *</label>
+                <select value={model} onChange={e => setModel(e.target.value)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9', borderRadius: 6, fontSize: 14, background: '#fff' }}>
+                <option value="maiziai-chatgpt-image-2">maiziai-chatgpt-image-2</option>
+                <option value="gpt-image-2-official">gpt-image-2-official</option>
+                <option value="wan2.7-image">wan2.7-image</option>
+                <option value="wan2.7-image-pro">wan2.7-image-pro</option>
+                </select>
+              </div>
+              <button
+                className="btn btn-primary"
+                disabled={!canGenerate || generating}
+                onClick={handleGenerate}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {generating ? '信息提交中...' : '生成画册'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      {/* Right: Preview */}
+      <div style={{ flex: 2, minWidth: 0 }}>
+        {generations.length === 0 && (
+          <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>
+            <div>配置完成后点击「生成画册」</div>
           </div>
         )}
-
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, fontWeight: 500, color: '#555', display: 'block', marginBottom: 6 }}>选择模型 *</label>
-          <select value={model} onChange={e => setModel(e.target.value)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9', borderRadius: 6, fontSize: 14, background: '#fff' }}>
-            <option value="wan2.7-image">wan2.7-image</option>
-            <option value="wan2.7-image-pro">wan2.7-image-pro</option>
-          </select>
-        </div>
-
-        <div className="generate-bar">
-          <button
-            className="btn btn-primary"
-            disabled={!canGenerate || generating}
-            onClick={handleGenerate}
-          >
-            {generating ? '信息提交中...' : '生成画册'}
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {[...generations].reverse().map(item => (
+            <div key={item.id} className="card" style={{ padding: 16 }}>
+              {!item.finished && !item.error && (
+                <div>
+                  <div className="progress-bar-wrap" style={{ marginBottom: 8 }}>
+                    <div className="progress-bar-fill" style={{ width: `${item.progress}%` }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#666' }}>
+                    <span>{item.statusText}</span>
+                    <span>{item.progress}%</span>
+                  </div>
+                </div>
+              )}
+              {item.error && (
+                <div style={{ color: '#e74c3c', fontSize: 13 }}>{item.error}</div>
+              )}
+              {item.finished && item.imageUrl && (
+                <div style={{ textAlign: 'center' }}>
+                  <img src={item.imageUrl} alt="画册成品" style={{ maxWidth: '100%', borderRadius: 6, boxShadow: '0 1px 6px rgba(0,0,0,.1)' }} />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>
-  </div>
   )
 }

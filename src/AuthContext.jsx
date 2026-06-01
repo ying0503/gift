@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 
-const API = 'https://gift-album-backend.yingganfei.workers.dev'
+const API = 'http://localhost:8787'
 
 export { API }
 

@@ -97,26 +97,10 @@ export default function Generate() {
       {finished && (
         <div className="card" style={{ padding: 28 }}>
           <h2 style={{ fontSize: 18, marginBottom: 20, color: '#27ae60', textAlign: 'center' }}>画册生成成功 ✓</h2>
-          <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start' }}>
-            <div style={{ flex: '0 0 auto' }}>
-              {imageUrl && <img src={imageUrl} alt="画册成品" style={{ maxWidth: 1000, borderRadius: 8, boxShadow: '0 2px 12px rgba(0,0,0,.12)' }} />}
-            </div>
-            <div style={{ flex: 1, fontSize: 14, color: '#444', lineHeight: 2.2 }}>
-              <div style={{ borderBottom: '1px solid #eee', paddingBottom: 14, marginBottom: 18 }}>
-                <div><strong>版式：</strong>顶通+礼品列表</div>
-                <div><strong>尺寸：</strong>{data.config.size}</div>
-                <div><strong>色调：</strong>{data.config.color}</div>
-                <div><strong>礼品数：</strong>{data.excel?.length - 1 || 0} 件</div>
-              </div>
-              <div style={{ maxHeight: 280, overflow: 'auto', background: '#fafafa', borderRadius: 6, padding: '8px 12px' }}>
-                {(data.excel || []).slice(1).map((row, i) => (
-                  <div key={i} style={{ padding: '6px 0', borderBottom: i < (data.excel?.length || 1) - 2 ? '1px solid #eee' : 'none', display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <span style={{ color: '#999', flexShrink: 0, width: 24 }}>{i + 1}.</span>
-                    <span>{row[1] || row[0] || ''}</span>
-                  </div>
-                ))}
-              </div>
-              <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 20 }} onClick={() => navigate('/')}>返回首页</button>
+          <div style={{ textAlign: 'center' }}>
+            {imageUrl && <img src={imageUrl} alt="画册成品" style={{ maxWidth: '100%', borderRadius: 8, boxShadow: '0 2px 12px rgba(0,0,0,.12)' }} />}
+            <div style={{ marginTop: 20 }}>
+              <button className="btn btn-primary" onClick={() => navigate('/')}>返回首页</button>
             </div>
           </div>
         </div>
