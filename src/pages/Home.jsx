@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import * as XLSX from 'xlsx'
 import JSZip from 'jszip'
 import { API } from '../AuthContext'
@@ -19,19 +19,46 @@ export default function Home() {
 
   const [generations, setGenerations] = useState([])
   const pollTimers = useRef({})
+  const [albums, setAlbums] = useState([])
+  const [albumPage, setAlbumPage] = useState(0)
+  const [removedRefs, setRemovedRefs] = useState(new Set())
+  const [uploadedRefs, setUploadedRefs] = useState([])
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [previewPos, setPreviewPos] = useState({ left: 0, top: 0 })
+  const previewTimer = useRef(null)
+  const refInputRef = useRef()
+  const [toast, setToast] = useState(null)
+  const showToast = useCallback((msg) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 1500)
+  }, [])
+  const copyText = useCallback(async (text) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+      showToast('已复制')
+    } catch {}
+  }, [showToast])
+  const PAGE_SIZE = 20
 
   const computedPrompt = useMemo(() => {
     const rows = excelData ? excelData.slice(1) : []
-    let products
-    if (rows.length) {
-      products = rows.map((row, i) => {
-        const name = row[1] || row[0]
-        const desc = row[2] ? String(row[2]).slice(0, 80) : ''
-        return `${i + 1}. ${name}${desc ? ` - ${desc}` : ''}`
-      }).join('\n')
-    } else {
-      products = '（请导入 Excel 数据）'
-    }
+    if (!rows.length) return ''
+    const products = rows.map((row, i) => {
+      const name = row[1] || row[0]
+      const desc = row[2] ? String(row[2]).slice(0, 80) : ''
+      return `${i + 1}. ${name}${desc ? ` - ${desc}` : ''}`
+    }).join('\n')
     return `${size && size !== 'auto' ? `比例为${size}的` : ''}营销图片
 
 礼品规格：
@@ -39,8 +66,17 @@ ${products}`
   }, [size, excelData])
 
   useEffect(() => {
-    setPromptText(computedPrompt)
+    if (computedPrompt) setPromptText(computedPrompt)
   }, [computedPrompt])
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    fetch(`${API}/api/albums`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(data => { if (data.albums) { setAlbums(data.albums); setAlbumPage(0) } })
+      .catch(() => {})
+  }, [])
 
   const excelInputRef = useRef()
 
@@ -203,11 +239,10 @@ ${products}`
     setExcelMerges(null)
   }
 
-  const canGenerate = model && excelData
+  const canGenerate = model && promptText.length > 10
 
   const handleGenerate = async () => {
     if (!model) return alert('请选择模型')
-    if (!excelData) return alert('请导入 Excel 数据')
 
     setGenerating(true)
 
@@ -219,10 +254,10 @@ ${products}`
     }
 
     const id = Date.now()
-    setGenerations(g => [...g, { id, taskId: null, progress: 0, statusText: '准备中...', imageUrl: null, error: null, finished: false }])
+    setGenerations(g => [...g, { id, taskId: null, progress: 0, statusText: '准备中...', imageUrl: null, error: null, finished: false, prompt: promptText }])
 
     try {
-      const imgs = getOrderedImageUrls(excelImages)
+      const imgs = [...getOrderedImageUrls(excelImages), ...uploadedRefs.map(i => i.url)].filter(u => !removedRefs.has(u))
       const sized = imgs.length ? await Promise.all(imgs.map(ensureMinSize)) : []
       const sendImages = sized.length > 4 ? await compositeToGrid(sized) : sized
 
@@ -257,7 +292,7 @@ ${products}`
       if (cancelled || realDone) return
       setGenerations(g => g.map(item => {
         if (item.id !== id) return item
-        const p = item.progress >= 95 ? item.progress : Math.min(item.progress + Math.floor(Math.random() * 5) + 1, 95)
+        const p = item.progress >= 95 ? item.progress : Math.min(item.progress + Math.floor(Math.random() * 2) + 1, 95)
         let s = item.statusText
         if (p < 20) s = '正在提交任务...'
         else if (p < 40) s = 'AI 模型加载中...'
@@ -383,8 +418,10 @@ ${products}`
   }
 
   return (
-    <div className="home-layout" style={{ display: 'flex', alignItems: 'flex-start' }}>
-      <div style={{ flex: 1, minWidth: 0, marginTop: -24, marginLeft: -32 }}>
+    <>
+      {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, background: 'linear-gradient(135deg, #52c41a, #389e0d)', color: '#fff', padding: '10px 28px', fontSize: 14, boxShadow: '0 4px 16px rgba(82,196,26,.35)', borderRadius: 8, animation: 'slideDown 0.2s ease-out' }}>{toast}</div>}
+      <div className="home-layout" style={{ display: 'flex', alignItems: 'flex-start' }}>
+      <div className="home-sidebar" style={{ flex: 3, minWidth: 0, marginTop: -24, marginLeft: -32, marginBottom: -24 }}>
         <input
           ref={excelInputRef}
           type="file"
@@ -394,27 +431,12 @@ ${products}`
         />
 
         {/* Prompt & Config */}
-        <div className="card">
-          <div className="card-title">当前提示词</div>
-          <div style={{ position: 'relative' }}>
-            {!excelData && (
-              <div
-                onClick={() => excelInputRef.current?.click()}
-                style={{
-                  position: 'absolute', inset: 0, zIndex: 10,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(255,255,255,0.85)',
-                  cursor: 'pointer', fontSize: 15, color: '#666', fontWeight: 500,
-                  borderRadius: 6,
-                }}
-                onDragOver={onExcelDragOver}
-                onDragLeave={onExcelDragLeave}
-                onDrop={onExcelDrop}
-              >
-                点击或拖拽导入 Excel 数据
-                {excelError && <div style={{ color: '#e74c3c', fontSize: 13, marginTop: 8 }}>{excelError}</div>}
-              </div>
-            )}
+        <div className="card" style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#555' }}>提示词</span>
+            <span onClick={() => excelInputRef.current?.click()} style={{ fontSize: 12, color: '#1a1a2e', cursor: 'pointer', fontWeight: 500 }}>导入 Excel</span>
+          </div>
+          <div>
             <textarea
             style={{
               width: '100%',
@@ -432,8 +454,9 @@ ${products}`
             value={promptText}
             onChange={e => setPromptText(e.target.value)}
           />
+          </div>
 
-          <div style={{ marginTop: 16, borderTop: '1px solid #eee', paddingTop: 16 }}>
+          <div style={{ marginTop: 8 }}>
             <div className="config-row">
               <div className="config-item">
                 <label>比例</label>
@@ -453,19 +476,43 @@ ${products}`
 
             <div style={{ marginTop: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>参考图片</div>
-              {excelImages?.data ? (() => {
-                const allRefs = Object.values(excelImages.data).flat().slice(0, 9)
+              <input ref={refInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); Promise.all(files.map(f => new Promise(r => { const fr = new FileReader(); fr.onload = () => r({ url: fr.result, blob: f }); fr.readAsDataURL(f) }))).then(results => setUploadedRefs(u => [...u, ...results])); e.target.value = '' }} />
+              {(excelImages?.data || uploadedRefs.length > 0) ? (() => {
+                const excelImgs = excelImages?.data ? Object.values(excelImages.data).flat() : []
+                const allRefs = [...excelImgs, ...uploadedRefs].filter(img => !removedRefs.has(img.url))
                 return allRefs.length > 0 ? (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {allRefs.map((img, i) => (
-                      <img key={i} src={img.url} alt="" style={{ width: 60, height: 60, borderRadius: 4, objectFit: 'cover', border: '1px solid #e0e0e0' }} />
+                    {allRefs.slice(0, 9).map((img, i) => (
+                      <div
+                        key={i}
+                        style={{ position: 'relative', width: 60, height: 60, flexShrink: 0 }}
+                        onMouseEnter={(e) => { clearTimeout(previewTimer.current); const r = e.currentTarget.getBoundingClientRect(); previewTimer.current = setTimeout(() => { setPreviewPos({ left: r.right + 8, top: Math.min(r.top, window.innerHeight * 0.5 - 24) }); setPreviewUrl(img.url) }, 300) }}
+                        onMouseLeave={() => { clearTimeout(previewTimer.current); setPreviewUrl(null) }}
+                      >
+                        <img src={img.url} alt="" style={{ width: 60, height: 60, borderRadius: 4, objectFit: 'cover', border: '1px solid #e0e0e0' }} />
+                        <button
+                          onClick={() => setRemovedRefs(new Set([...removedRefs, img.url]))}
+                          style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.3)', color: '#fff', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                        >×</button>
+                        {previewUrl === img.url && (
+                          <div style={{ position: 'fixed', zIndex: 1000, left: previewPos.left, top: previewPos.top, background: '#fff', borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,.25)', padding: 8, pointerEvents: 'none' }}>
+                            <img src={img.url} alt="" style={{ maxWidth: '30vw', maxHeight: '50vh', borderRadius: 4, display: 'block' }} />
+                          </div>
+                        )}
+                      </div>
                     ))}
+                    {allRefs.length < 9 && (
+                      <div
+                        onClick={() => refInputRef.current?.click()}
+                        style={{ width: 60, height: 60, borderRadius: 4, border: '2px dashed #d9d9d9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, color: '#ccc', flexShrink: 0 }}
+                      >+</div>
+                    )}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 13, color: '#999' }}>暂无参考图片</div>
+                  <div onClick={() => refInputRef.current?.click()} style={{ width: 60, height: 60, borderRadius: 4, border: '2px dashed #d9d9d9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, color: '#ccc' }}>+</div>
                 )
               })() : (
-                <div style={{ fontSize: 13, color: '#999' }}>导入 Excel 后自动提取</div>
+                <div onClick={() => refInputRef.current?.click()} style={{ width: 60, height: 60, borderRadius: 4, border: '2px dashed #d9d9d9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, color: '#ccc' }}>+</div>
               )}
             </div>
 
@@ -485,47 +532,157 @@ ${products}`
                 onClick={handleGenerate}
                 style={{ whiteSpace: 'nowrap' }}
               >
-                {generating ? '信息提交中...' : '生成画册'}
+                生成画册
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      <div className="mobile-only" style={{ width: '100%', marginTop: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#333', marginBottom: 8 }}>我的画册</div>
+        {albums.length === 0 && generations.filter(g => g.finished).length === 0 ? (
+          <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无画册</div>
+        ) : (
+          <>
+            <div className="card-grid">
+              {[...generations].filter(g => !g.finished).reverse().map(item => (
+                <div key={item.id} className="card" style={{ padding: 32, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 180, minWidth: 0 }}>
+                  {!item.error ? (
+                    <div>
+                      <div className="loading-spinner" />
+                      <div style={{ fontSize: 28, fontWeight: 700, color: '#1a1a2e', marginTop: 12 }}>{item.progress}%</div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#e74c3c', fontSize: 13 }}>{item.error}</div>
+                  )}
+                </div>
+              ))}
+              {[...generations].filter(g => g.finished).reverse().map(item => (
+                <div key={item.id} className="card" style={{ padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }} onClick={() => window.open(item.imageUrl, '_blank')}>
+                  <img src={item.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, objectFit: 'cover' }} />
+                  <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
+                    <div>{item.model || ''}</div>
+                    <div style={{ color: '#999' }}>{new Date(item.id).toLocaleDateString('zh-CN')}</div>
+                  </div>
+                  {item.prompt && (
+                    <div style={{ position: 'relative', marginTop: 6, paddingRight: 18 }}>
+                      <div style={{ fontSize: 11, color: '#888', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{item.prompt}</div>
+                      <div style={{ position: 'absolute', right: 0, top: 0 }}>
+                        <svg onClick={e => { e.stopPropagation(); copyText(item.prompt) }} style={{ cursor: 'pointer', flexShrink: 0, verticalAlign: 'middle' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {albums.slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
+                <div key={album.id} className="card" style={{ padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }} onClick={() => window.open(album.imageUrl, '_blank')}>
+                  <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, objectFit: 'cover' }} />
+                  <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
+                    <div>{album.config?.model || ''}</div>
+                    <div style={{ color: '#999' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
+                  </div>
+                  {album.prompt && (
+                    <div style={{ position: 'relative', marginTop: 6, paddingRight: 18 }}>
+                      <div style={{ fontSize: 11, color: '#888', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{album.prompt}</div>
+                      <div style={{ position: 'absolute', right: 0, top: 0 }}>
+                        <svg onClick={e => { e.stopPropagation(); copyText(album.prompt) }} style={{ cursor: 'pointer', flexShrink: 0, verticalAlign: 'middle' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {albums.length > PAGE_SIZE && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+                <button className="btn btn-outline" disabled={albumPage === 0} onClick={() => setAlbumPage(p => p - 1)}>上一页</button>
+                <span style={{ fontSize: 13, color: '#666', alignSelf: 'center' }}>{albumPage + 1} / {Math.ceil(albums.length / PAGE_SIZE)}</span>
+                <button className="btn btn-outline" disabled={(albumPage + 1) * PAGE_SIZE >= albums.length} onClick={() => setAlbumPage(p => p + 1)}>下一页</button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Right: Preview */}
-      <div style={{ flex: 2, minWidth: 0 }}>
-        {generations.length === 0 && (
+      <div style={{ flex: 7, minWidth: 0 }}>
+        <div className="desktop-only">
+        {/* My Albums */}
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#333', marginTop: -7, marginBottom: 8 }}>我的画册</div>
+        {albums.length === 0 && generations.filter(g => g.finished).length === 0 && generations.filter(g => !g.finished).length === 0 ? (
           <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>
             <div>配置完成后点击「生成画册」</div>
           </div>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[...generations].reverse().map(item => (
-            <div key={item.id} className="card" style={{ padding: 16 }}>
-              {!item.finished && !item.error && (
-                <div>
-                  <div className="progress-bar-wrap" style={{ marginBottom: 8 }}>
-                    <div className="progress-bar-fill" style={{ width: `${item.progress}%` }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#666' }}>
-                    <span>{item.statusText}</span>
-                    <span>{item.progress}%</span>
-                  </div>
+        ) : (
+          <>
+            <div className="card-grid">
+              {/* In-progress generations */}
+              {[...generations].filter(g => !g.finished).reverse().map(item => (
+                <div key={item.id} className="card" style={{ padding: 32, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 180, minWidth: 0 }}>
+                  {!item.error ? (
+                    <div>
+                      <div className="loading-spinner" />
+                      <div style={{ fontSize: 28, fontWeight: 700, color: '#1a1a2e', marginTop: 12 }}>{item.progress}%</div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#e74c3c', fontSize: 13 }}>{item.error}</div>
+                  )}
                 </div>
-              )}
-              {item.error && (
-                <div style={{ color: '#e74c3c', fontSize: 13 }}>{item.error}</div>
-              )}
-              {item.finished && item.imageUrl && (
-                <div style={{ textAlign: 'center' }}>
-                  <img src={item.imageUrl} alt="画册成品" style={{ maxWidth: '100%', borderRadius: 6, boxShadow: '0 1px 6px rgba(0,0,0,.1)' }} />
+              ))}
+              {/* Finished generations */}
+              {[...generations].filter(g => g.finished).reverse().map(item => (
+                <div key={item.id} className="card" style={{ padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }} onClick={() => window.open(item.imageUrl, '_blank')}>
+                  <img src={item.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, objectFit: 'cover' }} />
+                  <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
+                    <div>{item.model || ''}</div>
+                    <div style={{ color: '#999' }}>{new Date(item.id).toLocaleDateString('zh-CN')}</div>
+                  </div>
+                  {item.prompt && (
+                    <div style={{ position: 'relative', marginTop: 6, paddingRight: 18 }}>
+                      <div style={{ fontSize: 11, color: '#888', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{item.prompt}</div>
+                      <div style={{ position: 'absolute', right: 0, top: 0 }}>
+                        <svg onClick={e => { e.stopPropagation(); copyText(item.prompt) }} style={{ cursor: 'pointer', flexShrink: 0, verticalAlign: 'middle' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
+              {/* Historical albums */}
+              {albums.slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
+                <div
+                  key={album.id}
+                  className="card"
+                  style={{ padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }}
+                  onClick={() => window.open(album.imageUrl, '_blank')}
+                >
+                  <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, objectFit: 'cover' }} />
+                  <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
+                    <div>{album.config?.model || ''}</div>
+                    <div style={{ color: '#999' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
+                  </div>
+                  {album.prompt && (
+                    <div style={{ position: 'relative', marginTop: 6, paddingRight: 18 }}>
+                      <div style={{ fontSize: 11, color: '#888', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{album.prompt}</div>
+                      <div style={{ position: 'absolute', right: 0, top: 0 }}>
+                        <svg onClick={e => { e.stopPropagation(); copyText(album.prompt) }} style={{ cursor: 'pointer', flexShrink: 0, verticalAlign: 'middle' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
+            {albums.length > PAGE_SIZE && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+                <button className="btn btn-outline" disabled={albumPage === 0} onClick={() => setAlbumPage(p => p - 1)}>上一页</button>
+                <span style={{ fontSize: 13, color: '#666', alignSelf: 'center' }}>{albumPage + 1} / {Math.ceil(albums.length / PAGE_SIZE)}</span>
+                <button className="btn btn-outline" disabled={(albumPage + 1) * PAGE_SIZE >= albums.length} onClick={() => setAlbumPage(p => p + 1)}>下一页</button>
+              </div>
+            )}
+          </>
+        )}
         </div>
       </div>
     </div>
+    </>
   )
 }

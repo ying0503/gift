@@ -41,7 +41,8 @@ export default {
 }
 
 async function handleRegister(request, env) {
-  const { email, password } = await request.json()
+  const { email: rawEmail, password } = await request.json()
+  const email = rawEmail.toLowerCase().trim()
 
   if (!email || !password) {
     return error('Email and password are required', 400)
@@ -79,7 +80,8 @@ async function handleRegister(request, env) {
 }
 
 async function handleLogin(request, env) {
-  const { email, password } = await request.json()
+  const { email: rawEmail, password } = await request.json()
+  const email = rawEmail.toLowerCase().trim()
 
   if (!email || !password) {
     return error('Email and password are required', 400)
@@ -109,7 +111,7 @@ async function handleMe(request, env) {
     return error('Unauthorized', 401)
   }
 
-  const token = auth.slice(7)
+  const token = auth.slice(7).trim()
   const data = await env.AUTH_KV.get(`token:${token}`)
   if (!data) {
     return error('Invalid or expired token', 401)
@@ -123,7 +125,7 @@ async function handleLogout(request, env) {
   const auth = request.headers.get('Authorization')
   if (!auth || !auth.startsWith('Bearer ')) return json({ success: true })
 
-  const token = auth.slice(7)
+  const token = auth.slice(7).trim()
   await env.AUTH_KV.delete(`token:${token}`)
   return json({ success: true })
 }
@@ -162,7 +164,7 @@ async function handleGenerate(request, env) {
   const session = JSON.parse(raw)
 
   const { config, excel, images } = await request.json()
-  if (!config || !excel) return error('Missing config or excel data', 400)
+  if (!config) return error('Missing config', 400)
 
   const hasImages = images && images.length
 
@@ -212,7 +214,7 @@ async function handleGenerate(request, env) {
       userId: session.userId, config, prompt,
       status: 'PENDING',
       createdAt: Date.now(),
-      productCount: excel.length - 1,
+      productCount: excel ? excel.length - 1 : 0,
       maiziaiTaskId,
     }), { expirationTtl: 86400 * 7 })
 
@@ -245,7 +247,7 @@ async function handleGenerate(request, env) {
     userId: session.userId, config, prompt,
     status: 'PENDING',
     createdAt: Date.now(),
-    productCount: excel.length - 1,
+    productCount: excel ? excel.length - 1 : 0,
   }), { expirationTtl: 86400 * 7 })
 
   return json({ taskId })

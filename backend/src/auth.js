@@ -2,32 +2,30 @@ export async function hashPassword(password) {
   const encoder = new TextEncoder()
   const salt = crypto.getRandomValues(new Uint8Array(16))
   const keyMaterial = await crypto.subtle.importKey(
-    'raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits', 'deriveKey']
+    'raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']
   )
-  const key = await crypto.subtle.deriveKey(
+  const rawKey = await crypto.subtle.deriveBits(
     { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-    keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['encrypt']
+    keyMaterial, 256
   )
-  const rawKey = await crypto.subtle.exportKey('raw', key)
-  const saltHex = btoa(String.fromCharCode(...salt))
-  const keyHex = btoa(String.fromCharCode(...new Uint8Array(rawKey)))
-  return `${saltHex}:${keyHex}`
+  const saltB64 = btoa(String.fromCharCode(...salt))
+  const keyB64 = btoa(String.fromCharCode(...new Uint8Array(rawKey)))
+  return `${saltB64}:${keyB64}`
 }
 
 export async function verifyPassword(password, stored) {
-  const [saltHex, keyHex] = stored.split(':')
-  const salt = Uint8Array.from(atob(saltHex), c => c.charCodeAt(0))
+  const [saltB64, keyB64] = stored.split(':')
+  const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0))
   const encoder = new TextEncoder()
   const keyMaterial = await crypto.subtle.importKey(
-    'raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits', 'deriveKey']
+    'raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']
   )
-  const key = await crypto.subtle.deriveKey(
+  const rawKey = await crypto.subtle.deriveBits(
     { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-    keyMaterial, { name: 'AES-GCM', length: 256 }, true, ['encrypt']
+    keyMaterial, 256
   )
-  const rawKey = await crypto.subtle.exportKey('raw', key)
-  const computedHex = btoa(String.fromCharCode(...new Uint8Array(rawKey)))
-  return computedHex === keyHex
+  const computedB64 = btoa(String.fromCharCode(...new Uint8Array(rawKey)))
+  return computedB64 === keyB64
 }
 
 export function generateToken() {

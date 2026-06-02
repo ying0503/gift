@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 
-const API = 'http://localhost:8787'
+const API = import.meta.env.VITE_API_URL || ''
 
 export { API }
 
@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
     const res = await fetch(`${API}/api/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Login failed')
@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
     const res = await fetch(`${API}/api/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Registration failed')
