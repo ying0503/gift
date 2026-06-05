@@ -30,8 +30,20 @@ export default {
       if (path === '/api/albums' && request.method === 'GET') {
         return handleAlbums(request, env)
       }
+      if (path === '/api/digital-album' && request.method === 'GET') {
+        return handleGetDigitalAlbum(request, env)
+      }
+      if (path === '/api/digital-album' && request.method === 'POST') {
+        return handleSaveDigitalAlbum(request, env)
+      }
+      if (path === '/api/album' && request.method === 'GET') {
+        return handleGetPublicAlbum(request, env)
+      }
+      if (path === '/api/album/publish' && request.method === 'POST') {
+        return handlePublishAlbum(request, env)
+      }
       if (path === '/api/ping' && request.method === 'GET') {
-        return json({ ok: true, hasMaiziaiKey: !!env.MAIZIAI_API_KEY })
+        return json({ ok: true, hasMaiziaiKey: !!env.MAIZIAI_API_KEY, hasAgnesKey: !!env.AGNES_API_KEY })
       }
       return json({ error: 'Not found' }, 404)
     } catch (e) {
@@ -130,30 +142,6 @@ async function handleLogout(request, env) {
   return json({ success: true })
 }
 
-const WAN_API = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/image-generation/generation'
-
-function buildPrompt(config, excel) {
-  const rows = excel.slice(1)
-  const total = rows.length
-  const productList = rows.map((row, i) => {
-    const name = row[1] || row[0] || ''
-    const desc = row[2] ? String(row[2]).slice(0, 100) : ''
-    return `${i + 1}. ${name}${desc ? ` - ${desc}` : ''}`
-  }).join('\n')
-
-  const bannerCount = Math.min(3, total)
-  const gridCount = total - bannerCount
-
-  return `设计一张完整的礼品画册，板式为"顶通+礼品列表"，色调：${config.color}。
-顶部是通栏广告位区域（占画面约30%高度），展示前${bannerCount}个产品，生成对应的产品图片。
-${gridCount > 0 ? `下方是产品列表网格区域（3列），展示剩余${gridCount}个产品，每个产品生成对应的产品图片。` : ''}
-每个产品展示：产品图片 + 品名。
-画面要精美有质感，适合商务送礼场景。
-总共${total}个产品。
-礼品列表：
-${productList}`
-}
-
 async function handleGenerate(request, env) {
   const auth = request.headers.get('Authorization')
   if (!auth || !auth.startsWith('Bearer ')) return error('Unauthorized', 401)
@@ -163,24 +151,14 @@ async function handleGenerate(request, env) {
   if (!raw) return error('Invalid token', 401)
   const session = JSON.parse(raw)
 
-  const { config, excel, images } = await request.json()
+  const { config, images } = await request.json()
   if (!config) return error('Missing config', 400)
 
   const hasImages = images && images.length
 
-  const prompt = config.prompt || buildPrompt(config, excel)
+  const prompt = config.prompt || ''
 
-  const isMaiziai = config.model === 'maiziai-chatgpt-image-2' || config.model === 'gpt-image-2-official'
-
-  const wanSizeMap = {
-    'auto': '1024*1024',
-    '1:1': '1024*1024',
-    '16:9': '1920*1080',
-    '9:16': '1080*1920',
-    '4:3': '1024*768',
-    '3:4': '768*1024',
-  }
-  const apiSize = wanSizeMap[config.size] || '1024*1024'
+  const isMaiziai = config.model === 'maiziai-chatgpt-image-2'
 
   if (isMaiziai) {
     const maiziaiKey = env.MAIZIAI_API_KEY
@@ -214,43 +192,87 @@ async function handleGenerate(request, env) {
       userId: session.userId, config, prompt,
       status: 'PENDING',
       createdAt: Date.now(),
-      productCount: excel ? excel.length - 1 : 0,
+      productCount: 0,
       maiziaiTaskId,
     }), { expirationTtl: 86400 * 7 })
 
     return json({ taskId })
   }
 
-  // WAN API
-  const res = await fetch(WAN_API, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.DASHSCOPE_API_KEY}`,
-      'X-DashScope-Async': 'enable',
-    },
-    body: JSON.stringify({
-      model: config.model || 'wan2.7-image',
-      input: {
-        messages: [{ role: 'user', content: [{ text: prompt }] }],
+  // Agnes API (synchronous)
+  const isAgnes = config.model === 'agnes-image-2.1-flash'
+  if (isAgnes) {
+    const agnesKey = env.AGNES_API_KEY
+    if (!agnesKey) return error('AGNES_API_KEY not configured', 500)
+
+    const agnesSizeMap = {
+      'auto': '1024x1024',
+      '1:1': '1024x1024',
+      '16:9': '1920x1080',
+      '9:16': '1080x1920',
+      '4:3': '1024x768',
+      '3:4': '768x1024',
+    }
+    const apiSize = agnesSizeMap[config.size] || '1024x1024'
+    const prompt = config.prompt || ''
+
+    const body = {
+      model: 'agnes-image-2.1-flash',
+      prompt,
+      size: apiSize,
+      n: 1,
+    }
+    if (hasImages) {
+      body.extra_body = {
+        image: images.slice(0, 1),
+        response_format: 'url',
+      }
+    }
+
+    const res = await fetch('https://apihub.agnes-ai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${agnesKey}`,
       },
-      parameters: { size: apiSize, n: 1, watermark: false },
-    }),
-  })
-  const data = await res.json()
-  if (!res.ok) return error(data.message || 'API call failed', res.status)
+      body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    if (!res.ok) return error(data.error?.message || 'Agnes API call failed', res.status)
 
-  const taskId = data.output?.task_id
-  if (!taskId) return error('No task_id returned', 500)
+    const imageUrl = data.data?.[0]?.url
+    if (!imageUrl) return error('No image URL from Agnes API', 500)
 
-  await env.GIFT_KV.put(`task:${taskId}`, JSON.stringify({
-    userId: session.userId, config, prompt,
-    status: 'PENDING',
-    createdAt: Date.now(),
-    productCount: excel ? excel.length - 1 : 0,
-  }), { expirationTtl: 86400 * 7 })
+    const taskId = crypto.randomUUID()
+    await env.GIFT_KV.put(`task:${taskId}`, JSON.stringify({
+      userId: session.userId, config, prompt: prompt,
+      status: 'SUCCEEDED',
+      imageUrl,
+      createdAt: Date.now(),
+      productCount: 0,
+    }), { expirationTtl: 86400 * 7 })
 
-  return json({ taskId })
+    const albumId = crypto.randomUUID().slice(0, 8)
+    const album = {
+      id: albumId,
+      userId: session.userId,
+      taskId,
+      imageUrl,
+      config,
+      prompt,
+      productCount: 0,
+      createdAt: Date.now(),
+    }
+    await env.GIFT_KV.put(`album:${albumId}`, JSON.stringify(album), { expirationTtl: 86400 * 30 })
+    const listData = await env.GIFT_KV.get(`user_albums:${session.userId}`)
+    const list = listData ? JSON.parse(listData) : []
+    list.unshift(albumId)
+    await env.GIFT_KV.put(`user_albums:${session.userId}`, JSON.stringify(list.slice(0, 50)), { expirationTtl: 86400 * 30 })
+
+    return json({ taskId })
+  }
+
+  return error('Unknown model: ' + config.model, 400)
 }
 
 async function handleGenerateStatus(request, env) {
@@ -299,58 +321,52 @@ async function handleGenerateStatus(request, env) {
     }
   }
 
-  // Fallback to WAN API query
-  const res = await fetch(`https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`, {
-    headers: { Authorization: `Bearer ${env.DASHSCOPE_API_KEY}` },
-  })
-  const data = await res.json()
-  if (!res.ok) return error(data.message || 'Query failed', res.status)
+  return json({ taskStatus: 'PENDING', progress: 0, statusText: '等待中...', imageUrl: null })
+}
 
-  const taskStatus = data.output?.task_status
-  let progress = 0
-  let imageUrl = null
-  let statusText = '处理中...'
+async function handleGetDigitalAlbum(request, env) {
+  const auth = request.headers.get('Authorization')
+  if (!auth || !auth.startsWith('Bearer ')) return error('Unauthorized', 401)
+  const token = auth.slice(7)
+  const sessionData = await env.AUTH_KV.get(`token:${token}`)
+  if (!sessionData) return error('Invalid token', 401)
+  const session = JSON.parse(sessionData)
+  const data = await env.GIFT_KV.get(`digital_album:${session.userId}`)
+  return json(data ? JSON.parse(data) : { categories: [], bannerUrl: null })
+}
 
-  if (taskStatus === 'PENDING') {
-    progress = 10
-    statusText = '任务已提交，排队中...'
-  } else if (taskStatus === 'RUNNING') {
-    progress = 40
-    statusText = '正在生成图片...'
-  } else if (taskStatus === 'SUCCEEDED') {
-    progress = 100
-    statusText = '生成完成'
-    const choice = data.output?.choices?.[0]
-    imageUrl = choice?.message?.content?.[0]?.image || choice?.message?.content?.[0]?.image_url || null
+async function handleSaveDigitalAlbum(request, env) {
+  const auth = request.headers.get('Authorization')
+  if (!auth || !auth.startsWith('Bearer ')) return error('Unauthorized', 401)
+  const token = auth.slice(7)
+  const sessionData = await env.AUTH_KV.get(`token:${token}`)
+  if (!sessionData) return error('Invalid token', 401)
+  const session = JSON.parse(sessionData)
+  const body = await request.json()
+  if (!body || !Array.isArray(body.categories)) return error('Invalid data', 400)
+  const existing = await env.GIFT_KV.get(`digital_album:${session.userId}`)
+  const current = existing ? JSON.parse(existing) : {}
+  await env.GIFT_KV.put(`digital_album:${session.userId}`, JSON.stringify({ ...current, categories: body.categories, bannerUrl: body.bannerUrl || current.bannerUrl || null }), { expirationTtl: 86400 * 30 })
+  return json({ success: true })
+}
 
-    if (imageUrl) {
-      const taskData = await env.GIFT_KV.get(`task:${taskId}`)
-      if (taskData) {
-        const task = JSON.parse(taskData)
-        const albumId = crypto.randomUUID().slice(0, 8)
-        const album = {
-          id: albumId,
-          userId: task.userId,
-          taskId,
-          imageUrl,
-          config: task.config,
-          prompt: task.prompt,
-          productCount: task.productCount,
-          createdAt: task.createdAt,
-        }
-        await env.GIFT_KV.put(`album:${albumId}`, JSON.stringify(album), { expirationTtl: 86400 * 30 })
-        const listData = await env.GIFT_KV.get(`user_albums:${task.userId}`)
-        const list = listData ? JSON.parse(listData) : []
-        list.unshift(albumId)
-        await env.GIFT_KV.put(`user_albums:${task.userId}`, JSON.stringify(list.slice(0, 50)), { expirationTtl: 86400 * 30 })
-      }
-    }
-  } else if (taskStatus === 'FAILED') {
-    progress = -1
-    statusText = data.output?.message || '生成失败'
-  }
+async function handleGetPublicAlbum(request, env) {
+  const data = await env.GIFT_KV.get('public_album_data')
+  return json(data ? JSON.parse(data) : { categories: [], bannerUrl: null })
+}
 
-  return json({ taskStatus, progress, statusText, imageUrl })
+async function handlePublishAlbum(request, env) {
+  const auth = request.headers.get('Authorization')
+  if (!auth || !auth.startsWith('Bearer ')) return error('Unauthorized', 401)
+  const token = auth.slice(7)
+  const sessionData = await env.AUTH_KV.get(`token:${token}`)
+  if (!sessionData) return error('Invalid token', 401)
+  const session = JSON.parse(sessionData)
+  const userData = await env.GIFT_KV.get(`digital_album:${session.userId}`)
+  if (!userData) return error('No album data', 404)
+  const parsed = JSON.parse(userData)
+  await env.GIFT_KV.put('public_album_data', JSON.stringify(parsed), { expirationTtl: 86400 * 30 })
+  return json({ success: true })
 }
 
 async function handleAlbums(request, env) {

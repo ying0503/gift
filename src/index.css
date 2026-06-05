@@ -267,6 +267,10 @@ body {
   width: 100%;
 }
 .header-inner h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
+.header-nav { display: flex; gap: 4px; }
+.header-tab { padding: 6px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; color: #aaa; transition: all .15s; }
+.header-tab:hover { color: #fff; background: rgba(255,255,255,.08); }
+.header-tab.active { color: #fff; background: rgba(255,255,255,.12); font-weight: 600; }
 .header-right { display: flex; align-items: center; gap: 12px; }
 .header-user { font-size: 13px; color: #aaa; }
 
@@ -293,6 +297,165 @@ body {
   white-space: nowrap;
 }
 .dropdown-item:hover { background: #f5f5f5; }
+
+/* Digital album tree */
+.album-tree-list {
+  flex: 1;
+  overflow: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.album-tree-list-compact {
+  padding: 6px 5px;
+  gap: 5px;
+}
+.album-tree-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: #ccc;
+  font-size: 15px;
+}
+.album-tree-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.album-tree-children {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.album-tree-node {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  line-height: 1.35;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.album-tree-node-level1 {
+  min-height: 38px;
+  padding: 8px 10px 8px 12px;
+  background: #eef2f7;
+  border-color: #dfe4ec;
+  color: #2f3a4c;
+  font-size: 15px;
+  font-weight: 600;
+}
+.album-tree-node-level1.active {
+  background: #1a1a2e;
+  border-color: #1a1a2e;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(26,26,46,.16);
+}
+.album-tree-node-level2 {
+  width: calc(100% - 18px);
+  min-height: 34px;
+  margin-left: 18px;
+  padding: 7px 10px;
+  background: #f7f8fb;
+  border-color: #eceff4;
+  color: #5f6775;
+  font-size: 14px;
+  font-weight: 500;
+}
+.album-tree-node-level2.active {
+  background: #e3e8ff;
+  border-color: #c8d2ff;
+  color: #1a1a2e;
+  font-weight: 600;
+}
+.album-tree-node-compact {
+  border-radius: 6px;
+  min-height: 0;
+  padding: 5px 6px;
+  font-size: 11px;
+}
+.album-tree-node-level2.album-tree-node-compact {
+  width: calc(100% - 10px);
+  margin-left: 10px;
+  padding: 4px 5px;
+  font-size: 10px;
+}
+.album-tree-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.album-tree-edit {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #1a1a2e;
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 14px;
+  outline: none;
+}
+.album-tree-action {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  color: currentColor;
+  cursor: pointer;
+  opacity: .42;
+  font-size: 13px;
+  line-height: 1;
+}
+.album-tree-action-add {
+  font-size: 16px;
+}
+.album-tree-node:hover .album-tree-action,
+.album-tree-node.active .album-tree-action {
+  opacity: .75;
+}
+.album-tree-node:hover {
+  border-color: #cfd6e2;
+}
+.album-tree-list-preview .album-tree-node-level1 {
+  width: 100px;
+  padding-top: 13px;
+  padding-bottom: 13px;
+  background: #2f9e44;
+  border-color: #2b8a3e;
+  color: #fff;
+}
+.album-tree-list-preview .album-tree-node-level1.active {
+  background: #237032;
+  border-color: #237032;
+  box-shadow: 0 4px 12px rgba(35,112,50,.18);
+}
+.album-tree-list-preview .album-tree-node-level2 {
+  width: 100px;
+  margin-left: 0;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  background: #fff4bf;
+  border-color: #f1df8f;
+  color: #6b5b12;
+  border-radius: 6px;
+}
+.album-tree-list-preview .album-tree-node-level2.active {
+  background: #ffe680;
+  border-color: #f0cf4f;
+  color: #3f3509;
+}
+.album-tree-list-preview .album-tree-node-level2.album-tree-node-compact {
+  width: 100px;
+  margin-left: 0;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  font-size: 14px;
+}
+.album-tree-list-preview .album-tree-node-level1.album-tree-node-compact {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
 
 .auth-page {
   display: flex;

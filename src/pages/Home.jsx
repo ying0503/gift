@@ -1,19 +1,10 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
-import * as XLSX from 'xlsx'
-import JSZip from 'jszip'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { API } from '../AuthContext'
 
-const RATIOS = ['auto', '1:1', '16:9', '9:16', '4:3', '3:4']
-
 export default function Home() {
-  const [size, setSize] = useState('auto')
   const [image_size, setImageSize] = useState('1K')
+  const [count, setCount] = useState(1)
   const [model, setModel] = useState('maiziai-chatgpt-image-2')
-  const [excelData, setExcelData] = useState(null)
-  const [excelFileName, setExcelFileName] = useState('')
-  const [excelError, setExcelError] = useState('')
-  const [excelImages, setExcelImages] = useState(null)
-  const [excelMerges, setExcelMerges] = useState(null)
   const [generating, setGenerating] = useState(false)
   const [promptText, setPromptText] = useState('')
 
@@ -51,24 +42,6 @@ export default function Home() {
   }, [showToast])
   const PAGE_SIZE = 20
 
-  const computedPrompt = useMemo(() => {
-    const rows = excelData ? excelData.slice(1) : []
-    if (!rows.length) return ''
-    const products = rows.map((row, i) => {
-      const name = row[1] || row[0]
-      const desc = row[2] ? String(row[2]).slice(0, 80) : ''
-      return `${i + 1}. ${name}${desc ? ` - ${desc}` : ''}`
-    }).join('\n')
-    return `${size && size !== 'auto' ? `比例为${size}的` : ''}营销图片
-
-礼品规格：
-${products}`
-  }, [size, excelData])
-
-  useEffect(() => {
-    if (computedPrompt) setPromptText(computedPrompt)
-  }, [computedPrompt])
-
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) return
@@ -77,167 +50,6 @@ ${products}`
       .then(data => { if (data.albums) { setAlbums(data.albums); setAlbumPage(0) } })
       .catch(() => {})
   }, [])
-
-  const excelInputRef = useRef()
-
-  const onExcelFile = async (file) => {
-    setExcelError('')
-    setExcelData(null)
-    setExcelFileName('')
-    setExcelImages(null)
-
-    if (!file) return
-
-    const ext = file.name.split('.').pop().toLowerCase()
-    if (!['xlsx', 'xls'].includes(ext)) {
-      setExcelError('仅支持 .xlsx 和 .xls 格式文件')
-      return
-    }
-
-    try {
-      const arrayBuffer = await file.arrayBuffer()
-
-      const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' })
-      const sheet = workbook.Sheets[workbook.SheetNames[0]]
-      const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false, cellDates: true })
-
-      const merges = sheet['!merges'] || []
-      const mergeMap = {}
-      for (const m of merges) {
-        for (let r = m.s.r; r <= m.e.r; r++) {
-          for (let c = m.s.c; c <= m.e.c; c++) {
-            const key = `${r}:${c}`
-            if (r === m.s.r && c === m.s.c) {
-              mergeMap[key] = { rowSpan: m.e.r - m.s.r + 1, colSpan: m.e.c - m.s.c + 1, anchor: true }
-            } else {
-              mergeMap[key] = { anchor: false }
-            }
-          }
-        }
-      }
-
-      if (!json || json.length === 0) {
-        setExcelError('文件为空，请检查内容')
-        return
-      }
-
-      const filtered = json.filter(row => row.some(cell => String(cell).trim() !== ''))
-
-      if (filtered.length === 0) {
-        setExcelError('文件为空，请检查内容')
-        return
-      }
-
-      // Extract images from xlsx via JSZip
-      const zip = await JSZip.loadAsync(arrayBuffer)
-      const mediaFolder = zip.folder('xl/media')
-      const imageMap = {}
-
-      if (mediaFolder) {
-        const imageFiles = []
-        mediaFolder.forEach((path, entry) => {
-          if (!entry.dir) imageFiles.push(entry)
-        })
-
-        if (imageFiles.length > 0) {
-          // Try to parse drawing XML for row mapping
-          const drawingFiles = {}
-          const drawingsFolder = zip.folder('xl/drawings')
-          if (drawingsFolder) {
-            drawingsFolder.forEach((path, entry) => {
-              if (!entry.dir) drawingFiles[path] = entry
-            })
-          }
-
-          // Parse drawing XML -> relationships -> map image to row
-          let rowToImages = {}
-
-          for (const [dPath, dEntry] of Object.entries(drawingFiles)) {
-            const dContent = await dEntry.async('string')
-
-            // Find relationships file
-            const dName = dPath.replace('.xml', '')
-            const relsPath = `xl/drawings/_rels/${dName}.xml.rels`
-            const relsEntry = zip.file(relsPath)
-            let relsMap = {}
-            if (relsEntry) {
-              const relsContent = await relsEntry.async('string')
-              const relMatches = relsContent.matchAll(/<Relationship\s+Id="([^"]+)"[^>]*Target="([^"]+)"/g)
-              for (const m of relMatches) {
-                const target = m[2].replace('..\\', '').replace('../', '')
-                relsMap[m[1]] = target
-              }
-            }
-
-            const picMatches = dContent.matchAll(
-              /<xdr:from>[\s\S]*?<xdr:col>(\d+)<\/xdr:col>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>[\s\S]*?<\/xdr:from>[\s\S]*?<a:blip\s+r:embed="([^"]+)"/g
-            )
-            for (const m of picMatches) {
-              const col = parseInt(m[1])
-              const row = parseInt(m[2])
-              const rId = m[3]
-              const imgPath = relsMap[rId]
-              if (imgPath) {
-                const imgEntry = zip.file(imgPath) || zip.file(`xl/${imgPath}`)
-                if (imgEntry) {
-                  if (!rowToImages[row]) rowToImages[row] = []
-                  rowToImages[row].push({ col, entry: imgEntry })
-                }
-              }
-            }
-          }
-
-          // Fallback: if no drawing mapping, show all images at end
-          if (Object.keys(rowToImages).length === 0) {
-            rowToImages = { _all: imageFiles }
-          }
-
-          // Convert to blob URLs
-          const resolved = {}
-          for (const [key, entries] of Object.entries(rowToImages)) {
-            resolved[key] = await Promise.all(
-              entries.map(async (item) => {
-                const entry = item.entry || item
-                const blob = await entry.async('blob')
-                const dataUrl = await new Promise(resolve => {
-                  const r = new FileReader()
-                  r.onloadend = () => resolve(r.result)
-                  r.readAsDataURL(blob)
-                })
-                return { url: dataUrl, blob, col: item.col }
-              })
-            )
-          }
-          imageMap._mapped = Object.keys(rowToImages).length > 0 && !rowToImages._all
-          imageMap.data = resolved
-        }
-      }
-
-      setExcelImages(imageMap)
-      setExcelMerges(mergeMap)
-      setExcelData(filtered)
-      setExcelFileName(file.name)
-    } catch {
-      setExcelError('文件解析失败，请确认文件格式正确')
-    }
-  }
-
-  const onExcelDrop = (e) => {
-    e.preventDefault()
-    const file = e.dataTransfer?.files?.[0]
-    if (file) onExcelFile(file)
-  }
-
-  const onExcelDragOver = (e) => { e.preventDefault(); e.currentTarget.style.background = 'rgba(26,26,46,0.06)' }
-  const onExcelDragLeave = (e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.85)' }
-
-  const clearExcel = () => {
-    setExcelData(null)
-    setExcelFileName('')
-    setExcelError('')
-    setExcelImages(null)
-    setExcelMerges(null)
-  }
 
   const canGenerate = model && promptText.length > 10
 
@@ -257,7 +69,7 @@ ${products}`
     setGenerations(g => [...g, { id, taskId: null, progress: 0, statusText: '准备中...', imageUrl: null, error: null, finished: false, prompt: promptText }])
 
     try {
-      const imgs = [...getOrderedImageUrls(excelImages), ...uploadedRefs.map(i => i.url)].filter(u => !removedRefs.has(u))
+      const imgs = uploadedRefs.map(i => i.url).filter(u => !removedRefs.has(u))
       const sized = imgs.length ? await Promise.all(imgs.map(ensureMinSize)) : []
       const sendImages = sized.length > 4 ? await compositeToGrid(sized) : sized
 
@@ -268,8 +80,7 @@ ${products}`
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          config: { size, model, image_size, prompt: promptText },
-          excel: excelData,
+          config: { size: '3:4', model, image_size, n: count, prompt: promptText },
           images: sendImages.length ? sendImages : undefined,
         }),
       })
@@ -372,15 +183,6 @@ ${products}`
     })
   }
 
-  function getOrderedImageUrls(excelImages) {
-    if (!excelImages?.data) return []
-    const entries = Object.entries(excelImages.data).filter(([k]) => k !== '_all').sort(([a], [b]) => parseInt(a) - parseInt(b))
-    const result = []
-    for (const [, imgs] of entries) for (const img of imgs) result.push(img.url)
-    if (excelImages.data._all) for (const img of excelImages.data._all) result.push(img.url)
-    return result
-  }
-
   function compositeToGrid(urls) {
     return new Promise(resolve => {
       const count = urls.length
@@ -422,19 +224,10 @@ ${products}`
       {toast && <div style={{ position: 'fixed', top: 100, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, background: 'linear-gradient(135deg, #52c41a, #389e0d)', color: '#fff', padding: '10px 28px', fontSize: 14, boxShadow: '0 4px 16px rgba(82,196,26,.35)', borderRadius: 8, animation: 'slideDown 0.2s ease-out' }}>{toast}</div>}
       <div className="home-layout" style={{ display: 'flex', alignItems: 'flex-start' }}>
       <div className="home-sidebar" style={{ flex: 3, minWidth: 0, marginTop: -24, marginLeft: -32, marginBottom: -24 }}>
-        <input
-          ref={excelInputRef}
-          type="file"
-          accept=".xlsx,.xls"
-          style={{ display: 'none' }}
-          onChange={e => { if (e.target.files[0]) onExcelFile(e.target.files[0]); e.target.value = '' }}
-        />
-
         {/* Prompt & Config */}
         <div className="card" style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0, marginBottom: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 500, color: '#555' }}>提示词</span>
-            <span onClick={() => excelInputRef.current?.click()} style={{ fontSize: 12, color: '#1a1a2e', cursor: 'pointer', fontWeight: 500 }}>导入 Excel</span>
           </div>
           <div>
             <textarea
@@ -459,12 +252,6 @@ ${products}`
           <div style={{ marginTop: 8 }}>
             <div className="config-row">
               <div className="config-item">
-                <label>比例</label>
-                <select value={size} onChange={e => setSize(e.target.value)}>
-                  {RATIOS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="config-item">
                 <label>分辨率</label>
                 <select value={image_size} onChange={e => setImageSize(e.target.value)}>
                   <option value="1K">1K</option>
@@ -472,14 +259,19 @@ ${products}`
                   <option value="4K">4K</option>
                 </select>
               </div>
+              <div className="config-item">
+                <label>数量</label>
+                <select value={count} onChange={e => setCount(Number(e.target.value))}>
+                  {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
             </div>
 
             <div style={{ marginTop: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>参考图片</div>
               <input ref={refInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); Promise.all(files.map(f => new Promise(r => { const fr = new FileReader(); fr.onload = () => r({ url: fr.result, blob: f }); fr.readAsDataURL(f) }))).then(results => setUploadedRefs(u => [...u, ...results])); e.target.value = '' }} />
-              {(excelImages?.data || uploadedRefs.length > 0) ? (() => {
-                const excelImgs = excelImages?.data ? Object.values(excelImages.data).flat() : []
-                const allRefs = [...excelImgs, ...uploadedRefs].filter(img => !removedRefs.has(img.url))
+              {uploadedRefs.length > 0 ? (() => {
+                const allRefs = uploadedRefs.filter(img => !removedRefs.has(img.url))
                 return allRefs.length > 0 ? (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {allRefs.slice(0, 9).map((img, i) => (
@@ -521,9 +313,7 @@ ${products}`
                 <label style={{ fontSize: 13, fontWeight: 500, color: '#555', display: 'block', marginBottom: 6 }}>选择模型 *</label>
                 <select value={model} onChange={e => setModel(e.target.value)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9', borderRadius: 6, fontSize: 14, background: '#fff' }}>
                 <option value="maiziai-chatgpt-image-2">maiziai-chatgpt-image-2</option>
-                <option value="gpt-image-2-official">gpt-image-2-official</option>
-                <option value="wan2.7-image">wan2.7-image</option>
-                <option value="wan2.7-image-pro">wan2.7-image-pro</option>
+                <option value="agnes-image-2.1-flash">agnes-image-2.1-flash</option>
                 </select>
               </div>
               <button
@@ -562,7 +352,6 @@ ${products}`
                 <div key={item.id} className="card" style={{ padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }} onClick={() => window.open(item.imageUrl, '_blank')}>
                   <img src={item.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, objectFit: 'cover' }} />
                   <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
-                    <div>{item.model || ''}</div>
                     <div style={{ color: '#999' }}>{new Date(item.id).toLocaleDateString('zh-CN')}</div>
                   </div>
                   {item.prompt && (
@@ -579,7 +368,6 @@ ${products}`
                 <div key={album.id} className="card" style={{ padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }} onClick={() => window.open(album.imageUrl, '_blank')}>
                   <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, objectFit: 'cover' }} />
                   <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
-                    <div>{album.config?.model || ''}</div>
                     <div style={{ color: '#999' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                   </div>
                   {album.prompt && (
@@ -634,7 +422,6 @@ ${products}`
                 <div key={item.id} className="card" style={{ padding: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }} onClick={() => window.open(item.imageUrl, '_blank')}>
                   <img src={item.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, objectFit: 'cover' }} />
                   <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
-                    <div>{item.model || ''}</div>
                     <div style={{ color: '#999' }}>{new Date(item.id).toLocaleDateString('zh-CN')}</div>
                   </div>
                   {item.prompt && (
@@ -657,7 +444,6 @@ ${products}`
                 >
                   <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, objectFit: 'cover' }} />
                   <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
-                    <div>{album.config?.model || ''}</div>
                     <div style={{ color: '#999' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                   </div>
                   {album.prompt && (
