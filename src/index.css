@@ -2,10 +2,11 @@
 html, body, #root { height: 100%; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   background: #f0f2f5;
-  color: #333;
-  line-height: 1.6;
+  color: rgba(0,0,0,.88);
+  font-size: 14px;
+  line-height: 1.5715;
 }
 
 .app {
@@ -15,14 +16,18 @@ body {
 }
 
 .app-header {
-  background: #1a1a2e;
-  color: #fff;
-  padding: 16px 32px;
+  background: #fff;
+  color: rgba(0,0,0,.88);
+  padding: 0 32px;
   text-align: center;
   flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom: 1px solid #f0f0f0;
+  height: 56px;
+  display: flex;
+  align-items: center;
 }
 .app-header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
 
@@ -38,14 +43,14 @@ body {
   border-radius: 8px;
   padding: 24px;
   margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  border: 1px solid #f0f0f0;
 }
 .card-title {
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 16px;
   padding-bottom: 10px;
-  border-bottom: 2px solid #1a1a2e;
+  border-bottom: 2px solid #f0f0f0;
 }
 
 /* Upload */
@@ -58,11 +63,11 @@ body {
   transition: border-color .3s;
   background: #fafafa;
 }
-.upload-zone:hover, .upload-zone.dragover { border-color: #1a1a2e; background: #f0f0ff; }
+.upload-zone:hover, .upload-zone.dragover { border-color: #1677FF; background: #E6F4FF; }
 .upload-zone p { color: #999; font-size: 14px; margin-top: 8px; }
 .upload-hint { font-size: 12px; color: #bbb; margin-top: 4px; }
 
-.upload-error { color: #e74c3c; font-size: 13px; margin-top: 8px; }
+.upload-error { color: #FF4D4F; font-size: 13px; margin-top: 8px; }
 
 .thumb-grid {
   display: flex;
@@ -123,7 +128,7 @@ body {
   background: #fff;
   appearance: auto;
 }
-.config-item select:focus { outline: none; border-color: #1a1a2e; }
+.config-item select:focus { outline: none; border-color: #1677FF; }
 
 /* Excel */
 .excel-zone {
@@ -138,7 +143,7 @@ body {
 .excel-zone:hover, .excel-zone.dragover { border-color: #27ae60; background: #f0fff4; }
 .excel-zone p { color: #999; font-size: 14px; margin-top: 8px; }
 
-.excel-error { color: #e74c3c; font-size: 13px; margin-top: 8px; }
+.excel-error { color: #FF4D4F; font-size: 13px; margin-top: 8px; }
 
 .excel-table-wrap {
   max-height: 360px;
@@ -186,12 +191,12 @@ body {
   transition: opacity .2s;
 }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn-primary { background: #1a1a2e; color: #fff; }
-.btn-primary:hover:not(:disabled) { background: #2d2d5e; }
-.btn-danger { background: #e74c3c; color: #fff; }
-.btn-danger:hover:not(:disabled) { background: #c0392b; }
-.btn-outline { background: transparent; color: #666; border: 1px solid #d9d9d9; }
-.btn-outline:hover:not(:disabled) { border-color: #999; color: #333; }
+.btn-primary { background: #1677FF; color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #4096FF; }
+.btn-danger { background: #FF4D4F; color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #FF7875; }
+.btn-outline { background: transparent; color: rgba(0,0,0,.88); border: 1px solid #d9d9d9; }
+.btn-outline:hover:not(:disabled) { border-color: #1677FF; color: #1677FF; }
 
 .generate-bar {
   text-align: center;
@@ -223,20 +228,20 @@ body {
 }
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #1a1a2e, #4a4a8e);
+  background: linear-gradient(90deg, #1677FF, #69B1FF);
   border-radius: 6px;
   transition: width .4s ease;
 }
 
-.progress-pct { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+.progress-pct { font-size: 28px; font-weight: 700; color: #1677FF; }
 .progress-status { font-size: 14px; color: #888; margin-top: 8px; }
 
 .loading-spinner {
   width: 48px;
   height: 48px;
   margin: 0 auto;
-  border: 4px solid #e0e0e0;
-  border-top-color: #1a1a2e;
+  border: 4px solid #f0f0f0;
+  border-top-color: #1677FF;
   border-radius: 50%;
   animation: spin .8s linear infinite;
 }
@@ -256,7 +261,7 @@ body {
   text-align: center;
   padding: 40px;
 }
-.error-card h2 { color: #e74c3c; margin-bottom: 12px; }
+.error-card h2 { color: #FF4D4F; margin-bottom: 12px; }
 .error-card p { color: #888; margin-bottom: 20px; }
 
 /* Auth */
@@ -268,11 +273,11 @@ body {
 }
 .header-inner h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
 .header-nav { display: flex; gap: 4px; }
-.header-tab { padding: 6px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; color: #aaa; transition: all .15s; }
-.header-tab:hover { color: #fff; background: rgba(255,255,255,.08); }
-.header-tab.active { color: #fff; background: rgba(255,255,255,.12); font-weight: 600; }
+.header-tab { padding: 6px 14px; border-radius: 6px; font-size: 14px; cursor: pointer; color: rgba(0,0,0,.45); transition: all .15s; }
+.header-tab:hover { color: #1677FF; background: #E6F4FF; }
+.header-tab.active { color: #1677FF; background: #E6F4FF; font-weight: 600; }
 .header-right { display: flex; align-items: center; gap: 12px; }
-.header-user { font-size: 13px; color: #aaa; }
+.header-user { font-size: 13px; color: rgba(0,0,0,.45); }
 
 .user-menu-wrap { position: relative; cursor: pointer; padding-bottom: 8px; margin-bottom: -8px; }
 .user-dropdown {
@@ -314,7 +319,7 @@ body {
 .album-tree-empty {
   padding: 40px 16px;
   text-align: center;
-  color: #ccc;
+  color: rgba(0,0,0,.25);
   font-size: 15px;
 }
 .album-tree-group {
@@ -341,33 +346,33 @@ body {
 .album-tree-node-level1 {
   min-height: 38px;
   padding: 8px 10px 8px 12px;
-  background: #eef2f7;
-  border-color: #dfe4ec;
-  color: #2f3a4c;
+  background: transparent;
+  border-color: transparent;
+  color: rgba(0,0,0,.88);
   font-size: 15px;
   font-weight: 600;
 }
 .album-tree-node-level1.active {
-  background: #1a1a2e;
-  border-color: #1a1a2e;
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(26,26,46,.16);
+  background: #E6F4FF;
+  border-color: transparent;
+  color: #1677FF;
+  box-shadow: none;
 }
 .album-tree-node-level2 {
   width: calc(100% - 18px);
   min-height: 34px;
   margin-left: 18px;
   padding: 7px 10px;
-  background: #f7f8fb;
-  border-color: #eceff4;
-  color: #5f6775;
+  background: transparent;
+  border-color: transparent;
+  color: rgba(0,0,0,.65);
   font-size: 14px;
   font-weight: 500;
 }
 .album-tree-node-level2.active {
-  background: #e3e8ff;
-  border-color: #c8d2ff;
-  color: #1a1a2e;
+  background: #E6F4FF;
+  border-color: transparent;
+  color: #1677FF;
   font-weight: 600;
 }
 .album-tree-node-compact {
@@ -392,18 +397,20 @@ body {
 .album-tree-edit {
   flex: 1;
   min-width: 0;
-  border: 1px solid #1a1a2e;
+  border: 1px solid #d9d9d9;
   border-radius: 6px;
   padding: 3px 7px;
   font-size: 14px;
   outline: none;
+  background: #fff;
+  color: rgba(0,0,0,.88);
 }
 .album-tree-action {
   flex: 0 0 auto;
   margin-left: 6px;
-  color: currentColor;
+  color: rgba(0,0,0,.25);
   cursor: pointer;
-  opacity: .42;
+  opacity: 1;
   font-size: 13px;
   line-height: 1;
 }
@@ -412,18 +419,24 @@ body {
 }
 .album-tree-node:hover .album-tree-action,
 .album-tree-node.active .album-tree-action {
-  opacity: .75;
+  color: rgba(0,0,0,.45);
 }
 .album-tree-node:hover {
-  border-color: #cfd6e2;
+  border-color: transparent;
+  background: #f5f5f5;
+}
+.album-tree-list-preview {
+  padding: 6px;
+  gap: 5px;
 }
 .album-tree-list-preview .album-tree-node-level1 {
-  width: 100px;
-  padding-top: 13px;
-  padding-bottom: 13px;
+  width: 78px;
+  padding: 7px 10px;
   background: #2f9e44;
   border-color: #2b8a3e;
   color: #fff;
+  font-size: 14px;
+  border-radius: 3px;
 }
 .album-tree-list-preview .album-tree-node-level1.active {
   background: #237032;
@@ -431,10 +444,9 @@ body {
   box-shadow: 0 4px 12px rgba(35,112,50,.18);
 }
 .album-tree-list-preview .album-tree-node-level2 {
-  width: 100px;
+  width: 78px;
   margin-left: 0;
-  padding-top: 12px;
-  padding-bottom: 12px;
+  padding: 6px 10px;
   background: #fff4bf;
   border-color: #f1df8f;
   color: #6b5b12;
@@ -446,15 +458,14 @@ body {
   color: #3f3509;
 }
 .album-tree-list-preview .album-tree-node-level2.album-tree-node-compact {
-  width: 100px;
+  width: 78px;
   margin-left: 0;
-  padding-top: 15px;
-  padding-bottom: 15px;
+  padding: 6px 10px;
   font-size: 14px;
 }
 .album-tree-list-preview .album-tree-node-level1.album-tree-node-compact {
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 3px;
 }
 
 .auth-page {
@@ -483,8 +494,8 @@ body {
   transition: all .2s;
 }
 .auth-tab.active {
-  color: #1a1a2e;
-  border-bottom: 2px solid #1a1a2e;
+  color: #1677FF;
+  border-bottom: 2px solid #1677FF;
   margin-bottom: -2px;
 }
 .auth-field {
@@ -506,13 +517,13 @@ body {
   outline: none;
   transition: border-color .2s;
 }
-.auth-field input:focus { border-color: #1a1a2e; }
+.auth-field input:focus { border-color: #1677FF; }
 .auth-error {
-  color: #e74c3c;
+  color: #FF4D4F;
   font-size: 13px;
   margin-bottom: 12px;
   padding: 8px 12px;
-  background: #fef2f2;
+  background: #fff2f0;
   border-radius: 4px;
 }
 .auth-submit {
@@ -566,7 +577,28 @@ body {
   .desktop-only { display: block; }
 }
 
+.album-card-hover:hover {
+  border-color: #1677FF !important;
+  box-shadow: 0 2px 8px rgba(22,119,255,.12);
+}
+
+.add-card-hover:hover {
+  border-color: #1677FF !important;
+  color: #1677FF !important;
+}
+
+.type-btn:hover {
+  opacity: .85;
+}
+
 @keyframes slideDown {
   from { transform: translateX(-50%) translateY(-100%); }
   to { transform: translateX(-50%) translateY(0); }
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Landing Page uses inline styles in LandingPage.jsx */

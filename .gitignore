@@ -29,3 +29,9 @@ dist-ssr
 !.dev.vars.example
 .env*
 !.env.example
+
+# OSS compressed package
+ali-oss-*.tgz
+
+# Local deploy script
+deploy-local.sh
