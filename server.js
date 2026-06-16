@@ -381,7 +381,7 @@ app.post('/api/generate/categories', auth, async (req, res) => {
         model: modelConfig.model,
         messages: [
           { role: 'system', content: '你是一个企业礼品策划专家。根据员工福利发放场景，生成节日礼品分类名称。' },
-          { role: 'user', content: '为企业员工福利礼品画册生成3-5个节日礼品分类名称，用于企业给员工发放礼品的节日。要求：简洁大气，每个2-4个字，直接输出，一行一个，不要编号。' },
+          { role: 'user', content: '为企业员工福利礼品画册生成6-8个节日礼品分类名称，用于企业给员工发放礼品的节日。要求：简洁大气，每个2-4个字，直接输出，一行一个，不要编号。' },
         ],
         max_tokens: maxTokens, temperature,
       }),
@@ -463,6 +463,7 @@ app.get('/api/album/list', auth, async (req, res) => {
       categories: typeof r.categories === 'string' ? JSON.parse(r.categories) : r.categories,
       bannerUrl: r.banner_url,
       updatedAt: r.updated_at,
+      createdAt: r.created_at,
     }))
     res.json({ albums: list })
   } catch (e) { res.status(500).json({ error: e.message }) }
@@ -474,9 +475,9 @@ app.post('/api/album/publish', auth, async (req, res) => {
     if (!data) return res.status(404).json({ error: 'No album data' })
     const parsed = { categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories, bannerUrl: data.banner_url }
     const { id: existingId } = req.body
-    const albumId = await db.savePublicAlbum(parsed, req.user.userId, existingId || undefined)
-    console.log('Publish done:', albumId, 'existing:', existingId)
-    res.json({ success: true, id: albumId })
+    const result = await db.savePublicAlbum(parsed, req.user.userId, existingId || undefined)
+    console.log('Publish done:', result.id, 'existing:', existingId)
+    res.json({ success: true, id: result.id })
   } catch (e) { console.error('Publish error:', e.message); res.status(500).json({ error: e.message }) }
 })
 

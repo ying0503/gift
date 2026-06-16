@@ -47,7 +47,14 @@ export default function DigitalAlbum({ setPreviewSave }) {
     if (loading || initialUrlSync.current) return
     initialUrlSync.current = true
     if (urlCatId) {
-      if (!categories.some(c => c.id === urlCatId) && urlCatId !== editingPublicAlbumId.current) { navigate('/digital-album', { replace: true }); return }
+      if (urlCatId === editingPublicAlbumId.current && categories.length > 0) {
+        const firstId = categories[0].id
+        setSelectedCat(firstId)
+        setExpandedCats(s => new Set(s).add(firstId))
+        navigate(`/digital-album/${firstId}`, { replace: true })
+        return
+      }
+      if (!categories.some(c => c.id === urlCatId)) { navigate('/digital-album', { replace: true }); return }
       setSelectedCat(urlCatId)
       setExpandedCats(s => new Set(s).add(urlCatId))
     }
@@ -69,7 +76,14 @@ export default function DigitalAlbum({ setPreviewSave }) {
   useEffect(() => {
     if (loading || !initialUrlSync.current) return
     if (urlCatId) {
-      if (!categories.some(c => c.id === urlCatId) && urlCatId !== editingPublicAlbumId.current) { navigate('/digital-album', { replace: true }); return }
+      if (urlCatId === editingPublicAlbumId.current && categories.length > 0) {
+        const firstId = categories[0].id
+        setSelectedCat(firstId)
+        setExpandedCats(s => new Set(s).add(firstId))
+        navigate(`/digital-album/${firstId}`, { replace: true })
+        return
+      }
+      if (!categories.some(c => c.id === urlCatId)) { navigate('/digital-album', { replace: true }); return }
       setSelectedCat(urlCatId)
       setExpandedCats(s => new Set(s).add(urlCatId))
     } else {
@@ -246,8 +260,8 @@ export default function DigitalAlbum({ setPreviewSave }) {
         body: JSON.stringify({ model: textModel, temperature, maxTokens }),
       })
       const data = await res.json()
-      if (data.categories?.length) {
-        const newCats = data.categories.map(name => ({ id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name, items: [] }))
+      if (data.names?.length) {
+        const newCats = data.names.map(name => ({ id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name, items: [] }))
         const merged = [...categories, ...newCats]
         setCategories(merged)
         await fetch(`${API}/api/digital-album`, {
@@ -407,23 +421,40 @@ export default function DigitalAlbum({ setPreviewSave }) {
   }, [categories, save, selectedItem, navigate])
 
   const removeAlbum = useCallback((catId, itemId, albumId) => {
-    save(categories.map(c => c.id === catId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, albums: i.albums.filter(a => a.albumId !== albumId) } : i) } : c))
-  }, [categories, save])
+    setCategories(prev => {
+      const next = prev.map(c => c.id === catId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, albums: i.albums.filter(a => a.albumId !== albumId) } : i) } : c)
+      const token = localStorage.getItem('token')
+      if (token) {
+        fetch(`${API}/api/digital-album`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ categories: next, bannerUrl: globalBannerUrl }),
+        }).catch(() => {})
+      }
+      return next
+    })
+  }, [globalBannerUrl])
 
   const removeComboItem = useCallback((catId, itemId, albumId, itemAlbumId) => {
-    const newCats = categories.map(c => c.id === catId ? {
-      ...c, items: c.items.map(i => i.id === itemId ? {
-        ...i, albums: i.albums.map(a => a.albumId === albumId ? {
-          ...a, comboItems: (a.comboItems || []).filter(item => item.albumId !== itemAlbumId)
-        } : a)
-      } : i)
-    } : c)
-    save(newCats)
-    const cat = newCats.find(c => c.id === catId)
-    const item = cat?.items.find(i => i.id === itemId)
-    const updated = item?.albums.find(a => a.albumId === albumId)
-    if (updated) setViewAlbum(updated)
-  }, [categories, save])
+    setCategories(prev => {
+      const next = prev.map(c => c.id === catId ? {
+        ...c, items: c.items.map(i => i.id === itemId ? {
+          ...i, albums: i.albums.map(a => a.albumId === albumId ? {
+            ...a, comboItems: (a.comboItems || []).filter(item => item.albumId !== itemAlbumId)
+          } : a)
+        } : i)
+      } : c)
+      const token = localStorage.getItem('token')
+      if (token) {
+        fetch(`${API}/api/digital-album`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ categories: next, bannerUrl: globalBannerUrl }),
+        }).catch(() => {})
+      }
+      return next
+    })
+  }, [globalBannerUrl])
 
   const updateAlbumBanner = useCallback((catId, itemId, albumId, bannerUrl) => {
     const newCats = categories.map(c => c.id === catId ? {
@@ -642,26 +673,22 @@ export default function DigitalAlbum({ setPreviewSave }) {
   }
 
   return (
-    <div>
+    <div style={{ maxWidth: 920, margin: '0 auto' }}>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadBanner} style={{ display: 'none' }} />
       <div className="card" style={{ padding: 16, marginBottom: 12 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>顶部氛围图</div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
-          <select value={festival} onChange={e => setFestival(e.target.value)} style={{ padding: '6px 10px', fontSize: 14, borderRadius: 6, border: '1px solid #d9d9d9', outline: 'none', background: '#fff' }}>
-            <option value="">选择节日</option>
-            {festivals.map(f => <option key={f} value={f}>{f}</option>)}
-          </select>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 12 }}>
           <button
             onClick={generateGlobalBanner}
-            disabled={!festival || generatingPrompt}
+            disabled={generatingPrompt}
             style={{
               padding: '8px 20px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
               background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
-              color: '#fff', border: 'none', borderRadius: 8, cursor: (!festival || generatingPrompt) ? 'not-allowed' : 'pointer',
-              opacity: (!festival || generatingPrompt) ? .5 : 1, transition: 'opacity .2s',
+              color: '#fff', border: 'none', borderRadius: 8, cursor: generatingPrompt ? 'not-allowed' : 'pointer',
+              opacity: generatingPrompt ? .5 : 1, transition: 'opacity .2s',
             }}
           >
-            {generatingPrompt ? 'AI文案策划中...' : 'AI文案策划'}
+            {generatingPrompt ? 'AI智能生成中...' : 'AI智能生成'}
           </button>
           <button onClick={() => fileInputRef.current?.click()} disabled={uploadingBanner} style={{
             padding: '8px 20px', fontSize: 14, whiteSpace: 'nowrap',
@@ -686,14 +713,14 @@ export default function DigitalAlbum({ setPreviewSave }) {
             <img src={globalBannerUrl} alt="" style={{ maxWidth: '100%', height: 'auto', display: 'block', borderRadius: 6 }} />
             <button
               onClick={generateGlobalBanner}
-              disabled={!festival || generatingPrompt}
+              disabled={generatingPrompt}
               style={{
                 position: 'absolute', top: -36, right: 0,
                 padding: '6px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
                 background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
                 color: '#fff', border: 'none', borderRadius: '0 8px 0 0',
-                cursor: (!festival || generatingPrompt) ? 'not-allowed' : 'pointer',
-                opacity: (!festival || generatingPrompt) ? .5 : 1, transition: 'opacity .2s',
+                cursor: generatingPrompt ? 'not-allowed' : 'pointer',
+                opacity: generatingPrompt ? .5 : 1, transition: 'opacity .2s',
               }}
             >重新生成</button>
           </div>
@@ -752,7 +779,7 @@ export default function DigitalAlbum({ setPreviewSave }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, maxWidth: 640 }}>
         {currentViewAlbum?.type === '组合' ? (
           <div className="card" style={{ padding: 16, marginBottom: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -788,7 +815,7 @@ export default function DigitalAlbum({ setPreviewSave }) {
               )}
             </div>
             {bannerError && <div style={{ color: '#FF4D4F', fontSize: 13, marginBottom: 12 }}>{bannerError}</div>}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, alignItems: 'start' }}>
               {(currentViewAlbum.comboItems || []).map(item => {
                 const itemUrl = albumMap[item.albumId]?.imageUrls?.[0] || albumMap[item.albumId]?.imageUrl || item.imageUrls?.[0] || item.imageUrl
                 const liveParams = allAlbums.find(x => x.albumId === item.albumId)?.productParams || item.productParams || {}
@@ -854,7 +881,7 @@ export default function DigitalAlbum({ setPreviewSave }) {
         ) : selectedCat && currentCat && !selectedItem ? (
           <div className="card" style={{ padding: 16, marginBottom: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 12 }}>{currentCat.name}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a, _pageName: i.name, _itemId: i.id }))).map((a, i) => (
                 <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a) }}>
                   <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
@@ -892,9 +919,9 @@ export default function DigitalAlbum({ setPreviewSave }) {
         ) : currentItem ? (
           <div className="card" style={{ padding: 16, marginBottom: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 12 }}>{currentItem.name}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               {(currentItem.albums || []).map(a => (
-                <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/digital-album/${selectedCat}/${selectedItem}/${a.albumId}`) }}>
+                <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => setViewAlbum(a)}>
                   <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
                   <button
@@ -938,9 +965,9 @@ export default function DigitalAlbum({ setPreviewSave }) {
         ) : allAlbums.length > 0 ? (
           <div className="card" style={{ padding: 16, marginBottom: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 12 }}>所有画册</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               {allAlbums.map(a => (
-                <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/digital-album/${a._catId}/${a._itemId}/${a.albumId}`) }}>
+                <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => setViewAlbum(a)}>
                   <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
                   <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }} onClick={e => e.stopPropagation()}>

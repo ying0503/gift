@@ -79,8 +79,10 @@ export async function initSchema() {
   categories JSON,
   banner_url TEXT,
   updated_at BIGINT NOT NULL,
+  created_at BIGINT NOT NULL DEFAULT 0,
   PRIMARY KEY (id, user_id)
 )`)
+  try { await p.query('ALTER TABLE public_album_data ADD COLUMN created_at BIGINT NOT NULL DEFAULT 0') } catch (e) {}
   await p.query(`CREATE TABLE IF NOT EXISTS user_albums (
     user_id VARCHAR(36) NOT NULL,
     album_id VARCHAR(36) NOT NULL,
@@ -271,10 +273,10 @@ export async function getPublicAlbum(id, userId) {
 export async function getPublicAlbums(userId) {
   const p = await getPool()
   if (userId) {
-    const [rows] = await p.query('SELECT * FROM public_album_data WHERE user_id = ? ORDER BY updated_at DESC', [userId])
+    const [rows] = await p.query('SELECT * FROM public_album_data WHERE user_id = ? ORDER BY created_at DESC', [userId])
     return rows
   }
-  const [rows] = await p.query('SELECT * FROM public_album_data ORDER BY updated_at DESC')
+  const [rows] = await p.query('SELECT * FROM public_album_data ORDER BY created_at DESC')
   return rows
 }
 
@@ -291,8 +293,8 @@ export async function savePublicAlbum(data, userId, id) {
   const albumId = id || crypto.randomUUID()
   const uid = userId || 'default'
   await p.query(
-    'INSERT INTO public_album_data (id, user_id, categories, banner_url, updated_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), updated_at = VALUES(updated_at)',
-    [albumId, uid, categories, bannerUrl, now]
+    'INSERT INTO public_album_data (id, user_id, categories, banner_url, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), updated_at = VALUES(updated_at)',
+    [albumId, uid, categories, bannerUrl, now, now]
   )
   return { id: albumId }
 }

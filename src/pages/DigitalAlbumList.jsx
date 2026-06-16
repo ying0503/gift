@@ -73,11 +73,8 @@ export default function DigitalAlbumList() {
                   <div style={{ fontSize: 11, opacity: 0.6 }}>点击编辑</div>
                 </div>
               )}
-              <div style={{ fontSize: 12, color: '#999', marginTop: 8 }}>
+              <div style={{ fontSize: 12, color: '#999', marginTop: 8, textAlign: 'center' }}>
                 {new Date(album.updatedAt).toLocaleDateString('zh-CN')}
-              </div>
-              <div style={{ fontSize: 11, color: '#bbb', marginTop: 2 }}>
-                {Array.isArray(album.categories) ? album.categories.length : 0} 个分类
               </div>
             </div>
           ))}
