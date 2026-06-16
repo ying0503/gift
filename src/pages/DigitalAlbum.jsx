@@ -832,7 +832,7 @@ export default function DigitalAlbum({ setPreviewSave }) {
             </div>
           </div>
         ) : viewAlbum ? (
-          <div className="card" style={{ padding: 16, marginBottom: 0 }}>
+          <div className="card" style={{ padding: 16, marginBottom: 0, maxWidth: 900, marginLeft: 'auto', marginRight: 'auto' }}>
             <button
               onClick={() => { setViewAlbum(null); navigate(urlItemId ? `/digital-album/${urlCatId}/${urlItemId}` : urlCatId ? `/digital-album/${urlCatId}` : '/digital-album') }}
               className="btn btn-outline"
