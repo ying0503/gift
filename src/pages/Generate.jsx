@@ -96,7 +96,7 @@ export default function Generate() {
 
       {finished && (
         <div className="card" style={{ padding: 28 }}>
-          <h2 style={{ fontSize: 18, marginBottom: 20, color: '#27ae60', textAlign: 'center' }}>画册生成成功 ✓</h2>
+          <h2 style={{ fontSize: 18, marginBottom: 20, color: '#27ae60', textAlign: 'center' }}>画册生成成功成功 ✓</h2>
           <div style={{ textAlign: 'center' }}>
             {imageUrl && <img src={imageUrl} alt="画册成品" style={{ maxWidth: '100%', borderRadius: 8, boxShadow: '0 2px 12px rgba(0,0,0,.12)' }} />}
             <div style={{ marginTop: 20 }}>

@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise'
+import crypto from 'crypto'
 
 let pool
 
@@ -73,11 +74,13 @@ export async function initSchema() {
     updated_at BIGINT NOT NULL
   )`)
   await p.query(`CREATE TABLE IF NOT EXISTS public_album_data (
-    id INT PRIMARY KEY DEFAULT 1,
-    categories JSON,
-    banner_url TEXT,
-    updated_at BIGINT NOT NULL
-  )`)
+  id VARCHAR(36) NOT NULL,
+  user_id VARCHAR(36) NOT NULL,
+  categories JSON,
+  banner_url TEXT,
+  updated_at BIGINT NOT NULL,
+  PRIMARY KEY (id, user_id)
+)`)
   await p.query(`CREATE TABLE IF NOT EXISTS user_albums (
     user_id VARCHAR(36) NOT NULL,
     album_id VARCHAR(36) NOT NULL,
@@ -253,21 +256,43 @@ export async function saveDigitalAlbum(userId, data) {
   }
 }
 
-export async function getPublicAlbum() {
+export async function getPublicAlbum(id, userId) {
   const p = await getPool()
-  const [rows] = await p.query('SELECT * FROM public_album_data WHERE id = 1')
+  let query = 'SELECT * FROM public_album_data'
+  const params = []
+  const conditions = []
+  if (id) { conditions.push('id = ?'); params.push(id) }
+  if (userId) { conditions.push('user_id = ?'); params.push(userId) }
+  if (conditions.length) query += ' WHERE ' + conditions.join(' AND ')
+  const [rows] = await p.query(query, params)
   return rows[0] || null
 }
 
-export async function savePublicAlbum(data) {
+export async function getPublicAlbums(userId) {
+  const p = await getPool()
+  if (userId) {
+    const [rows] = await p.query('SELECT * FROM public_album_data WHERE user_id = ? ORDER BY updated_at DESC', [userId])
+    return rows
+  }
+  const [rows] = await p.query('SELECT * FROM public_album_data ORDER BY updated_at DESC')
+  return rows
+}
+
+export async function deletePublicAlbum(id, userId) {
+  const p = await getPool()
+  await p.query('DELETE FROM public_album_data WHERE id = ? AND user_id = ?', [id, userId])
+}
+
+export async function savePublicAlbum(data, userId, id) {
   const p = await getPool()
   const now = Date.now()
   const categories = data.categories ? JSON.stringify(data.categories) : '[]'
   const bannerUrl = data.bannerUrl || null
-  const existing = await getPublicAlbum()
-  if (existing) {
-    await p.query('UPDATE public_album_data SET categories = ?, banner_url = ?, updated_at = ? WHERE id = 1', [categories, bannerUrl, now])
-  } else {
-    await p.query('INSERT INTO public_album_data (id, categories, banner_url, updated_at) VALUES (1, ?, ?, ?)', [categories, bannerUrl, now])
-  }
+  const albumId = id || crypto.randomUUID()
+  const uid = userId || 'default'
+  await p.query(
+    'INSERT INTO public_album_data (id, user_id, categories, banner_url, updated_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), updated_at = VALUES(updated_at)',
+    [albumId, uid, categories, bannerUrl, now]
+  )
+  return { id: albumId }
 }

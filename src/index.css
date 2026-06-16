@@ -545,7 +545,7 @@ body {
 }
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   overflow: hidden;
 }
@@ -597,8 +597,63 @@ body {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from { transform: rotate(0deg) }
+  to { transform: rotate(360deg) }
 }
 
+@keyframes slideInRight {
+  from { transform: translateX(100%) }
+  to { transform: translateX(0) }
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(0) }
+  to { transform: translateX(100%) }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1 }
+  to { opacity: 0 }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%) }
+  100% { transform: translateX(100%) }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4 }
+  50% { opacity: 0.8 }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) }
+  50% { transform: translateY(-4px) }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg) }
+}
+::-webkit-scrollbar { width: 3px !important; height: 3px !important }
+::-webkit-scrollbar-thumb { background: #ccc !important; border-radius: 2px !important }
+::-webkit-scrollbar-track { background: transparent !important }
+.loading-dots span {
+  animation: dotPulse 0.8s infinite both;
+  font-weight: 700;
+}
+.loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes dotPulse {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+@keyframes qrSlideUp {
+  from { transform: translateY(80px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
 /* Landing Page uses inline styles in LandingPage.jsx */

@@ -33,6 +33,8 @@ export default function DigitalAlbum() {
   const [festivalPrompt, setFestivalPrompt] = useState('')
   const [generatingPrompt, setGeneratingPrompt] = useState(false)
   const [generatingGlobalBanner, setGeneratingGlobalBanner] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const fileInputRef = useRef(null)
   const festivals = ['春节', '元宵节', '端午节', '中秋节', '情人节', '圣诞节', '国庆节', '新年', '母亲节', '父亲节', '教师节', '七夕节', '万圣节', '感恩节']
 
   const { catId: urlCatId, itemId: urlItemId, albumId: urlAlbumId } = useParams()
@@ -182,6 +184,34 @@ export default function DigitalAlbum() {
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => {})
     }).catch(() => {})
+  }
+
+  const handleUploadBanner = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { alert('请上传图片文件'); return }
+    if (file.size > 10 * 1024 * 1024) { alert('图片不能超过10MB'); return }
+    const token = localStorage.getItem('token')
+    if (!token) return
+    setUploadingBanner(true)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result
+      fetch(API + '/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ image: dataUrl }),
+      }).then(r => r.json()).then(data => {
+        if (data.url) {
+          setGlobalBannerUrl(data.url)
+        } else {
+          alert(data.error || '上传失败')
+        }
+      }).catch(() => alert('上传失败，请重试')).finally(() => setUploadingBanner(false))
+    }
+    reader.onerror = () => { alert('读取文件失败'); setUploadingBanner(false) }
+    reader.readAsDataURL(file)
+    e.target.value = ''
   }
 
   const generateGlobalBanner = () => {
@@ -522,12 +552,18 @@ export default function DigitalAlbum() {
 
   return (
     <div>
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadBanner} style={{ display: 'none' }} />
       <div className="card" style={{ padding: 16, marginBottom: 12 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 12 }}>顶部Banner</div>
         {globalBannerUrl ? (
           <div style={{ position: 'relative' }}>
             <img src={globalBannerUrl} alt="" style={{ width: '100%', height: 300, objectFit: 'cover', borderRadius: 6, display: 'block' }} />
-            <button onClick={() => { setFestival(''); setFestivalPrompt(''); setGlobalBannerUrl(null) }} style={{ position: 'absolute', top: 8, right: 8, padding: '4px 10px', fontSize: 12, background: 'rgba(0,0,0,.45)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>移除</button>
+            <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6 }}>
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingBanner} style={{ padding: '4px 10px', fontSize: 12, background: 'rgba(0,0,0,.45)', color: '#fff', border: 'none', borderRadius: 4, cursor: uploadingBanner ? 'not-allowed' : 'pointer', opacity: uploadingBanner ? 0.6 : 1 }}>
+                {uploadingBanner ? '上传中...' : '上传'}
+              </button>
+              <button onClick={() => { setFestival(''); setFestivalPrompt(''); setGlobalBannerUrl(null) }} style={{ padding: '4px 10px', fontSize: 12, background: 'rgba(0,0,0,.45)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>移除</button>
+            </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -546,6 +582,9 @@ export default function DigitalAlbum() {
                 </select>
                 <button onClick={generateGlobalBanner} disabled={!festival || generatingPrompt} style={{ padding: '8px 20px', fontSize: 14, background: !festival || generatingPrompt ? '#d9d9d9' : '#1677FF', color: '#fff', border: 'none', borderRadius: 6, cursor: !festival || generatingPrompt ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
                   {generatingPrompt ? '生成提示词中...' : 'AI生成Banner'}
+                </button>
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploadingBanner} style={{ padding: '8px 20px', fontSize: 14, background: uploadingBanner ? '#d9d9d9' : '#fff', color: '#666', border: '1px solid #d9d9d9', borderRadius: 6, cursor: uploadingBanner ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
+                  {uploadingBanner ? '上传中...' : '上传图片'}
                 </button>
               </div>
             )}

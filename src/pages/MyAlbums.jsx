@@ -9,7 +9,7 @@ export default function MyAlbums() {
 
   useEffect(() => {
     const token = localStorage.getItem('token')
-    if (!token) { navigate('/auth'); return }
+    if (!token) { navigate('/'); return }
 
     fetch(`${API}/api/albums`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())

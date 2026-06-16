@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import crypto from 'crypto'
 import OSS from 'ali-oss'
@@ -19,6 +20,13 @@ const ossClient = new OSS({
   accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
   bucket: process.env.OSS_BUCKET,
 })
+
+const modelLatencies = []
+const MODEL_ID_MAP = {
+  'qwen3.5-flash': { api: 'dashscope', key: process.env.QWEN_API_KEY },
+  'glm-4.6v-flashx': { api: 'bigmodel', key: process.env.GLM_API_KEY },
+  'doubao-seed-2-0-mini-260428': { api: 'ark', key: process.env.DOUBAO_API_KEY },
+}
 
 async function uploadToOSS(sourceUrl) {
   if (!sourceUrl || sourceUrl.includes('gift-bucket-0503.oss')) return sourceUrl
@@ -104,33 +112,35 @@ app.get('/api/ping', (req, res) => {
 })
 
 app.post('/api/generate', auth, async (req, res) => {
+  const startTime = Date.now()
   try {
     const { config, images } = req.body
-    if (!config) return res.status(400).json({ error: 'Missing config' })
+    if (!config) { modelLatencies.push({ modelId: 'unknown', durationMs: Date.now() - startTime, success: false, timestamp: Date.now() }); return res.status(400).json({ error: 'Missing config' }) }
     const hasImages = images && images.length
     const prompt = config.prompt || ''
     const isMaiziai = config.model === 'maiziai-chatgpt-image-2'
 
     if (isMaiziai) {
       const maiziaiKey = process.env.MAIZIAI_API_KEY
-      if (!maiziaiKey) return res.status(500).json({ error: 'MAIZIAI_API_KEY not configured' })
+      if (!maiziaiKey) { modelLatencies.push({ modelId: 'maiziai-chatgpt-image-2', durationMs: Date.now() - startTime, success: false, timestamp: Date.now() }); return res.status(500).json({ error: 'MAIZIAI_API_KEY not configured' }) }
       const apiRes = await fetch('https://www.maizitech.cn/v1/images/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${maiziaiKey}` },
         body: JSON.stringify({ model: 'gpt-image-2', prompt, size: config.size === 'auto' ? undefined : config.size, image_size: config.image_size || '1K', images: hasImages ? images : undefined, n: 1 }),
       })
       const data = await apiRes.json()
-      if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'MaiziAI API call failed' })
+      if (!apiRes.ok) { modelLatencies.push({ modelId: 'maiziai-chatgpt-image-2', durationMs: Date.now() - startTime, success: false, timestamp: Date.now() }); return res.status(apiRes.status).json({ error: data.error?.message || 'MaiziAI API call failed' }) }
       const maiziaiTaskId = data.data?.[0]?.task_id
-      if (!maiziaiTaskId) return res.status(500).json({ error: 'No task_id from MaiziAI' })
+      if (!maiziaiTaskId) { modelLatencies.push({ modelId: 'maiziai-chatgpt-image-2', durationMs: Date.now() - startTime, success: false, timestamp: Date.now() }); return res.status(500).json({ error: 'No task_id from MaiziAI' }) }
       const taskId = maiziaiTaskId
       await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'PENDING', createdAt: Date.now(), productCount: 0, maiziaiTaskId })
+      modelLatencies.push({ modelId: 'maiziai-chatgpt-image-2', durationMs: Date.now() - startTime, success: true, timestamp: Date.now() })
       return res.json({ taskId })
     }
 
     if (config.model === 'agnes-image-2.1-flash') {
       const agnesKey = process.env.AGNES_API_KEY
-      if (!agnesKey) return res.status(500).json({ error: 'AGNES_API_KEY not configured' })
+      if (!agnesKey) { modelLatencies.push({ modelId: 'agnes-image-2.1-flash', durationMs: Date.now() - startTime, success: false, timestamp: Date.now() }); return res.status(500).json({ error: 'AGNES_API_KEY not configured' }) }
       const agnesSizeMap = { 'auto': '1024x1024', '1:1': '1024x1024', '16:9': '1920x1080', '9:16': '1080x1920', '4:3': '1024x768', '3:4': '768x1024' }
       const apiSize = agnesSizeMap[config.size] || config.size || '1024x1024'
       const body = { model: 'agnes-image-2.1-flash', prompt, size: apiSize, n: 1 }
@@ -139,17 +149,19 @@ app.post('/api/generate', auth, async (req, res) => {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agnesKey}` }, body: JSON.stringify(body),
       })
       const data = await apiRes.json()
-      if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'Agnes API call failed' })
+      if (!apiRes.ok) { modelLatencies.push({ modelId: 'agnes-image-2.1-flash', durationMs: Date.now() - startTime, success: false, timestamp: Date.now() }); return res.status(apiRes.status).json({ error: data.error?.message || 'Agnes API call failed' }) }
       const imageUrl = data.data?.[0]?.url
-      if (!imageUrl) return res.status(500).json({ error: 'No image URL from Agnes API' })
+      if (!imageUrl) { modelLatencies.push({ modelId: 'agnes-image-2.1-flash', durationMs: Date.now() - startTime, success: false, timestamp: Date.now() }); return res.status(500).json({ error: 'No image URL from Agnes API' }) }
       const ossUrl = await uploadToOSS(imageUrl)
       const taskId = uuid()
       await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'SUCCEEDED', imageUrl: ossUrl, createdAt: Date.now(), productCount: 0 })
       const albumId = uuid().slice(0, 8)
       await db.createAlbum({ id: albumId, userId: req.user.userId, taskId, imageUrl: ossUrl, config, prompt, productCount: 0, banner: config.banner || false, createdAt: Date.now() })
       await db.addUserAlbum(req.user.userId, albumId)
+      modelLatencies.push({ modelId: 'agnes-image-2.1-flash', durationMs: Date.now() - startTime, success: true, timestamp: Date.now() })
       return res.json({ taskId })
     }
+    modelLatencies.push({ modelId: config?.model || 'unknown', durationMs: Date.now() - startTime, success: false, timestamp: Date.now() })
     res.status(400).json({ error: 'Unknown model: ' + config.model })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -163,16 +175,16 @@ app.post('/api/generate/batch', auth, async (req, res) => {
 
     if (config.model === 'agnes-image-2.1-flash') {
       const agnesKey = process.env.AGNES_API_KEY
-      if (!agnesKey) return res.status(500).json({ error: 'AGNES_API_KEY not configured' })
+      if (!agnesKey) { modelLatencies.push({ modelId: 'agnes-image-2.1-flash', durationMs: Date.now() - startTime, success: false, timestamp: Date.now() }); return res.status(500).json({ error: 'AGNES_API_KEY not configured' }) }
       const agnesSizeMap = { 'auto': '1024x1024', '1:1': '1024x1024', '16:9': '1920x1080', '9:16': '1080x1920', '4:3': '1024x768', '3:4': '768x1024' }
       const apiSize = agnesSizeMap[config.size] || config.size || '1024x1024'
-      const imageUrls = []
-      for (const prompt of prompts) {
-        const apiRes = await fetch('https://apihub.agnes-ai.com/v1/images/generations', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agnesKey}` }, body: JSON.stringify({ model: 'agnes-image-2.1-flash', prompt, size: apiSize, n: 1 }),
-        })
-        const data = await apiRes.json()
-        if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'Agnes API call failed' })
+      const body = { model: 'agnes-image-2.1-flash', prompt, size: apiSize, n: 1 }
+      if (hasImages) body.extra_body = { image: images.slice(0, 1), response_format: 'url' }
+      const apiRes = await fetch('https://apihub.agnes-ai.com/v1/images/generations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agnesKey}` }, body: JSON.stringify(body),
+      })
+      const data = await apiRes.json()
+      if (!apiRes.ok) { modelLatencies.push({ modelId: 'agnes-image-2.1-flash', durationMs: Date.now() - startTime, success: false, timestamp: Date.now() }); return res.status(apiRes.status).json({ error: data.error?.message || 'Agnes API call failed' }) }
         if (data.data?.[0]?.url) imageUrls.push(data.data[0].url)
       }
       if (!imageUrls.length) return res.status(500).json({ error: 'No images generated' })
@@ -289,21 +301,38 @@ app.get('/api/generate/batch-status', auth, async (req, res) => {
 
 app.post('/api/generate/prompts', auth, async (req, res) => {
   try {
-    const { festival, count, refImage } = req.body
+    const { festival, count, refImage, model, temperature, maxTokens } = req.body
     if (!festival || !count) return res.status(400).json({ error: 'Missing festival or count' })
-    const glmKey = process.env.GLM_API_KEY
-    if (!glmKey) return res.status(500).json({ error: 'GLM_API_KEY not configured' })
-    const content = refImage
-      ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请基于参考图片中的产品，为"${festival}"节日生成${count}个中文图像生成提示词，用于礼品礼盒宣传图。每句一个独立的提示词，直接输出，不需要编号。` }]
-      : [{ type: 'text', text: `请基于参考图片中的产品，为"${festival}"节日生成${count}个中文图像生成提示词，用于礼品礼盒宣传图。每句一个独立的提示词，直接输出，不需要编号。` }]
-    const apiRes = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${glmKey}` },
-      body: JSON.stringify({ model: 'glm-4.6v-flashx', messages: [{ role: 'system', content: '你是一个礼品营销AI图像提示词生成器。根据用户提供的参考图片和指定的节日，生成中文AI图像生成提示词。每个提示词用于文生图模型（如MaiziAI GPT-image-2），描述礼品展示场景。' }, { role: 'user', content }], max_tokens: 2000, temperature: 0.8 }),
+    
+    const textModel = model || 'qwen3.5-flash'
+    const temp = temperature || 0.8
+    const tokens = maxTokens || 2000
+    
+    let apiUrl, apiKey, requestBody
+    if (textModel === 'qwen3.5-flash') {
+      apiUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
+      apiKey = process.env.QWEN_API_KEY
+      requestBody = { model: 'qwen3.5-flash', messages: [{ role: 'system', content: '你是一个礼品营销AI。' }, { role: 'user', content: `请为"${festival}"节日生成${count}个礼盒相关的分类名称，简洁明了，每个一行，直接输出。` }], max_tokens: tokens, temperature: temp }
+    } else if (textModel === 'glm-4.6v-flashx') {
+      apiUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
+      apiKey = process.env.GLM_API_KEY
+      requestBody = { model: 'glm-4.6v-flashx', messages: [{ role: 'system', content: '你是一个礼品营销AI。' }, { role: 'user', content: `请为"${festival}"节日生成${count}个礼盒相关的分类名称，简洁明了，每个一行，直接输出。` }], max_tokens: tokens, temperature: temp }
+    } else if (textModel === 'doubao-seed-2-0-mini-260428') {
+      apiUrl = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
+      apiKey = process.env.DOUBAO_API_KEY
+      requestBody = { model: 'doubao-seed-2-0-mini-260428', messages: [{ role: 'system', content: '你是一个礼品营销AI。' }, { role: 'user', content: `请为"${festival}"节日生成${count}个礼盒相关的分类名称，简洁明了，每个一行，直接输出。` }], max_tokens: tokens, temperature: temp }
+    } else {
+      return res.status(400).json({ error: 'Unknown text model' })
+    }
+    if (!apiKey) return res.status(500).json({ error: `API key not configured for ${textModel}` })
+    
+    const apiRes = await fetch(apiUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` }, body: JSON.stringify(requestBody),
     })
     const data = await apiRes.json()
-    if (!apiRes.ok) return res.status(500).json({ error: data.error?.message || 'GLM API error' })
+    if (!apiRes.ok) return res.status(500).json({ error: data.error?.message || 'API error' })
     const text = data.choices?.[0]?.message?.content
-    if (!text) return res.status(500).json({ error: 'No response from GLM' })
+    if (!text) return res.status(500).json({ error: 'No response' })
     const prompts = text.split('\n').filter(s => s.trim()).map(s => s.replace(/^\d+[\.\)、]\s*/, '').trim())
     res.json({ prompts: prompts.slice(0, count) })
   } catch (e) { res.status(500).json({ error: e.message }) }
@@ -345,22 +374,81 @@ app.post('/api/digital-album', auth, async (req, res) => {
 
 app.get('/api/album', async (req, res) => {
   try {
-    const data = await db.getPublicAlbum()
+    const userId = req.query.userId
+    const data = userId ? await db.getPublicAlbums(userId) : await db.getPublicAlbum()
+    if (Array.isArray(data)) {
+      const album = data.length > 0 ? data[0] : null
+      return res.json(album ? { categories: typeof album.categories === 'string' ? JSON.parse(album.categories) : album.categories, bannerUrl: album.banner_url } : { categories: [], bannerUrl: null })
+    }
     res.json(data ? { categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories, bannerUrl: data.banner_url } : { categories: [], bannerUrl: null })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 app.post('/api/album/publish', auth, async (req, res) => {
   try {
+    const body = req.body || {}
     const data = await db.getDigitalAlbum(req.user.userId)
     if (!data) return res.status(404).json({ error: 'No album data' })
     const parsed = { categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories, bannerUrl: data.banner_url }
-    await db.savePublicAlbum(parsed)
+    const result = await db.savePublicAlbum(parsed, req.user.userId, body.id || undefined)
+    res.json({ success: true, id: result.id })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/api/upload', auth, async (req, res) => {
+  try {
+    const { image } = req.body
+    if (!image) return res.status(400).json({ error: 'No image data' })
+    const matches = image.match(/^data:image\/(\w+);base64,(.+)$/)
+    if (!matches) return res.status(400).json({ error: 'Invalid image format' })
+    const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1]
+    const buffer = Buffer.from(matches[2], 'base64')
+    const d = new Date()
+    const base = `uploads/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${Date.now()}`
+    const key = base + '.' + ext
+    await ossClient.put(key, buffer)
+    const ossUrl = `https://${process.env.OSS_BUCKET}.${process.env.OSS_REGION}.aliyuncs.com/${key}`
+    console.log(`Upload OK -> ${ossUrl}`)
+    res.json({ url: ossUrl })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.get('/api/album/list', auth, async (req, res) => {
+  try {
+    const albums = await db.getPublicAlbums(req.user.userId)
+    res.json({ albums })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.delete('/api/album/:id', auth, async (req, res) => {
+  try {
+    await db.deletePublicAlbum(req.params.id, req.user.userId)
     res.json({ success: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
-app.get('{*path}', (req, res) => { res.sendFile(path.join(__dirname, 'dist/index.html')) })
+app.get('/api/model-stats', async (req, res) => {
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const recent = modelLatencies.filter(m => m.timestamp > cutoff)
+  const stats = {}
+  for (const m of recent) {
+    if (!stats[m.modelId]) stats[m.modelId] = { totalMs: 0, count: 0, successCount: 0 }
+    stats[m.modelId].totalMs += m.durationMs
+    stats[m.modelId].count++
+    if (m.success) stats[m.modelId].successCount++
+  }
+  const result = {}
+  for (const [modelId, s] of Object.entries(stats)) {
+    result[modelId] = { avgMs: Math.round(s.totalMs / s.count), successRate: Math.round(s.successCount / s.count * 100) }
+  }
+  res.json(result)
+})
+
+app.use((req, res) => {
+  const filePath = path.join(__dirname, 'dist', 'index.html')
+  if (fs.existsSync(filePath)) res.sendFile(filePath)
+  else res.status(200).send('OK - SPA fallback')
+})
 
 async function start() {
   try { await db.initSchema(); console.log('Database schema ready') } catch (e) { console.error('Database init failed:', e.message); process.exit(1) }
