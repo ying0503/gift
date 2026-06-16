@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { EditOutlined, CloseOutlined, CheckOutlined, ArrowLeftOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
 import { API } from '../AuthContext'
 
-export default function DigitalAlbum() {
+export default function DigitalAlbum({ setPreviewSave }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [categories, setCategories] = useState([])
   const [albums, setAlbums] = useState([])
   const [selectedCat, setSelectedCat] = useState(null)
@@ -34,17 +35,19 @@ export default function DigitalAlbum() {
   const [generatingPrompt, setGeneratingPrompt] = useState(false)
   const [generatingGlobalBanner, setGeneratingGlobalBanner] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [generatingCats, setGeneratingCats] = useState(false)
   const fileInputRef = useRef(null)
   const festivals = ['春节', '元宵节', '端午节', '中秋节', '情人节', '圣诞节', '国庆节', '新年', '母亲节', '父亲节', '教师节', '七夕节', '万圣节', '感恩节']
 
   const { catId: urlCatId, itemId: urlItemId, albumId: urlAlbumId } = useParams()
   const initialUrlSync = useRef(false)
+  const editingPublicAlbumId = useRef(null)
 
   useEffect(() => {
     if (loading || initialUrlSync.current) return
     initialUrlSync.current = true
     if (urlCatId) {
-      if (!categories.some(c => c.id === urlCatId)) { navigate('/digital-album', { replace: true }); return }
+      if (!categories.some(c => c.id === urlCatId) && urlCatId !== editingPublicAlbumId.current) { navigate('/digital-album', { replace: true }); return }
       setSelectedCat(urlCatId)
       setExpandedCats(s => new Set(s).add(urlCatId))
     }
@@ -66,7 +69,7 @@ export default function DigitalAlbum() {
   useEffect(() => {
     if (loading || !initialUrlSync.current) return
     if (urlCatId) {
-      if (!categories.some(c => c.id === urlCatId)) { navigate('/digital-album', { replace: true }); return }
+      if (!categories.some(c => c.id === urlCatId) && urlCatId !== editingPublicAlbumId.current) { navigate('/digital-album', { replace: true }); return }
       setSelectedCat(urlCatId)
       setExpandedCats(s => new Set(s).add(urlCatId))
     } else {
@@ -127,6 +130,24 @@ export default function DigitalAlbum() {
   }
 
   useEffect(() => {
+    if (location.pathname === '/digital-album/new') {
+      setLoading(false)
+      return
+    }
+    const publicAlbum = location.state?.publicAlbum
+    if (publicAlbum && urlCatId === publicAlbum.id) {
+      editingPublicAlbumId.current = publicAlbum.id
+      const cats = (Array.isArray(publicAlbum.categories) ? publicAlbum.categories : []).map(c => ({ ...c, items: c.items || [] }))
+      setCategories(cats)
+      if (publicAlbum.bannerUrl) setGlobalBannerUrl(publicAlbum.bannerUrl)
+      setLoading(false)
+      const token = localStorage.getItem('token')
+      if (token) {
+        fetch(`${API}/api/albums`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json()).then(data => { if (data.albums) setAlbums(data.albums) }).catch(() => {})
+      }
+      return
+    }
     const token = localStorage.getItem('token')
     if (!token) return
     Promise.all([
@@ -170,6 +191,31 @@ export default function DigitalAlbum() {
     })
   }, [globalBannerUrl])
 
+  const publishAlbum = useCallback(async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    const currentCategories = categories
+    const currentBanner = globalBannerUrl
+    await fetch(`${API}/api/digital-album`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ categories: currentCategories, bannerUrl: currentBanner }),
+    })
+    const pubRes = await fetch(`${API}/api/album/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id: editingPublicAlbumId.current || undefined }),
+    })
+    if (pubRes.ok) {
+      const pubData = await pubRes.json()
+      if (pubData.id) editingPublicAlbumId.current = pubData.id
+    }
+  }, [categories, globalBannerUrl])
+
+  useEffect(() => {
+    if (setPreviewSave) setPreviewSave(publishAlbum)
+  }, [setPreviewSave, publishAlbum])
+
   const saveGlobalBannerUrl = (url) => {
     const token = localStorage.getItem('token')
     if (!token) return
@@ -184,6 +230,43 @@ export default function DigitalAlbum() {
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => {})
     }).catch(() => {})
+  }
+
+  const smartGenerateCategories = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    setGeneratingCats(true)
+    try {
+      const textModel = localStorage.getItem('textGenerationModel') || 'qwen3.5-flash'
+      const temperature = parseFloat(localStorage.getItem('textTemperature') || '0.8')
+      const maxTokens = parseInt(localStorage.getItem('textMaxTokens') || '2000')
+      const res = await fetch(`${API}/api/generate/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ model: textModel, temperature, maxTokens }),
+      })
+      const data = await res.json()
+      if (data.categories?.length) {
+        const newCats = data.categories.map(name => ({ id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name, items: [] }))
+        const merged = [...categories, ...newCats]
+        setCategories(merged)
+        await fetch(`${API}/api/digital-album`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl }),
+        })
+        if (merged.length > 0 && newCats.length > 0) {
+          const firstId = newCats[0].id
+          setSelectedCat(firstId)
+          setSelectedItem(null)
+          navigate(`/digital-album/${firstId}`)
+        }
+      }
+    } catch (e) {
+      alert('生成失败，请重试')
+    } finally {
+      setGeneratingCats(false)
+    }
   }
 
   const handleUploadBanner = (e) => {
@@ -285,12 +368,21 @@ export default function DigitalAlbum() {
     setEditing(null)
   }, [editing, editValue, categories, save])
 
-  const addCategory = useCallback(() => {
-    const id = crypto.randomUUID()
-    save([...categories, { id, name: '新分类', items: [] }])
-    setExpandedCats(s => new Set(s).add(id))
+  function addCategory() {
+    const id = crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+    setCategories(prev => [...prev, { id, name: '新分类', items: [] }])
+    setExpandedCats(prev => new Set(prev).add(id))
     setTimeout(() => startEdit(id, '新分类'), 50)
-  }, [categories, save, startEdit])
+    const token = localStorage.getItem('token')
+    if (!token) return
+    setTimeout(() => {
+      fetch(`${API}/api/digital-album`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ categories: [...categories, { id, name: '新分类', items: [] }], bannerUrl: globalBannerUrl }),
+      }).catch(() => {})
+    }, 100)
+  }
 
   const deleteCategory = useCallback((id) => {
     const cat = categories.find(c => c.id === id)
@@ -301,7 +393,7 @@ export default function DigitalAlbum() {
   }, [categories, save, selectedCat, navigate])
 
   const addItem = useCallback((catId) => {
-    const id = crypto.randomUUID()
+    const id = crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
     save(categories.map(c => c.id === catId ? { ...c, items: [...c.items, { id, name: '新页面', albums: [] }] } : c))
     setExpandedCats(s => new Set(s).add(catId))
     setTimeout(() => startEdit(id, '新页面'), 50)
@@ -378,34 +470,33 @@ export default function DigitalAlbum() {
 
   const confirmPick = useCallback(() => {
     const catId = selectedCat
-    const itemId = selectedItem
-    if (!catId || !itemId) return
+    let itemId = selectedItem
+    if (!catId) return
     const added = albums.filter(a => picked.has(a.id))
+    if (added.length === 0) return
+    if (!itemId) {
+      itemId = crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+      const newItem = { id: itemId, name: '默认页面', albums: [] }
+      const catsWithItem = categories.map(c => c.id === catId ? { ...c, items: [...c.items, newItem] } : c)
+      setCategories(catsWithItem)
+      setSelectedItem(itemId)
+      save(catsWithItem)
+      setTimeout(() => {
+        const finalAdded = pendingType === '组合' && added.length > 0
+          ? [{ albumId: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8), type: '组合', imageUrl: added[0].imageUrl, imageUrls: added[0].imageUrls, prompt: '', config: {}, createdAt: Date.now(), productName: '产品名称', productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' }, comboItems: added.slice(0, 12).map(a => ({ albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: a.prompt, productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' } })) }]
+          : added.map(a => ({ ...a, albumId: a.id, _albumData: a, type: pendingType || '单品', productName: '产品名称' }))
+        const nextCats = categories.map(c => c.id === catId ? { ...c, items: [...c.items, newItem].map(i => i.id === itemId ? { ...i, albums: finalAdded } : i) } : c)
+        save(nextCats)
+      }, 100)
+      setShowPicker(false)
+      return
+    }
     if (pendingType === '组合' && added.length > 0) {
-      const comboId = crypto.randomUUID()
-      const comboEntry = {
-        albumId: comboId,
-        type: '组合',
-        imageUrl: added[0].imageUrl,
-        imageUrls: added[0].imageUrls,
-        prompt: '',
-        config: {},
-        createdAt: Date.now(),
-        productName: '产品名称',
-        productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' },
-        comboItems: added.slice(0, 12).map(a => ({ albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: a.prompt, productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' } }))
-      }
-      save(categories.map(c => c.id === catId ? {
-        ...c, items: c.items.map(i => i.id === itemId ? {
-          ...i, albums: [...i.albums, comboEntry]
-        } : i)
-      } : c))
+      const comboId = crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+      const comboEntry = { albumId: comboId, type: '组合', imageUrl: added[0].imageUrl, imageUrls: added[0].imageUrls, prompt: '', config: {}, createdAt: Date.now(), productName: '产品名称', productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' }, comboItems: added.slice(0, 12).map(a => ({ albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: a.prompt, productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' } })) }
+      save(categories.map(c => c.id === catId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, albums: [...i.albums, comboEntry] } : i) } : c))
     } else {
-      save(categories.map(c => c.id === catId ? {
-        ...c, items: c.items.map(i => i.id === itemId ? {
-          ...i, albums: [...i.albums, ...added.map(a => ({ ...a, albumId: a.id, _albumData: a, type: pendingType || '单品', productName: '产品名称' }))]
-        } : i)
-      } : c))
+      save(categories.map(c => c.id === catId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, albums: [...i.albums, ...added.map(a => ({ ...a, albumId: a.id, _albumData: a, type: pendingType || '单品', productName: '产品名称' }))] } : i) } : c))
     }
     setShowPicker(false)
   }, [selectedCat, selectedItem, albums, picked, categories, save, pendingType])
@@ -554,41 +645,57 @@ export default function DigitalAlbum() {
     <div>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadBanner} style={{ display: 'none' }} />
       <div className="card" style={{ padding: 16, marginBottom: 12 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 12 }}>顶部Banner</div>
-        {globalBannerUrl ? (
-          <div style={{ position: 'relative' }}>
-            <img src={globalBannerUrl} alt="" style={{ width: '100%', height: 300, objectFit: 'cover', borderRadius: 6, display: 'block' }} />
-            <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6 }}>
-              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingBanner} style={{ padding: '4px 10px', fontSize: 12, background: 'rgba(0,0,0,.45)', color: '#fff', border: 'none', borderRadius: 4, cursor: uploadingBanner ? 'not-allowed' : 'pointer', opacity: uploadingBanner ? 0.6 : 1 }}>
-                {uploadingBanner ? '上传中...' : '上传'}
-              </button>
-              <button onClick={() => { setFestival(''); setFestivalPrompt(''); setGlobalBannerUrl(null) }} style={{ padding: '4px 10px', fontSize: 12, background: 'rgba(0,0,0,.45)', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>移除</button>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>顶部氛围图</div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+          <select value={festival} onChange={e => setFestival(e.target.value)} style={{ padding: '6px 10px', fontSize: 14, borderRadius: 6, border: '1px solid #d9d9d9', outline: 'none', background: '#fff' }}>
+            <option value="">选择节日</option>
+            {festivals.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+          <button
+            onClick={generateGlobalBanner}
+            disabled={!festival || generatingPrompt}
+            style={{
+              padding: '8px 20px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
+              background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+              color: '#fff', border: 'none', borderRadius: 8, cursor: (!festival || generatingPrompt) ? 'not-allowed' : 'pointer',
+              opacity: (!festival || generatingPrompt) ? .5 : 1, transition: 'opacity .2s',
+            }}
+          >
+            {generatingPrompt ? 'AI文案策划中...' : 'AI文案策划'}
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingBanner} style={{
+            padding: '8px 20px', fontSize: 14, whiteSpace: 'nowrap',
+            background: uploadingBanner ? '#d9d9d9' : 'linear-gradient(90deg, #ff7db8, #8f7cff)',
+            color: '#fff', border: 'none', borderRadius: 8, cursor: uploadingBanner ? 'not-allowed' : 'pointer',
+            opacity: uploadingBanner ? .6 : 1, transition: 'opacity .2s',
+          }}>
+            {uploadingBanner ? '上传中...' : '上传图片'}
+          </button>
+        </div>
+        {generatingGlobalBanner && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>正在生成氛围图...</div>
+            <div style={{ width: '100%', height: 6, background: '#ddd', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${globalBannerProgress}%`, height: '100%', background: 'linear-gradient(90deg, #1677FF, #69B1FF)', borderRadius: 3, transition: 'width .1s linear' }} />
             </div>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {generatingGlobalBanner ? (
-              <>
-                <div style={{ fontSize: 13, color: '#666', textAlign: 'center' }}>正在生成banner...</div>
-                <div style={{ width: '100%', height: 6, background: '#ddd', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ width: `${globalBannerProgress}%`, height: '100%', background: 'linear-gradient(90deg, #1677FF, #69B1FF)', borderRadius: 3, transition: 'width .1s linear' }} />
-                </div>
-              </>
-            ) : (
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'center' }}>
-                <select value={festival} onChange={e => setFestival(e.target.value)} style={{ padding: '6px 10px', fontSize: 14, borderRadius: 6, border: '1px solid #d9d9d9', outline: 'none', background: '#fff' }}>
-                  <option value="">选择节日</option>
-                  {festivals.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
-                <button onClick={generateGlobalBanner} disabled={!festival || generatingPrompt} style={{ padding: '8px 20px', fontSize: 14, background: !festival || generatingPrompt ? '#d9d9d9' : '#1677FF', color: '#fff', border: 'none', borderRadius: 6, cursor: !festival || generatingPrompt ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-                  {generatingPrompt ? '生成提示词中...' : 'AI生成Banner'}
-                </button>
-                <button onClick={() => fileInputRef.current?.click()} disabled={uploadingBanner} style={{ padding: '8px 20px', fontSize: 14, background: uploadingBanner ? '#d9d9d9' : '#fff', color: '#666', border: '1px solid #d9d9d9', borderRadius: 6, cursor: uploadingBanner ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}>
-                  {uploadingBanner ? '上传中...' : '上传图片'}
-                </button>
-              </div>
-            )}
-            {globalBannerError && <div style={{ fontSize: 12, color: '#e44', textAlign: 'center' }}>{globalBannerError}</div>}
+        )}
+        {globalBannerError && <div style={{ fontSize: 12, color: '#e44', marginBottom: 10 }}>{globalBannerError}</div>}
+        {globalBannerUrl && (
+          <div style={{ position: 'relative', background: '#fff', borderRadius: 8, display: 'inline-block' }}>
+            <img src={globalBannerUrl} alt="" style={{ maxWidth: '100%', height: 'auto', display: 'block', borderRadius: 6 }} />
+            <button
+              onClick={generateGlobalBanner}
+              disabled={!festival || generatingPrompt}
+              style={{
+                position: 'absolute', top: -36, right: 0,
+                padding: '6px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
+                background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                color: '#fff', border: 'none', borderRadius: '0 8px 0 0',
+                cursor: (!festival || generatingPrompt) ? 'not-allowed' : 'pointer',
+                opacity: (!festival || generatingPrompt) ? .5 : 1, transition: 'opacity .2s',
+              }}
+            >重新生成</button>
           </div>
         )}
       </div>
@@ -601,14 +708,23 @@ export default function DigitalAlbum() {
         <div className="album-tree-list">
           {categories.length === 0 ? (
             <div className="album-tree-empty">
-              暂无分类，点击 + 添加
+              <button
+                onClick={smartGenerateCategories}
+                disabled={generatingCats}
+                style={{
+                  padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  cursor: generatingCats ? 'not-allowed' : 'pointer',
+                  background: generatingCats ? '#d9d9d9' : 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                  color: generatingCats ? '#999' : '#fff', border: 'none', opacity: generatingCats ? .7 : 1, transition: 'all .2s',
+                }}
+              >{generatingCats ? '生成中...' : 'AI智能目录'}</button>
             </div>
           ) : (
             categories.map(cat => (
               <div key={cat.id} className="album-tree-group">
                 <div
-                  className={`album-tree-node album-tree-node-level1${selectedCat === cat.id && selectedItem === null ? ' active' : ''}`}
-                  onClick={() => { setSelectedCat(cat.id); setSelectedItem(null); setExpandedCats(s => new Set(s).add(cat.id)); navigate(`/digital-album/${cat.id}`) }}
+                  className={`album-tree-node album-tree-node-level1${selectedCat === cat.id ? ' active' : ''}`}
+                  onClick={() => { setSelectedCat(cat.id); setSelectedItem(null); navigate(`/digital-album/${cat.id}`) }}
                 >
 
                   {editing === cat.id ? (
@@ -628,38 +744,8 @@ export default function DigitalAlbum() {
                   )}
 
                   <span onClick={e => { e.stopPropagation(); startEdit(cat.id, cat.name) }} className="album-tree-action" title="重命名"><EditOutlined /></span>
-                  <span onClick={e => { e.stopPropagation(); addItem(cat.id) }} className="album-tree-action album-tree-action-add" title="添加页面"><PlusOutlined /></span>
                   <span onClick={e => { e.stopPropagation(); deleteCategory(cat.id) }} className="album-tree-action" title="删除分类"><CloseOutlined /></span>
                 </div>
-                {expandedCats.has(cat.id) && (
-                  <div className="album-tree-children">
-                    {cat.items.map(item => (
-                      <div
-                        key={item.id}
-                        className={`album-tree-node album-tree-node-level2${selectedItem === item.id ? ' active' : ''}`}
-                        onClick={() => { setSelectedCat(cat.id); setSelectedItem(item.id); navigate(`/digital-album/${cat.id}/${item.id}`) }}
-                      >
-                        {editing === item.id ? (
-                          <input
-                            ref={editInputRef}
-                            value={editValue}
-                            onChange={e => setEditValue(e.target.value)}
-                            onBlur={confirmEdit}
-                            onKeyDown={e => { if (e.key === 'Enter') confirmEdit(); if (e.key === 'Escape') setEditing(null) }}
-                            className="album-tree-edit"
-                            onClick={e => e.stopPropagation()}
-                          />
-                        ) : (
-                          <span
-                            className="album-tree-label"
-                          >{item.name}</span>
-                        )}
-                        <span onClick={e => { e.stopPropagation(); startEdit(item.id, item.name) }} className="album-tree-action" title="重命名"><EditOutlined /></span>
-                        <span onClick={e => { e.stopPropagation(); deleteItem(cat.id, item.id) }} className="album-tree-action" title="删除"><CloseOutlined /></span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             ))
           )}
@@ -720,8 +806,18 @@ export default function DigitalAlbum() {
                       <div>保质期：{liveParams.shelfLife || '-'}</div>
                       <div>总重量：{liveParams.totalWeight || '-'}</div>
                       <div style={{ color: '#FF4D4F', marginTop: 2 }}>温馨提示：{liveParams.note || '-'}</div>
-                    </div>
-                  </div>
+            </div>
+            <div
+              className="add-card-hover"
+              style={{ marginTop: 12, borderRadius: 8, border: '2px dashed #d9d9d9', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 15, gap: 4, transition: 'all .3s', cursor: 'default' }}
+            >
+              <span style={{ fontSize: 22, marginBottom: 4 }}><PlusOutlined /></span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span onClick={() => openPicker('单品')} className="type-btn" style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#1677FF', color: '#fff', transition: 'all .3s' }}>单品</span>
+                <span onClick={() => openPicker('组合')} className="type-btn" style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#FF4D4F', color: '#fff', transition: 'all .3s' }}>组合</span>
+              </div>
+            </div>
+          </div>
                 )
               })}
               {(currentViewAlbum.comboItems || []).length < 12 && albumLocation && (
@@ -760,9 +856,10 @@ export default function DigitalAlbum() {
             <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 12 }}>{currentCat.name}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
               {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a, _pageName: i.name, _itemId: i.id }))).map((a, i) => (
-                <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/digital-album/${selectedCat}/${a._itemId}/${a.albumId}`) }}>
+                <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a) }}>
                   <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
+                  <button onClick={e => { e.stopPropagation(); removeAlbum(selectedCat, a._itemId, a.albumId) }} style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.4)', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><CloseOutlined /></button>
                   <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }} onClick={e => e.stopPropagation()}>
                     {editingProductNameId === a.albumId ? (
                       <input
@@ -781,7 +878,16 @@ export default function DigitalAlbum() {
                   </div>
                 </div>
               ))}
+            <div
+              style={{ borderRadius: 8, border: '2px dashed #d9d9d9', aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 15, gap: 4, transition: 'all .3s', cursor: 'default' }}
+            >
+              <span style={{ fontSize: 22, marginBottom: 4 }}><PlusOutlined /></span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span onClick={() => openPicker('单品')} style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#1677FF', color: '#fff', transition: 'all .3s' }}>单品</span>
+                <span onClick={() => openPicker('组合')} style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#FF4D4F', color: '#fff', transition: 'all .3s' }}>组合</span>
+              </div>
             </div>
+          </div>
           </div>
         ) : currentItem ? (
           <div className="card" style={{ padding: 16, marginBottom: 0 }}>

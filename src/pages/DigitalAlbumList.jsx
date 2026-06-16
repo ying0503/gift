@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { DeleteOutlined } from '@ant-design/icons'
 import { Modal } from 'antd'
 import { API } from '../AuthContext'
 
 export default function DigitalAlbumList() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [albums, setAlbums] = useState([])
   const [loading, setLoading] = useState(true)
 
   const fetchAlbums = () => {
     const token = localStorage.getItem('token')
     if (!token) { navigate('/'); return }
+    setLoading(true)
     fetch(`${API}/api/album/list`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(data => {
@@ -21,7 +23,7 @@ export default function DigitalAlbumList() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchAlbums() }, [navigate])
+  useEffect(() => { fetchAlbums() }, [location.pathname])
 
   const handleDelete = (e, album) => {
     e.stopPropagation()
@@ -60,7 +62,7 @@ export default function DigitalAlbumList() {
               key={album.id}
               className="card"
               style={{ padding: 12, cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
-              onClick={() => navigate(`/digital-album/${album.id}`)}
+              onClick={() => navigate(`/digital-album/${album.id}`, { state: { publicAlbum: album } })}
             >
               <div onClick={e => handleDelete(e, album)} style={{ position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,.4)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12, zIndex: 1 }}><DeleteOutlined /></div>
               {album.bannerUrl ? (
