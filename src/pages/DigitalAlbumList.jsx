@@ -52,7 +52,22 @@ export default function DigitalAlbumList() {
           <div
             className="card"
             style={{ padding: 12, cursor: 'pointer', overflow: 'hidden' }}
-            onClick={() => navigate('/digital-album/new')}
+            onClick={async () => {
+              const token = localStorage.getItem('token')
+              if (!token) return
+              try {
+                const res = await fetch(`${API}/api/digital-album`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ categories: [] }),
+                })
+                const data = await res.json()
+                if (data.id) navigate(`/digital-album/${data.id}`)
+                else alert('创建失败：' + (data.error || '服务器返回异常'))
+              } catch (e) {
+                alert('创建失败，请检查服务器是否重启')
+              }
+            }}
           >
             <div style={{ width: '100%', aspectRatio: '1', borderRadius: 6, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, color: '#ddd' }}>+</div>
             <div style={{ fontSize: 12, color: '#999', marginTop: 8, textAlign: 'center' }}>创建画册</div>
@@ -62,7 +77,7 @@ export default function DigitalAlbumList() {
               key={album.id}
               className="card"
               style={{ padding: 12, cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
-              onClick={() => navigate(`/digital-album/${album.id}`, { state: { publicAlbum: album } })}
+              onClick={() => navigate(`/digital-album/${album.id}`)}
             >
               <div onClick={e => handleDelete(e, album)} style={{ position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,.4)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12, zIndex: 1 }}><DeleteOutlined /></div>
               {album.bannerUrl ? (
@@ -73,8 +88,8 @@ export default function DigitalAlbumList() {
                   <div style={{ fontSize: 11, opacity: 0.6 }}>点击编辑</div>
                 </div>
               )}
-              <div style={{ fontSize: 12, color: '#999', marginTop: 8, textAlign: 'center' }}>
-                {new Date(album.updatedAt).toLocaleDateString('zh-CN')}
+              <div style={{ fontSize: 12, color: '#333', marginTop: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {album.bannerTitle || '未命名画册'}
               </div>
             </div>
           ))}

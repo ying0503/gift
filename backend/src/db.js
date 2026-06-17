@@ -67,28 +67,42 @@ export async function initSchema() {
     created_at BIGINT NOT NULL,
     done TINYINT(1) DEFAULT 0
   )`)
-  await p.query(`CREATE TABLE IF NOT EXISTS digital_albums (
-    user_id VARCHAR(36) PRIMARY KEY,
-    categories JSON,
-    banner_url TEXT,
-    banner_title TEXT,
-    banner_subtitle TEXT,
-    updated_at BIGINT NOT NULL
-  )`)
-  await p.query(`CREATE TABLE IF NOT EXISTS public_album_data (
-    id VARCHAR(36) NOT NULL,
-    user_id VARCHAR(36) NOT NULL,
-    categories JSON,
-    banner_url TEXT,
-    banner_title TEXT,
-    banner_subtitle TEXT,
-    updated_at BIGINT NOT NULL,
-    created_at BIGINT NOT NULL DEFAULT 0,
-    PRIMARY KEY (id, user_id)
-  )`)
-  try { await p.query('ALTER TABLE public_album_data ADD COLUMN created_at BIGINT NOT NULL DEFAULT 0') } catch (e) {}
-  try { await p.query('ALTER TABLE public_album_data ADD COLUMN banner_title TEXT') } catch (e) {}
-  try { await p.query('ALTER TABLE public_album_data ADD COLUMN banner_subtitle TEXT') } catch (e) {}
+  try { await p.query('DROP TABLE IF EXISTS public_album_data') } catch (e) {}
+  const [triggers] = await p.query("SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_TABLE = 'digital_albums'")
+  for (const t of triggers) {
+    await p.query(`DROP TRIGGER IF EXISTS \`${t.TRIGGER_NAME}\``)
+  }
+  try {
+    const [cols] = await p.query('SHOW COLUMNS FROM digital_albums WHERE Field = "id"')
+    if (cols.length === 0) {
+      await p.query(`CREATE TABLE digital_albums_new (
+        id VARCHAR(36) NOT NULL,
+        user_id VARCHAR(36) NOT NULL,
+        categories JSON,
+        banner_url TEXT,
+        banner_title TEXT,
+        banner_subtitle TEXT,
+        updated_at BIGINT NOT NULL,
+        created_at BIGINT NOT NULL DEFAULT 0,
+        PRIMARY KEY (id, user_id)
+      )`)
+      await p.query('INSERT INTO digital_albums_new (id, user_id, categories, banner_url, banner_title, banner_subtitle, updated_at, created_at) SELECT UUID(), user_id, categories, banner_url, banner_title, banner_subtitle, updated_at, UNIX_TIMESTAMP()*1000 FROM digital_albums')
+      await p.query('DROP TABLE digital_albums')
+      await p.query('RENAME TABLE digital_albums_new TO digital_albums')
+    }
+  } catch (e) {
+    await p.query(`CREATE TABLE IF NOT EXISTS digital_albums (
+      id VARCHAR(36) NOT NULL,
+      user_id VARCHAR(36) NOT NULL,
+      categories JSON,
+      banner_url TEXT,
+      banner_title TEXT,
+      banner_subtitle TEXT,
+      updated_at BIGINT NOT NULL,
+      created_at BIGINT NOT NULL DEFAULT 0,
+      PRIMARY KEY (id, user_id)
+    )`)
+  }
   await p.query(`CREATE TABLE IF NOT EXISTS user_albums (
     user_id VARCHAR(36) NOT NULL,
     album_id VARCHAR(36) NOT NULL,
@@ -245,30 +259,9 @@ export async function updateBatch(batchId, updates) {
   }
 }
 
-export async function getDigitalAlbum(userId) {
+export async function getDigitalAlbum(id, userId) {
   const p = await getPool()
-  const [rows] = await p.query('SELECT * FROM digital_albums WHERE user_id = ?', [userId])
-  return rows[0] || null
-}
-
-export async function saveDigitalAlbum(userId, data) {
-  const p = await getPool()
-  const existing = await getDigitalAlbum(userId)
-  const now = Date.now()
-  const categories = data.categories ? JSON.stringify(data.categories) : (existing ? (typeof existing.categories === 'string' ? existing.categories : JSON.stringify(existing.categories)) : '[]')
-  const bannerUrl = data.bannerUrl !== undefined ? data.bannerUrl : (existing ? existing.banner_url : null)
-  const bannerTitle = data.bannerTitle !== undefined ? data.bannerTitle : (existing ? existing.banner_title : null)
-  const bannerSubtitle = data.bannerSubtitle !== undefined ? data.bannerSubtitle : (existing ? existing.banner_subtitle : null)
-  if (existing) {
-    await p.query('UPDATE digital_albums SET categories = ?, banner_url = ?, banner_title = ?, banner_subtitle = ?, updated_at = ? WHERE user_id = ?', [categories, bannerUrl, bannerTitle, bannerSubtitle, now, userId])
-  } else {
-    await p.query('INSERT INTO digital_albums (user_id, categories, banner_url, banner_title, banner_subtitle, updated_at) VALUES (?, ?, ?, ?, ?, ?)', [userId, categories, bannerUrl, bannerTitle, bannerSubtitle, now])
-  }
-}
-
-export async function getPublicAlbum(id, userId) {
-  const p = await getPool()
-  let query = 'SELECT * FROM public_album_data'
+  let query = 'SELECT * FROM digital_albums'
   const params = []
   const conditions = []
   if (id) { conditions.push('id = ?'); params.push(id) }
@@ -278,33 +271,33 @@ export async function getPublicAlbum(id, userId) {
   return rows[0] || null
 }
 
-export async function getPublicAlbums(userId) {
-  const p = await getPool()
-  if (userId) {
-    const [rows] = await p.query('SELECT * FROM public_album_data WHERE user_id = ? ORDER BY created_at DESC', [userId])
-    return rows
-  }
-  const [rows] = await p.query('SELECT * FROM public_album_data ORDER BY created_at DESC')
-  return rows
-}
-
-export async function deletePublicAlbum(id, userId) {
-  const p = await getPool()
-  await p.query('DELETE FROM public_album_data WHERE id = ? AND user_id = ?', [id, userId])
-}
-
-export async function savePublicAlbum(data, userId, id) {
+export async function saveDigitalAlbum(userId, data, id) {
   const p = await getPool()
   const now = Date.now()
+  const albumId = id || crypto.randomUUID()
   const categories = data.categories ? JSON.stringify(data.categories) : '[]'
   const bannerUrl = data.bannerUrl || null
   const bannerTitle = data.bannerTitle || null
   const bannerSubtitle = data.bannerSubtitle || null
-  const albumId = id || crypto.randomUUID()
-  const uid = userId || 'default'
-  await p.query(
-    'INSERT INTO public_album_data (id, user_id, categories, banner_url, banner_title, banner_subtitle, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), banner_title = VALUES(banner_title), banner_subtitle = VALUES(banner_subtitle), updated_at = VALUES(updated_at)',
-    [albumId, uid, categories, bannerUrl, bannerTitle, bannerSubtitle, now, now]
-  )
+  const sql = 'INSERT INTO digital_albums (id, user_id, categories, banner_url, banner_title, banner_subtitle, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), banner_title = VALUES(banner_title), banner_subtitle = VALUES(banner_subtitle), updated_at = VALUES(updated_at)'
+  try {
+    await p.query(sql, [albumId, userId, categories, bannerUrl, bannerTitle, bannerSubtitle, now, now])
+  } catch (e) {
+    const [colInfo] = await p.query('SHOW COLUMNS FROM digital_albums')
+    const colNames = colInfo.map(c => c.Field).join(', ')
+    const err = new Error(`${e.message} | SQL: ${sql} | Columns: [${colNames}]`)
+    throw err
+  }
   return { id: albumId }
+}
+
+export async function listDigitalAlbums(userId) {
+  const p = await getPool()
+  const [rows] = await p.query('SELECT * FROM digital_albums WHERE user_id = ? ORDER BY updated_at DESC', [userId])
+  return rows
+}
+
+export async function deleteDigitalAlbum(id, userId) {
+  const p = await getPool()
+  await p.query('DELETE FROM digital_albums WHERE id = ? AND user_id = ?', [id, userId])
 }

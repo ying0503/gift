@@ -423,8 +423,12 @@ app.get('/api/albums', auth, async (req, res) => {
 
 app.get('/api/digital-album', auth, async (req, res) => {
   try {
-    const data = await db.getDigitalAlbum(req.user.userId)
+    const { id } = req.query
+    const data = id
+      ? await db.getDigitalAlbum(id, req.user.userId)
+      : await db.getDigitalAlbum(null, req.user.userId)
     res.json(data ? {
+      id: data.id,
       categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
       bannerUrl: data.banner_url,
       bannerTitle: data.banner_title,
@@ -437,8 +441,8 @@ app.post('/api/digital-album', auth, async (req, res) => {
   try {
     const body = req.body
     if (!body || !Array.isArray(body.categories)) return res.status(400).json({ error: 'Invalid data' })
-    await db.saveDigitalAlbum(req.user.userId, { categories: body.categories, bannerUrl: body.bannerUrl, bannerTitle: body.bannerTitle, bannerSubtitle: body.bannerSubtitle })
-    res.json({ success: true })
+    const result = await db.saveDigitalAlbum(req.user.userId, { categories: body.categories, bannerUrl: body.bannerUrl, bannerTitle: body.bannerTitle, bannerSubtitle: body.bannerSubtitle }, body.id)
+    res.json({ success: true, id: result.id })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -446,9 +450,10 @@ app.get('/api/album', async (req, res) => {
   try {
     const { id, userId } = req.query
     if (id) {
-      const data = await db.getPublicAlbum(id)
+      const data = await db.getDigitalAlbum(id, userId || null)
       if (!data) return res.status(404).json({ error: 'Not found' })
       return res.json({
+        id: data.id,
         categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
         bannerUrl: data.banner_url,
         bannerTitle: data.banner_title,
@@ -456,14 +461,14 @@ app.get('/api/album', async (req, res) => {
       })
     }
     if (userId) {
-      const rows = await db.getPublicAlbums(userId)
-      const data = rows[0]
-      if (!data) return res.json({ categories: [], bannerUrl: null, bannerTitle: null, bannerSubtitle: null })
+      const row = await db.getDigitalAlbum(null, userId)
+      if (!row) return res.json({ categories: [], bannerUrl: null, bannerTitle: null, bannerSubtitle: null })
       return res.json({
-        categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
-        bannerUrl: data.banner_url,
-        bannerTitle: data.banner_title,
-        bannerSubtitle: data.banner_subtitle,
+        id: row.id,
+        categories: typeof row.categories === 'string' ? JSON.parse(row.categories) : row.categories,
+        bannerUrl: row.banner_url,
+        bannerTitle: row.banner_title,
+        bannerSubtitle: row.banner_subtitle,
       })
     }
     res.json({ categories: [], bannerUrl: null, bannerTitle: null, bannerSubtitle: null })
@@ -472,11 +477,12 @@ app.get('/api/album', async (req, res) => {
 
 app.get('/api/album/list', auth, async (req, res) => {
   try {
-    const rows = await db.getPublicAlbums(req.user.userId)
+    const rows = await db.listDigitalAlbums(req.user.userId)
     const list = rows.map(r => ({
       id: r.id,
       categories: typeof r.categories === 'string' ? JSON.parse(r.categories) : r.categories,
       bannerUrl: r.banner_url,
+      bannerTitle: r.banner_title,
       updatedAt: r.updated_at,
       createdAt: r.created_at,
     }))
@@ -484,26 +490,9 @@ app.get('/api/album/list', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
-app.post('/api/album/publish', auth, async (req, res) => {
-  try {
-    const data = await db.getDigitalAlbum(req.user.userId)
-    if (!data) return res.status(404).json({ error: 'No album data' })
-    const parsed = {
-      categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
-      bannerUrl: data.banner_url,
-      bannerTitle: data.banner_title,
-      bannerSubtitle: data.banner_subtitle,
-    }
-    const { id: existingId } = req.body
-    const result = await db.savePublicAlbum(parsed, req.user.userId, existingId || undefined)
-    console.log('Publish done:', result.id, 'existing:', existingId)
-    res.json({ success: true, id: result.id })
-  } catch (e) { console.error('Publish error:', e.message); res.status(500).json({ error: e.message }) }
-})
-
 app.delete('/api/album/:id', auth, async (req, res) => {
   try {
-    await db.deletePublicAlbum(req.params.id, req.user.userId)
+    await db.deleteDigitalAlbum(req.params.id, req.user.userId)
     res.json({ success: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })

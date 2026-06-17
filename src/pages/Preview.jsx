@@ -1,18 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { API } from '../AuthContext'
 
 export default function Preview() {
-  const location = useLocation()
   const navigate = useNavigate()
-  const { userId, catId: urlCatId, albumId: urlAlbumId } = useParams()
-  const [categories, setCategories] = useState(location.state?.categories || [])
-  const [bannerUrl, setBannerUrl] = useState(location.state?.bannerUrl || null)
+  const { userId, albumId, catId: urlCatId, itemAlbumId } = useParams()
+  const [categories, setCategories] = useState([])
+  const [bannerUrl, setBannerUrl] = useState(null)
   const [selectedCat, setSelectedCat] = useState(null)
   
   const [viewAlbum, setViewAlbum] = useState(null)
   const [albums, setAlbums] = useState([])
-  const [loading, setLoading] = useState(categories.length === 0)
+  const [loading, setLoading] = useState(true)
   const initialUrlSync = useRef(false)
 
   useEffect(() => {
@@ -59,7 +58,8 @@ export default function Preview() {
 
   useEffect(() => {
     const token = localStorage.getItem('token')
-    const url = token ? `${API}/api/digital-album` : `${API}/api/album?userId=${encodeURIComponent(userId)}`
+    const params = albumId ? `?id=${encodeURIComponent(albumId)}` : (token ? '' : `?userId=${encodeURIComponent(userId)}`)
+    const url = token ? `${API}/api/digital-album${params}` : `${API}/api/album${params}`
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
     fetch(url, { headers })
       .then(r => r.json())
@@ -83,13 +83,13 @@ export default function Preview() {
     if (loading || initialUrlSync.current) return
     initialUrlSync.current = true
     if (urlCatId) {
-      if (!categories.some(c => c.id === urlCatId)) { navigate(`/preview/${userId}`, { replace: true }); return }
+      if (!categories.some(c => c.id === urlCatId)) { navigate(`/preview/${userId}${albumId ? '/' + albumId : ''}`, { replace: true }); return }
       setSelectedCat(urlCatId)
     }
-    if (urlAlbumId) {
+    if (itemAlbumId) {
       for (const c of categories) {
         for (const i of c.items) {
-          const a = i.albums?.find(alb => alb.albumId === urlAlbumId)
+          const a = i.albums?.find(alb => alb.albumId === itemAlbumId)
           if (a) { setViewAlbum(a); return }
         }
       }
@@ -100,22 +100,22 @@ export default function Preview() {
   useEffect(() => {
     if (loading || !initialUrlSync.current) return
     if (urlCatId) {
-      if (!categories.some(c => c.id === urlCatId)) { navigate(`/preview/${userId}`, { replace: true }); return }
+      if (!categories.some(c => c.id === urlCatId)) { navigate(`/preview/${userId}${albumId ? '/' + albumId : ''}`, { replace: true }); return }
       setSelectedCat(urlCatId)
     } else {
       setSelectedCat(null); setViewAlbum(null)
     }
-    if (urlAlbumId) {
+    if (itemAlbumId) {
       for (const c of categories) {
         for (const i of c.items) {
-          const a = i.albums?.find(alb => alb.albumId === urlAlbumId)
+          const a = i.albums?.find(alb => alb.albumId === itemAlbumId)
           if (a) { setViewAlbum(a); return }
         }
       }
     } else {
       setViewAlbum(null)
     }
-  }, [urlCatId, urlAlbumId, loading])
+  }, [urlCatId, itemAlbumId, albumId, loading])
 
   function renderContent(m) {
     return (
@@ -130,7 +130,7 @@ export default function Preview() {
                 categories.map(cat => (
                   <div key={cat.id} className="album-tree-group">
                     <div
-                      onClick={() => { setSelectedCat(cat.id); navigate(`/preview/${userId}/${cat.id}`) }}
+                      onClick={() => { setSelectedCat(cat.id); navigate(`/preview/${userId}/${albumId}/${cat.id}`) }}
                       className={`album-tree-node album-tree-node-level1${selectedCat === cat.id ? ' active' : ''}${m ? ' album-tree-node-compact' : ''}`}
                     >{cat.name}</div>
 
@@ -204,7 +204,7 @@ export default function Preview() {
                 <div style={{ fontSize: m ? 13 : 16, fontWeight: 600, color: '#333', marginBottom: m ? 0 : 12, display: m ? 'none' : 'block' }}>{currentCat.name}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: m ? 8 : 12 }}>
                   {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a }))).map((a, i) => (
-                    <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${selectedCat}/${a.albumId}`) }}>
+                    <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${albumId}/${selectedCat}/${a.albumId}`) }}>
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0' }}>{a.productName || '产品名称'}</div>
                     </div>
@@ -217,7 +217,7 @@ export default function Preview() {
                 <div style={{ fontSize: m ? 13 : 16, fontWeight: 600, color: '#333', marginBottom: m ? 0 : 12, display: m ? 'none' : 'block' }}>所有画册</div>
                 <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: m ? 8 : 12 }}>
                   {allAlbums.map(a => (
-                    <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${a._catId}/${a.albumId}`) }}>
+                    <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${albumId}/${a._catId}/${a.albumId}`) }}>
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>
                         <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{a._catName} / {a._itemName}</div>

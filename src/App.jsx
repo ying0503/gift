@@ -22,6 +22,7 @@ function AppContent() {
   const [previewKey, setPreviewKey] = useState(0)
   const [currentTime, setCurrentTime] = useState(() => new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }))
   const previewSaveRef = useRef(null)
+  const previewAlbumIdRef = useRef(null)
   const [showQR, setShowQR] = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState('')
 
@@ -35,7 +36,7 @@ function AppContent() {
       import('qrcode').then(mod => {
         const QRCode = mod.default || mod
         QRCode.toDataURL(
-          window.location.origin + '/preview/' + user.id,
+          window.location.origin + '/preview/' + user.id + (previewAlbumIdRef.current ? '/' + previewAlbumIdRef.current : ''),
           { width: 360, margin: 1 }
         ).then(url => setQrDataUrl(url)).catch(() => {})
       })
@@ -95,8 +96,9 @@ function AppContent() {
     return (
       <Routes>
         <Route path="/preview/:userId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
-        <Route path="/preview/:userId/:catId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
-        <Route path="/preview/:userId/:catId/:albumId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
+        <Route path="/preview/:userId/:albumId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
+        <Route path="/preview/:userId/:albumId/:catId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
+        <Route path="/preview/:userId/:albumId/:catId/:itemAlbumId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
       </Routes>
     )
   }
@@ -181,9 +183,9 @@ function AppContent() {
         <Routes>
           <Route path="/workbench" element={<ErrorBoundary>{user ? <Home /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/digital-album" element={<ErrorBoundary>{user ? <DigitalAlbumList /> : <Navigate to="/" />}</ErrorBoundary>} />
-          <Route path="/digital-album/new" element={<ErrorBoundary key="da-new">{user ? <DigitalAlbum key="new" setPreviewSave={cb => previewSaveRef.current = cb} /> : <Navigate to="/" />}</ErrorBoundary>} />
-          <Route path="/digital-album/:catId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum key="cat" setPreviewSave={cb => previewSaveRef.current = cb} /> : <Navigate to="/" />}</ErrorBoundary>} />
-          <Route path="/digital-album/:catId/:albumId" element={<ErrorBoundary key="da-album">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/new" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/:albumId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/:albumId/:catId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/generate" element={<ErrorBoundary>{user ? <Generate /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/model-use" element={<ErrorBoundary>{user ? <ModelUse /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/my-albums" element={<ErrorBoundary>{user ? <MyAlbums /> : <Navigate to="/" />}</ErrorBoundary>} />
@@ -248,7 +250,7 @@ function AppContent() {
                         <span style={{ fontSize: 12, color: '#999' }}>加载中...</span>
                       </div>
                     ) : (
-                      <iframe key={previewKey} src={`/preview/${user.id}`} style={{ width: '100%', height: '100%', border: 'none' }} title="预览" />
+                      <iframe key={previewKey} src={`/preview/${user.id}${previewAlbumIdRef.current ? '/' + previewAlbumIdRef.current : ''}`} style={{ width: '100%', height: '100%', border: 'none' }} title="预览" />
                     )}
                   </div>
                 </div>

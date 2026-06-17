@@ -545,7 +545,7 @@ body {
 }
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   overflow: hidden;
 }
@@ -657,3 +657,15 @@ body {
   to   { transform: translateY(0); opacity: 1; }
 }
 /* Landing Page uses inline styles in LandingPage.jsx */
+
+.preview-enter {
+  animation: previewFadeIn 0.25s ease-out;
+}
+@keyframes previewFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.preview-close-btn:hover {
+  background: rgba(0,0,0,.75) !important;
+  transform: scale(1.1);
+}

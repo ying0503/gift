@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { EditOutlined, CloseOutlined, CheckOutlined, ArrowLeftOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
 import { API } from '../AuthContext'
 
-export default function DigitalAlbum({ setPreviewSave }) {
+export default function DigitalAlbum({ setPreviewSave, setPreviewAlbumId }) {
   const navigate = useNavigate()
-  const location = useLocation()
+  const albumIdRef = useRef(null)
   const [categories, setCategories] = useState([])
   const [albums, setAlbums] = useState([])
   const [selectedCat, setSelectedCat] = useState(null)
@@ -30,6 +30,8 @@ export default function DigitalAlbum({ setPreviewSave }) {
 const [globalBannerUrl, setGlobalBannerUrl] = useState(null)
 const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   const [globalBannerError, setGlobalBannerError] = useState(null)
+  const [bannerTitle, setBannerTitle] = useState('')
+  const [editingTitle, setEditingTitle] = useState(false)
   const [festival, setFestival] = useState('')
   const [festivalPrompt, setFestivalPrompt] = useState('')
   const [generatingPrompt, setGeneratingPrompt] = useState(false)
@@ -37,87 +39,40 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   const [uploadingBanner, setUploadingBanner] = useState(false)
   const [generatingCats, setGeneratingCats] = useState(false)
   const fileInputRef = useRef(null)
+  const categoriesRef = useRef([])
+  useEffect(() => { categoriesRef.current = categories }, [categories])
   const festivals = ['春节', '元宵节', '端午节', '中秋节', '情人节', '圣诞节', '国庆节', '新年', '母亲节', '父亲节', '教师节', '七夕节', '万圣节', '感恩节']
 
-  const { catId: urlCatId, itemId: urlItemId, albumId: urlAlbumId } = useParams()
-  const initialUrlSync = useRef(false)
-  const editingPublicAlbumId = useRef(null)
+  const { albumId: urlAlbumId, catId: urlCatId, itemId: urlItemId } = useParams()
 
   useEffect(() => {
-    if (loading || initialUrlSync.current) return
-    initialUrlSync.current = true
-    if (urlCatId) {
-      if (urlCatId === editingPublicAlbumId.current && categories.length > 0) {
-        const firstId = categories[0].id
-        setSelectedCat(firstId)
-        setExpandedCats(s => new Set(s).add(firstId))
-        navigate(`/digital-album/${firstId}`, { replace: true })
-        return
+    const token = localStorage.getItem('token')
+    if (!token) { setLoading(false); return }
+    const id = urlAlbumId
+    const url = id ? `${API}/api/digital-album?id=${encodeURIComponent(id)}` : `${API}/api/digital-album`
+    Promise.all([
+      fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch(`${API}/api/albums`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    ]).then(([da, al]) => {
+      if (da.id) { albumIdRef.current = da.id; if (setPreviewAlbumId) setPreviewAlbumId(da.id) }
+      if (da.categories) {
+        const cats = da.categories.map(c => ({ ...c, items: c.items.map(i => ({ ...i, albums: i.albums || [] })) }))
+        setCategories(cats)
       }
-      if (categories.some(c => c.id === urlCatId)) {
-        setSelectedCat(urlCatId)
-        setExpandedCats(s => new Set(s).add(urlCatId))
-      }
-    }
-    if (urlItemId) {
-      const cat = categories.find(c => c.id === urlCatId)
-      if (cat?.items.some(i => i.id === urlItemId)) {
-        setSelectedItem(urlItemId)
-      }
-    }
-    if (urlAlbumId) {
-      for (const c of categories) {
-        for (const i of c.items) {
-          const a = i.albums?.find(alb => alb.albumId === urlAlbumId)
-          if (a) { setViewAlbum(a); return }
-        }
-      }
+      if (da.bannerUrl) setGlobalBannerUrl(da.bannerUrl)
+      if (da.bannerTitle) setBannerTitle(da.bannerTitle)
+      if (al.albums) setAlbums(al.albums)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    if (loading || !urlCatId) return
+    if (categories.some(c => c.id === urlCatId)) {
+      setSelectedCat(urlCatId)
+      setExpandedCats(s => new Set(s).add(urlCatId))
     }
   }, [loading])
-
-  useEffect(() => {
-    if (loading || !initialUrlSync.current) return
-    if (urlCatId) {
-      if (urlCatId === editingPublicAlbumId.current && categories.length > 0) {
-        const firstId = categories[0].id
-        setSelectedCat(firstId)
-        setExpandedCats(s => new Set(s).add(firstId))
-        navigate(`/digital-album/${firstId}`, { replace: true })
-        return
-      }
-      if (categories.some(c => c.id === urlCatId)) {
-        setSelectedCat(urlCatId)
-        setExpandedCats(s => new Set(s).add(urlCatId))
-      } else {
-        setSelectedCat(null)
-        setSelectedItem(null)
-        setViewAlbum(null)
-      }
-    } else {
-      setSelectedCat(null)
-      setSelectedItem(null)
-      setViewAlbum(null)
-    }
-    if (urlItemId) {
-      const cat = categories.find(c => c.id === urlCatId)
-      if (cat?.items.some(i => i.id === urlItemId)) {
-        setSelectedItem(urlItemId)
-      }
-    } else if (!urlItemId && !urlCatId) {
-      setSelectedItem(null)
-      setViewAlbum(null)
-    }
-    if (urlAlbumId) {
-      for (const c of categories) {
-        for (const i of c.items) {
-          const a = i.albums?.find(alb => alb.albumId === urlAlbumId)
-          if (a) { setViewAlbum(a); return }
-        }
-      }
-    } else if (!urlAlbumId) {
-      setViewAlbum(null)
-    }
-  }, [urlCatId, urlItemId, urlAlbumId, loading])
 
   const albumMap = useMemo(() => {
     const m = {}
@@ -155,41 +110,6 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   }
 
   useEffect(() => {
-    if (location.pathname === '/digital-album/new') {
-      setLoading(false)
-      return
-    }
-    const publicAlbum = location.state?.publicAlbum
-    if (publicAlbum && urlCatId === publicAlbum.id) {
-      editingPublicAlbumId.current = publicAlbum.id
-      const cats = (Array.isArray(publicAlbum.categories) ? publicAlbum.categories : []).map(c => ({ ...c, items: c.items || [] }))
-      setCategories(cats)
-      if (publicAlbum.bannerUrl) setGlobalBannerUrl(publicAlbum.bannerUrl)
-      setLoading(false)
-      const token = localStorage.getItem('token')
-      if (token) {
-        fetch(`${API}/api/albums`, { headers: { Authorization: `Bearer ${token}` } })
-          .then(r => r.json()).then(data => { if (data.albums) setAlbums(data.albums) }).catch(() => {})
-      }
-      return
-    }
-    const token = localStorage.getItem('token')
-    if (!token) { setLoading(false); return }
-    Promise.all([
-      fetch(`${API}/api/digital-album`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-      fetch(`${API}/api/albums`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-    ]).then(([da, al]) => {
-      if (da.categories) {
-        const cats = da.categories.map(c => ({ ...c, items: c.items.map(i => ({ ...i, albums: i.albums || [] })) }))
-        setCategories(cats)
-      }
-      if (da.bannerUrl) setGlobalBannerUrl(da.bannerUrl)
-      if (al.albums) setAlbums(al.albums)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
     if (!festival) { setFestivalPrompt(''); return }
     const token = localStorage.getItem('token')
     if (!token) return
@@ -213,39 +133,27 @@ await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
 body: JSON.stringify({
+id: albumIdRef.current,
 categories: cats,
 bannerUrl: bannerUrl !== undefined ? bannerUrl : globalBannerUrl,
+bannerTitle,
 }),
 })
-}, [globalBannerUrl])
+}, [globalBannerUrl, bannerTitle])
 
-const publishAlbum = useCallback(async () => {
+const saveForPreview = useCallback(async () => {
 const token = localStorage.getItem('token')
 if (!token) return
-const currentCategories = categories
-const currentBanner = globalBannerUrl
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({
-categories: currentCategories,
-bannerUrl: currentBanner,
-}),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle }),
 })
-    const pubRes = await fetch(`${API}/api/album/publish`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id: editingPublicAlbumId.current || undefined }),
-    })
-    if (pubRes.ok) {
-      const pubData = await pubRes.json()
-      if (pubData.id) editingPublicAlbumId.current = pubData.id
-    }
-  }, [categories, globalBannerUrl])
+}, [categories, globalBannerUrl, bannerTitle])
 
-  useEffect(() => {
-    if (setPreviewSave) setPreviewSave(publishAlbum)
-  }, [setPreviewSave, publishAlbum])
+useEffect(() => {
+if (setPreviewSave) setPreviewSave(saveForPreview)
+}, [setPreviewSave, saveForPreview])
 
 const saveGlobalBannerUrl = (url) => {
 const token = localStorage.getItem('token')
@@ -254,11 +162,17 @@ setGlobalBannerUrl(url)
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-}).then(() => {
-fetch(`${API}/api/album/publish`, {
-method: 'POST',
-headers: { Authorization: `Bearer ${token}` },
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: url, bannerTitle }),
 }).catch(() => {})
+}
+
+const saveTitle = () => {
+const token = localStorage.getItem('token')
+if (!token) return
+fetch(`${API}/api/digital-album`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle }),
 }).catch(() => {})
 }
 
@@ -283,13 +197,13 @@ headers: { Authorization: `Bearer ${token}` },
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ categories: merged }),
-})
+body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: globalBannerUrl, bannerTitle }),
+}).then(r => r.json()).then(d => { if (d.id && !albumIdRef.current) { albumIdRef.current = d.id; if (setPreviewAlbumId) setPreviewAlbumId(d.id) } })
         if (merged.length > 0 && newCats.length > 0) {
           const firstId = newCats[0].id
           setSelectedCat(firstId)
           setSelectedItem(null)
-          navigate(`/digital-album/${firstId}`)
+          navigate(albumIdRef.current ? `/digital-album/${albumIdRef.current}/${firstId}` : `/digital-album/${firstId}`)
         }
       }
     } catch (e) {
@@ -317,6 +231,14 @@ body: JSON.stringify({ categories: merged }),
       }).then(r => r.json()).then(data => {
         if (data.url) {
           setGlobalBannerUrl(data.url)
+          const token2 = localStorage.getItem('token')
+          if (token2) {
+            fetch(`${API}/api/digital-album`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token2}` },
+              body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: data.url, bannerTitle }),
+            }).then(r => r.json()).then(d => { if (d.id && !albumIdRef.current) { albumIdRef.current = d.id; if (setPreviewAlbumId) setPreviewAlbumId(d.id) } }).catch(() => {})
+          }
         } else {
           alert(data.error || '上传失败')
         }
@@ -400,17 +322,11 @@ body: JSON.stringify({ categories: merged }),
 
   function addCategory() {
     const id = crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
-    setCategories(prev => [...prev, { id, name: '新分类', items: [] }])
+    const newCats = [...categories, { id, name: '新分类', items: [] }]
+    setCategories(newCats)
     setExpandedCats(prev => new Set(prev).add(id))
     setTimeout(() => startEdit(id, '新分类'), 50)
-    const token = localStorage.getItem('token')
-    if (!token) return
-    setTimeout(() => {
-      fetch(`${API}/api/digital-album`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-    }, 100)
+    save(newCats)
   }
 
   const deleteCategory = useCallback((id) => {
@@ -432,7 +348,7 @@ body: JSON.stringify({ categories: merged }),
     const item = categories.find(c => c.id === catId)?.items.find(i => i.id === itemId)
     if (item && (item.albums || []).length > 0) { alert('该页面下还有画册，无法删除'); return }
     save(categories.map(c => c.id === catId ? { ...c, items: c.items.filter(i => i.id !== itemId) } : c))
-    if (selectedItem === itemId) { setSelectedItem(null); navigate(`/digital-album/${catId}`) }
+    if (selectedItem === itemId) { setSelectedItem(null); navigate(albumIdRef.current ? `/digital-album/${albumIdRef.current}/${catId}` : '/digital-album') }
   }, [categories, save, selectedItem, navigate])
 
   const removeAlbum = useCallback((catId, itemId, albumId) => {
@@ -443,12 +359,12 @@ body: JSON.stringify({ categories: merged }),
         fetch(`${API}/api/digital-album`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ categories: next, bannerUrl: globalBannerUrl }),
+          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle }),
         }).catch(() => {})
       }
       return next
     })
-  }, [globalBannerUrl])
+  }, [globalBannerUrl, bannerTitle])
 
   const removeComboItem = useCallback((catId, itemId, albumId, itemAlbumId) => {
     setCategories(prev => {
@@ -464,12 +380,12 @@ body: JSON.stringify({ categories: merged }),
         fetch(`${API}/api/digital-album`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ categories: next, bannerUrl: globalBannerUrl }),
+          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle }),
         }).catch(() => {})
       }
       return next
     })
-  }, [globalBannerUrl])
+  }, [globalBannerUrl, bannerTitle])
 
   const updateAlbumBanner = useCallback((catId, itemId, albumId, bannerUrl) => {
     const newCats = categories.map(c => c.id === catId ? {
@@ -689,6 +605,20 @@ body: JSON.stringify({ categories: merged }),
   return (
     <div style={{ maxWidth: 920, margin: '0 auto' }}>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadBanner} style={{ display: 'none' }} />
+      <div className="card" style={{ padding: '12px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+        {editingTitle ? (
+          <input autoFocus value={bannerTitle} onChange={e => setBannerTitle(e.target.value)}
+            style={{ flex: 1, height: 34, padding: '0 10px', fontSize: 15, border: '1px solid #8B5CF6', borderRadius: 6, outline: 'none' }}
+            onKeyDown={e => { if (e.key === 'Enter') { setEditingTitle(false); saveTitle() } }}
+            onBlur={() => { setEditingTitle(false); saveTitle() }}
+          />
+        ) : (
+          <>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', flex: 1 }}>{bannerTitle || '画册标题'}</span>
+            <span onClick={() => setEditingTitle(true)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 16, padding: 4 }}><EditOutlined /></span>
+          </>
+        )}
+      </div>
       <div className="card" style={{ padding: globalBannerUrl ? 0 : 16, marginBottom: 12, position: 'relative' }}>
         {!globalBannerUrl && (
           <div style={{ minHeight: 300, display: 'flex', flexDirection: 'column' }}>
@@ -768,7 +698,7 @@ body: JSON.stringify({ categories: merged }),
               <div key={cat.id} className="album-tree-group">
                 <div
                   className={`album-tree-node album-tree-node-level1${selectedCat === cat.id ? ' active' : ''}`}
-                  onClick={() => { setSelectedCat(cat.id); setSelectedItem(null); navigate(`/digital-album/${cat.id}`) }}
+                  onClick={() => { setSelectedCat(cat.id); setSelectedItem(null); navigate(albumIdRef.current ? `/digital-album/${albumIdRef.current}/${cat.id}` : `/digital-album/${cat.id}`) }}
                 >
 
                   {editing === cat.id ? (
@@ -801,7 +731,8 @@ body: JSON.stringify({ categories: merged }),
           <div className="card" style={{ padding: 16, marginBottom: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <button
-                onClick={() => { setViewAlbum(null); navigate(urlItemId ? `/digital-album/${urlCatId}/${urlItemId}` : urlCatId ? `/digital-album/${urlCatId}` : '/digital-album') }}
+                onClick={() => { const aid = urlAlbumId || albumIdRef.current; setViewAlbum(null); navigate(urlItemId ? `/digital-album/${aid}/${urlCatId}/${urlItemId}` : urlCatId ? `/digital-album/${aid}/${urlCatId}` : aid ? `/digital-album/${aid}` : '/digital-album') }}
+
                 className="btn btn-outline"
                 style={{ fontSize: 13, padding: '4px 12px' }}
               ><ArrowLeftOutlined /> 返回</button>
@@ -870,7 +801,7 @@ body: JSON.stringify({ categories: merged }),
         ) : viewAlbum ? (
           <div className="card" style={{ padding: 16, marginBottom: 0, maxWidth: 900, marginLeft: 'auto', marginRight: 'auto' }}>
             <button
-              onClick={() => { setViewAlbum(null); navigate(urlItemId ? `/digital-album/${urlCatId}/${urlItemId}` : urlCatId ? `/digital-album/${urlCatId}` : '/digital-album') }}
+              onClick={() => { const aid = urlAlbumId || albumIdRef.current; setViewAlbum(null); navigate(urlItemId ? `/digital-album/${aid}/${urlCatId}/${urlItemId}` : urlCatId ? `/digital-album/${aid}/${urlCatId}` : aid ? `/digital-album/${aid}` : '/digital-album') }}
               className="btn btn-outline"
               style={{ marginBottom: 12, fontSize: 13, padding: '4px 12px' }}
             ><ArrowLeftOutlined /> 返回</button>
