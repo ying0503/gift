@@ -54,14 +54,16 @@ export default function DigitalAlbum({ setPreviewSave }) {
         navigate(`/digital-album/${firstId}`, { replace: true })
         return
       }
-      if (!categories.some(c => c.id === urlCatId)) { navigate('/digital-album', { replace: true }); return }
-      setSelectedCat(urlCatId)
-      setExpandedCats(s => new Set(s).add(urlCatId))
+      if (categories.some(c => c.id === urlCatId)) {
+        setSelectedCat(urlCatId)
+        setExpandedCats(s => new Set(s).add(urlCatId))
+      }
     }
     if (urlItemId) {
       const cat = categories.find(c => c.id === urlCatId)
-      if (!cat?.items.some(i => i.id === urlItemId)) { navigate(urlCatId ? `/digital-album/${urlCatId}` : '/digital-album', { replace: true }); return }
-      setSelectedItem(urlItemId)
+      if (cat?.items.some(i => i.id === urlItemId)) {
+        setSelectedItem(urlItemId)
+      }
     }
     if (urlAlbumId) {
       for (const c of categories) {
@@ -83,9 +85,14 @@ export default function DigitalAlbum({ setPreviewSave }) {
         navigate(`/digital-album/${firstId}`, { replace: true })
         return
       }
-      if (!categories.some(c => c.id === urlCatId)) { navigate('/digital-album', { replace: true }); return }
-      setSelectedCat(urlCatId)
-      setExpandedCats(s => new Set(s).add(urlCatId))
+      if (categories.some(c => c.id === urlCatId)) {
+        setSelectedCat(urlCatId)
+        setExpandedCats(s => new Set(s).add(urlCatId))
+      } else {
+        setSelectedCat(null)
+        setSelectedItem(null)
+        setViewAlbum(null)
+      }
     } else {
       setSelectedCat(null)
       setSelectedItem(null)
@@ -93,8 +100,9 @@ export default function DigitalAlbum({ setPreviewSave }) {
     }
     if (urlItemId) {
       const cat = categories.find(c => c.id === urlCatId)
-      if (!cat?.items.some(i => i.id === urlItemId)) { navigate(urlCatId ? `/digital-album/${urlCatId}` : '/digital-album', { replace: true }); return }
-      setSelectedItem(urlItemId)
+      if (cat?.items.some(i => i.id === urlItemId)) {
+        setSelectedItem(urlItemId)
+      }
     } else if (!urlItemId && !urlCatId) {
       setSelectedItem(null)
       setViewAlbum(null)
@@ -119,9 +127,12 @@ export default function DigitalAlbum({ setPreviewSave }) {
 
   const allAlbums = useMemo(() => {
     const result = []
+    const seen = new Set()
     for (const c of categories) {
       for (const i of c.items) {
         for (const a of i.albums || []) {
+          if (seen.has(a.albumId)) continue
+          seen.add(a.albumId)
           result.push({ ...a, _catId: c.id, _itemId: i.id, _catName: c.name, _itemName: i.name })
         }
       }
@@ -163,7 +174,7 @@ export default function DigitalAlbum({ setPreviewSave }) {
       return
     }
     const token = localStorage.getItem('token')
-    if (!token) return
+    if (!token) { setLoading(false); return }
     Promise.all([
       fetch(`${API}/api/digital-album`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
       fetch(`${API}/api/albums`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
@@ -510,7 +521,6 @@ export default function DigitalAlbum({ setPreviewSave }) {
       const newItem = { id: itemId, name: '默认页面', albums: [] }
       const catsWithItem = categories.map(c => c.id === catId ? { ...c, items: [...c.items, newItem] } : c)
       setCategories(catsWithItem)
-      setSelectedItem(itemId)
       save(catsWithItem)
       setTimeout(() => {
         const finalAdded = pendingType === '组合' && added.length > 0
@@ -675,54 +685,59 @@ export default function DigitalAlbum({ setPreviewSave }) {
   return (
     <div style={{ maxWidth: 920, margin: '0 auto' }}>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadBanner} style={{ display: 'none' }} />
-      <div className="card" style={{ padding: 16, marginBottom: 12 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>顶部氛围图</div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 12 }}>
-          <button
-            onClick={generateGlobalBanner}
-            disabled={generatingPrompt}
-            style={{
-              padding: '8px 20px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
-              background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
-              color: '#fff', border: 'none', borderRadius: 8, cursor: generatingPrompt ? 'not-allowed' : 'pointer',
-              opacity: generatingPrompt ? .5 : 1, transition: 'opacity .2s',
-            }}
-          >
-            {generatingPrompt ? 'AI智能生成中...' : 'AI智能生成'}
-          </button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingBanner} style={{
-            padding: '8px 20px', fontSize: 14, whiteSpace: 'nowrap',
-            background: uploadingBanner ? '#d9d9d9' : 'linear-gradient(90deg, #ff7db8, #8f7cff)',
-            color: '#fff', border: 'none', borderRadius: 8, cursor: uploadingBanner ? 'not-allowed' : 'pointer',
-            opacity: uploadingBanner ? .6 : 1, transition: 'opacity .2s',
-          }}>
-            {uploadingBanner ? '上传中...' : '上传图片'}
-          </button>
-        </div>
-        {generatingGlobalBanner && (
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>正在生成氛围图...</div>
-            <div style={{ width: '100%', height: 6, background: '#ddd', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ width: `${globalBannerProgress}%`, height: '100%', background: 'linear-gradient(90deg, #1677FF, #69B1FF)', borderRadius: 3, transition: 'width .1s linear' }} />
+      <div className="card" style={{ padding: globalBannerUrl ? 0 : 16, marginBottom: 12, position: 'relative' }}>
+        {!globalBannerUrl && (
+          <>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>顶部氛围图</div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 12 }}>
+              <button
+                onClick={generateGlobalBanner}
+                disabled={generatingPrompt}
+                style={{
+                  padding: '8px 20px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
+                  background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                  color: '#fff', border: 'none', borderRadius: 8, cursor: generatingPrompt ? 'not-allowed' : 'pointer',
+                  opacity: generatingPrompt ? .5 : 1, transition: 'opacity .2s',
+                }}
+              >
+                {generatingPrompt ? 'AI智能生成中...' : 'AI智能生成'}
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingBanner} style={{
+                padding: '8px 20px', fontSize: 14, whiteSpace: 'nowrap',
+                background: uploadingBanner ? '#d9d9d9' : 'linear-gradient(90deg, #ff7db8, #8f7cff)',
+                color: '#fff', border: 'none', borderRadius: 8, cursor: uploadingBanner ? 'not-allowed' : 'pointer',
+                opacity: uploadingBanner ? .6 : 1, transition: 'opacity .2s',
+              }}>
+                {uploadingBanner ? '上传中...' : '上传图片'}
+              </button>
             </div>
-          </div>
+            {generatingGlobalBanner && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>正在生成氛围图...</div>
+                <div style={{ width: '100%', height: 6, background: '#ddd', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${globalBannerProgress}%`, height: '100%', background: 'linear-gradient(90deg, #1677FF, #69B1FF)', borderRadius: 3, transition: 'width .1s linear' }} />
+                </div>
+              </div>
+            )}
+            {globalBannerError && <div style={{ fontSize: 12, color: '#e44', marginBottom: 10 }}>{globalBannerError}</div>}
+          </>
         )}
-        {globalBannerError && <div style={{ fontSize: 12, color: '#e44', marginBottom: 10 }}>{globalBannerError}</div>}
         {globalBannerUrl && (
-          <div style={{ position: 'relative', background: '#fff', borderRadius: 8, display: 'inline-block' }}>
-            <img src={globalBannerUrl} alt="" style={{ maxWidth: '100%', height: 'auto', display: 'block', borderRadius: 6 }} />
+          <div style={{ position: 'relative' }}>
             <button
               onClick={generateGlobalBanner}
               disabled={generatingPrompt}
               style={{
-                position: 'absolute', top: -36, right: 0,
+                position: 'absolute', top: -10, right: -10,
                 padding: '6px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
                 background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
-                color: '#fff', border: 'none', borderRadius: '0 8px 0 0',
+                color: '#fff', border: 'none', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,.15)',
                 cursor: generatingPrompt ? 'not-allowed' : 'pointer',
                 opacity: generatingPrompt ? .5 : 1, transition: 'opacity .2s',
+                zIndex: 1,
               }}
             >重新生成</button>
+            <img src={globalBannerUrl} alt="" style={{ width: '100%', display: 'block', borderRadius: 8 }} />
           </div>
         )}
       </div>
@@ -834,16 +849,6 @@ export default function DigitalAlbum({ setPreviewSave }) {
                       <div>总重量：{liveParams.totalWeight || '-'}</div>
                       <div style={{ color: '#FF4D4F', marginTop: 2 }}>温馨提示：{liveParams.note || '-'}</div>
             </div>
-            <div
-              className="add-card-hover"
-              style={{ marginTop: 12, borderRadius: 8, border: '2px dashed #d9d9d9', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 15, gap: 4, transition: 'all .3s', cursor: 'default' }}
-            >
-              <span style={{ fontSize: 22, marginBottom: 4 }}><PlusOutlined /></span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <span onClick={() => openPicker('单品')} className="type-btn" style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#1677FF', color: '#fff', transition: 'all .3s' }}>单品</span>
-                <span onClick={() => openPicker('组合')} className="type-btn" style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#FF4D4F', color: '#fff', transition: 'all .3s' }}>组合</span>
-              </div>
-            </div>
           </div>
                 )
               })}
@@ -882,7 +887,7 @@ export default function DigitalAlbum({ setPreviewSave }) {
           <div className="card" style={{ padding: 16, marginBottom: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 12 }}>{currentCat.name}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a, _pageName: i.name, _itemId: i.id }))).map((a, i) => (
+              {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a, _pageName: i.name, _itemId: i.id }))).filter((a, i, arr) => arr.findIndex(x => x.albumId === a.albumId) === i).map((a, i) => (
                 <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a) }}>
                   <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
@@ -906,13 +911,16 @@ export default function DigitalAlbum({ setPreviewSave }) {
                 </div>
               ))}
             <div
-              style={{ borderRadius: 8, border: '2px dashed #d9d9d9', aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 15, gap: 4, transition: 'all .3s', cursor: 'default' }}
+              style={{ borderRadius: 8, border: '2px dashed #d9d9d9', overflow: 'hidden', cursor: 'default' }}
             >
-              <span style={{ fontSize: 22, marginBottom: 4 }}><PlusOutlined /></span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <span onClick={() => openPicker('单品')} style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#1677FF', color: '#fff', transition: 'all .3s' }}>单品</span>
-                <span onClick={() => openPicker('组合')} style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#FF4D4F', color: '#fff', transition: 'all .3s' }}>组合</span>
+              <div style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 15, gap: 4 }}>
+                <span style={{ fontSize: 22, marginBottom: 4 }}><PlusOutlined /></span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <span onClick={() => openPicker('单品')} style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#1677FF', color: '#fff', transition: 'all .3s' }}>单品</span>
+                  <span onClick={() => openPicker('组合')} style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#FF4D4F', color: '#fff', transition: 'all .3s' }}>组合</span>
+                </div>
               </div>
+              <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>&nbsp;</div>
             </div>
           </div>
           </div>
@@ -948,15 +956,18 @@ export default function DigitalAlbum({ setPreviewSave }) {
               ))}
               <div
                 className="add-card-hover"
-                style={{ borderRadius: 8, border: '2px dashed #d9d9d9', aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 15, gap: 4, transition: 'all .3s', cursor: 'default' }}
+                style={{ borderRadius: 8, border: '2px dashed #d9d9d9', overflow: 'hidden', cursor: 'default' }}
               >
+                <div style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 15, gap: 4 }}>
                 <span style={{ fontSize: 22, marginBottom: 4 }}><PlusOutlined /></span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <span onClick={() => openPicker('单品')} className="type-btn" style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#1677FF', color: '#fff', transition: 'all .3s' }}>单品</span>
                   <span onClick={() => openPicker('组合')} className="type-btn" style={{ cursor: 'pointer', fontSize: 12, padding: '4px 12px', borderRadius: 6, background: '#FF4D4F', color: '#fff', transition: 'all .3s' }}>组合</span>
                 </div>
               </div>
+              <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>&nbsp;</div>
             </div>
+          </div>
           </div>
         ) : selectedCat && currentCat ? (
           <div className="card" style={{ padding: 60, textAlign: 'center', color: '#999' }}>

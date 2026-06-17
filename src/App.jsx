@@ -122,7 +122,7 @@ function AppContent() {
           </div>
           {user && (
             <div className="header-right">
-              {location.pathname.startsWith('/digital-album') && (
+              {location.pathname.startsWith('/digital-album/') && (
                 <button onClick={openPreview} style={{
                   padding: '6px 16px', fontSize: 13, border: 'none', borderRadius: 6, cursor: 'pointer', marginRight: 8,
                   background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
@@ -134,7 +134,6 @@ function AppContent() {
                 onMouseLeave={() => setAvatarOpen(false)}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                  <span style={{ fontSize: 13, color: '#555' }}>{user.email}</span>
                   <img
                     src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23E8E0FF'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%237B61FF'/%3E%3Cellipse cx='50' cy='72' rx='26' ry='22' fill='%237B61FF'/%3E%3C/svg%3E"
                     alt="avatar"
@@ -154,6 +153,7 @@ function AppContent() {
                       boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
                       width: 160, padding: '8px 0',
                     }}>
+                      <div style={{ padding: '10px 16px', fontSize: 13, color: '#999', borderBottom: '1px solid #f0f0f0' }}>{user.email}</div>
                       <button style={{
                         display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none',
                         fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left',
