@@ -71,18 +71,24 @@ export async function initSchema() {
     user_id VARCHAR(36) PRIMARY KEY,
     categories JSON,
     banner_url TEXT,
+    banner_title TEXT,
+    banner_subtitle TEXT,
     updated_at BIGINT NOT NULL
   )`)
   await p.query(`CREATE TABLE IF NOT EXISTS public_album_data (
-  id VARCHAR(36) NOT NULL,
-  user_id VARCHAR(36) NOT NULL,
-  categories JSON,
-  banner_url TEXT,
-  updated_at BIGINT NOT NULL,
-  created_at BIGINT NOT NULL DEFAULT 0,
-  PRIMARY KEY (id, user_id)
-)`)
+    id VARCHAR(36) NOT NULL,
+    user_id VARCHAR(36) NOT NULL,
+    categories JSON,
+    banner_url TEXT,
+    banner_title TEXT,
+    banner_subtitle TEXT,
+    updated_at BIGINT NOT NULL,
+    created_at BIGINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (id, user_id)
+  )`)
   try { await p.query('ALTER TABLE public_album_data ADD COLUMN created_at BIGINT NOT NULL DEFAULT 0') } catch (e) {}
+  try { await p.query('ALTER TABLE public_album_data ADD COLUMN banner_title TEXT') } catch (e) {}
+  try { await p.query('ALTER TABLE public_album_data ADD COLUMN banner_subtitle TEXT') } catch (e) {}
   await p.query(`CREATE TABLE IF NOT EXISTS user_albums (
     user_id VARCHAR(36) NOT NULL,
     album_id VARCHAR(36) NOT NULL,
@@ -251,10 +257,12 @@ export async function saveDigitalAlbum(userId, data) {
   const now = Date.now()
   const categories = data.categories ? JSON.stringify(data.categories) : (existing ? (typeof existing.categories === 'string' ? existing.categories : JSON.stringify(existing.categories)) : '[]')
   const bannerUrl = data.bannerUrl !== undefined ? data.bannerUrl : (existing ? existing.banner_url : null)
+  const bannerTitle = data.bannerTitle !== undefined ? data.bannerTitle : (existing ? existing.banner_title : null)
+  const bannerSubtitle = data.bannerSubtitle !== undefined ? data.bannerSubtitle : (existing ? existing.banner_subtitle : null)
   if (existing) {
-    await p.query('UPDATE digital_albums SET categories = ?, banner_url = ?, updated_at = ? WHERE user_id = ?', [categories, bannerUrl, now, userId])
+    await p.query('UPDATE digital_albums SET categories = ?, banner_url = ?, banner_title = ?, banner_subtitle = ?, updated_at = ? WHERE user_id = ?', [categories, bannerUrl, bannerTitle, bannerSubtitle, now, userId])
   } else {
-    await p.query('INSERT INTO digital_albums (user_id, categories, banner_url, updated_at) VALUES (?, ?, ?, ?)', [userId, categories, bannerUrl, now])
+    await p.query('INSERT INTO digital_albums (user_id, categories, banner_url, banner_title, banner_subtitle, updated_at) VALUES (?, ?, ?, ?, ?, ?)', [userId, categories, bannerUrl, bannerTitle, bannerSubtitle, now])
   }
 }
 
@@ -290,11 +298,13 @@ export async function savePublicAlbum(data, userId, id) {
   const now = Date.now()
   const categories = data.categories ? JSON.stringify(data.categories) : '[]'
   const bannerUrl = data.bannerUrl || null
+  const bannerTitle = data.bannerTitle || null
+  const bannerSubtitle = data.bannerSubtitle || null
   const albumId = id || crypto.randomUUID()
   const uid = userId || 'default'
   await p.query(
-    'INSERT INTO public_album_data (id, user_id, categories, banner_url, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), updated_at = VALUES(updated_at)',
-    [albumId, uid, categories, bannerUrl, now, now]
+    'INSERT INTO public_album_data (id, user_id, categories, banner_url, banner_title, banner_subtitle, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), banner_title = VALUES(banner_title), banner_subtitle = VALUES(banner_subtitle), updated_at = VALUES(updated_at)',
+    [albumId, uid, categories, bannerUrl, bannerTitle, bannerSubtitle, now, now]
   )
   return { id: albumId }
 }

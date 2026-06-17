@@ -27,8 +27,13 @@ export default function DigitalAlbum({ setPreviewSave }) {
   const [hoverBanner, setHoverBanner] = useState(false)
   const [bannerError, setBannerError] = useState(null)
   const [pickerPage, setPickerPage] = useState(0)
-  const [globalBannerUrl, setGlobalBannerUrl] = useState(null)
-  const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
+const [globalBannerUrl, setGlobalBannerUrl] = useState(null)
+const [globalBannerTitle, setGlobalBannerTitle] = useState('')
+const [globalBannerSubtitle, setGlobalBannerSubtitle] = useState('')
+const [editingBannerText, setEditingBannerText] = useState(false)
+const [bannerEditTitle, setBannerEditTitle] = useState('')
+const [bannerEditSubtitle, setBannerEditSubtitle] = useState('')
+const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   const [globalBannerError, setGlobalBannerError] = useState(null)
   const [festival, setFestival] = useState('')
   const [festivalPrompt, setFestivalPrompt] = useState('')
@@ -165,6 +170,8 @@ export default function DigitalAlbum({ setPreviewSave }) {
       const cats = (Array.isArray(publicAlbum.categories) ? publicAlbum.categories : []).map(c => ({ ...c, items: c.items || [] }))
       setCategories(cats)
       if (publicAlbum.bannerUrl) setGlobalBannerUrl(publicAlbum.bannerUrl)
+if (publicAlbum.bannerTitle) setGlobalBannerTitle(publicAlbum.bannerTitle)
+if (publicAlbum.bannerSubtitle) setGlobalBannerSubtitle(publicAlbum.bannerSubtitle)
       setLoading(false)
       const token = localStorage.getItem('token')
       if (token) {
@@ -184,6 +191,8 @@ export default function DigitalAlbum({ setPreviewSave }) {
         setCategories(cats)
       }
       if (da.bannerUrl) setGlobalBannerUrl(da.bannerUrl)
+if (da.bannerTitle) setGlobalBannerTitle(da.bannerTitle)
+if (da.bannerSubtitle) setGlobalBannerSubtitle(da.bannerSubtitle)
       if (al.albums) setAlbums(al.albums)
       setLoading(false)
     }).catch(() => setLoading(false))
@@ -204,28 +213,42 @@ export default function DigitalAlbum({ setPreviewSave }) {
     }).catch(() => {}).finally(() => setGeneratingPrompt(false))
   }, [festival])
 
-  const save = useCallback(async (cats, bannerUrl) => {
-    const token = localStorage.getItem('token')
-    if (!token) return
-    setCategories(cats)
-    if (bannerUrl !== undefined) setGlobalBannerUrl(bannerUrl)
-    await fetch(`${API}/api/digital-album`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ categories: cats, bannerUrl: bannerUrl !== undefined ? bannerUrl : globalBannerUrl }),
-    })
-  }, [globalBannerUrl])
+const save = useCallback(async (cats, bannerUrl, bannerTitle, bannerSubtitle) => {
+const token = localStorage.getItem('token')
+if (!token) return
+setCategories(cats)
+if (bannerUrl !== undefined) setGlobalBannerUrl(bannerUrl)
+if (bannerTitle !== undefined) setGlobalBannerTitle(bannerTitle)
+if (bannerSubtitle !== undefined) setGlobalBannerSubtitle(bannerSubtitle)
+await fetch(`${API}/api/digital-album`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+body: JSON.stringify({
+categories: cats,
+bannerUrl: bannerUrl !== undefined ? bannerUrl : globalBannerUrl,
+bannerTitle: bannerTitle !== undefined ? bannerTitle : globalBannerTitle,
+bannerSubtitle: bannerSubtitle !== undefined ? bannerSubtitle : globalBannerSubtitle,
+}),
+})
+}, [globalBannerUrl, globalBannerTitle, globalBannerSubtitle])
 
-  const publishAlbum = useCallback(async () => {
-    const token = localStorage.getItem('token')
-    if (!token) return
-    const currentCategories = categories
-    const currentBanner = globalBannerUrl
-    await fetch(`${API}/api/digital-album`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ categories: currentCategories, bannerUrl: currentBanner }),
-    })
+const publishAlbum = useCallback(async () => {
+const token = localStorage.getItem('token')
+if (!token) return
+const currentCategories = categories
+const currentBanner = globalBannerUrl
+const currentBannerTitle = globalBannerTitle
+const currentBannerSubtitle = globalBannerSubtitle
+await fetch(`${API}/api/digital-album`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+body: JSON.stringify({
+categories: currentCategories,
+bannerUrl: currentBanner,
+bannerTitle: currentBannerTitle,
+bannerSubtitle: currentBannerSubtitle,
+}),
+})
     const pubRes = await fetch(`${API}/api/album/publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -235,27 +258,27 @@ export default function DigitalAlbum({ setPreviewSave }) {
       const pubData = await pubRes.json()
       if (pubData.id) editingPublicAlbumId.current = pubData.id
     }
-  }, [categories, globalBannerUrl])
+  }, [categories, globalBannerUrl, globalBannerTitle, globalBannerSubtitle])
 
   useEffect(() => {
     if (setPreviewSave) setPreviewSave(publishAlbum)
   }, [setPreviewSave, publishAlbum])
 
-  const saveGlobalBannerUrl = (url) => {
-    const token = localStorage.getItem('token')
-    if (!token) return
-    setGlobalBannerUrl(url)
-    fetch(`${API}/api/digital-album`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ categories, bannerUrl: url }),
-    }).then(() => {
-      fetch(`${API}/api/album/publish`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch(() => {})
-    }).catch(() => {})
-  }
+const saveGlobalBannerUrl = (url) => {
+const token = localStorage.getItem('token')
+if (!token) return
+setGlobalBannerUrl(url)
+fetch(`${API}/api/digital-album`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+body: JSON.stringify({ categories, bannerUrl: url, bannerTitle: globalBannerTitle, bannerSubtitle: globalBannerSubtitle }),
+}).then(() => {
+fetch(`${API}/api/album/publish`, {
+method: 'POST',
+headers: { Authorization: `Bearer ${token}` },
+}).catch(() => {})
+}).catch(() => {})
+}
 
   const smartGenerateCategories = async () => {
     const token = localStorage.getItem('token')
@@ -275,11 +298,11 @@ export default function DigitalAlbum({ setPreviewSave }) {
         const newCats = data.names.map(name => ({ id: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8), name, items: [] }))
         const merged = [...categories, ...newCats]
         setCategories(merged)
-        await fetch(`${API}/api/digital-album`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl }),
-        })
+await fetch(`${API}/api/digital-album`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl, bannerTitle: globalBannerTitle, bannerSubtitle: globalBannerSubtitle }),
+})
         if (merged.length > 0 && newCats.length > 0) {
           const firstId = newCats[0].id
           setSelectedCat(firstId)
@@ -404,7 +427,7 @@ export default function DigitalAlbum({ setPreviewSave }) {
       fetch(`${API}/api/digital-album`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ categories: [...categories, { id, name: '新分类', items: [] }], bannerUrl: globalBannerUrl }),
+        body: JSON.stringify({ categories: [...categories, { id, name: '新分类', items: [] }], bannerUrl: globalBannerUrl, bannerTitle: globalBannerTitle, bannerSubtitle: globalBannerSubtitle }),
       }).catch(() => {})
     }, 100)
   }
@@ -687,9 +710,9 @@ export default function DigitalAlbum({ setPreviewSave }) {
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadBanner} style={{ display: 'none' }} />
       <div className="card" style={{ padding: globalBannerUrl ? 0 : 16, marginBottom: 12, position: 'relative' }}>
         {!globalBannerUrl && (
-          <>
+          <div style={{ minHeight: 300, display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>顶部氛围图</div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flex: 1, alignItems: 'center' }}>
               <button
                 onClick={generateGlobalBanner}
                 disabled={generatingPrompt}
@@ -720,24 +743,82 @@ export default function DigitalAlbum({ setPreviewSave }) {
               </div>
             )}
             {globalBannerError && <div style={{ fontSize: 12, color: '#e44', marginBottom: 10 }}>{globalBannerError}</div>}
-          </>
+          </div>
         )}
         {globalBannerUrl && (
           <div style={{ position: 'relative' }}>
             <button
-              onClick={generateGlobalBanner}
-              disabled={generatingPrompt}
+              onClick={() => { setGlobalBannerUrl(null); setGlobalBannerError(null) }}
               style={{
                 position: 'absolute', top: -10, right: -10,
                 padding: '6px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
                 background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
                 color: '#fff', border: 'none', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,.15)',
-                cursor: generatingPrompt ? 'not-allowed' : 'pointer',
-                opacity: generatingPrompt ? .5 : 1, transition: 'opacity .2s',
+                cursor: 'pointer',
                 zIndex: 1,
               }}
             >重新生成</button>
             <img src={globalBannerUrl} alt="" style={{ width: '100%', display: 'block', borderRadius: 8 }} />
+            <div
+              onClick={() => {
+                if (!editingBannerText) {
+                  setBannerEditTitle(globalBannerTitle)
+                  setBannerEditSubtitle(globalBannerSubtitle)
+                  setEditingBannerText(true)
+                }
+              }}
+              style={{
+                padding: '16px 0 0',
+                cursor: editingBannerText ? 'default' : 'pointer',
+              }}
+            >
+              {editingBannerText ? (
+                <div onClick={e => e.stopPropagation()}>
+                  <input
+                    value={bannerEditTitle}
+                    onChange={e => setBannerEditTitle(e.target.value)}
+                    placeholder="主标题"
+                    style={{
+                      width: '100%', fontSize: 24, fontWeight: 700,
+                      color: '#333', border: '1px solid #d9d9d9', borderRadius: 6,
+                      padding: '8px 12px', marginBottom: 8, outline: 'none',
+                    }}
+                  />
+                  <input
+                    value={bannerEditSubtitle}
+                    onChange={e => setBannerEditSubtitle(e.target.value)}
+                    placeholder="副标题"
+                    style={{
+                      width: '100%', fontSize: 14,
+                      color: '#666', border: '1px solid #d9d9d9', borderRadius: 6,
+                      padding: '6px 12px', outline: 'none',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button
+                      onClick={() => {
+                        save(categories, undefined, bannerEditTitle, bannerEditSubtitle)
+                        setEditingBannerText(false)
+                      }}
+                      style={{ padding: '4px 12px', fontSize: 12, background: '#1677FF', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                    >保存</button>
+                    <button
+                      onClick={() => setEditingBannerText(false)}
+                      style={{ padding: '4px 12px', fontSize: 12, background: '#f0f0f0', color: '#666', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+                    >取消</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#333', marginBottom: 4 }}>
+                    {globalBannerTitle || '点击编辑标题'}
+                  </div>
+                  <div style={{ fontSize: 14, color: '#888' }}>
+                    {globalBannerSubtitle || '点击编辑副标题'}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
