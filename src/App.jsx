@@ -96,8 +96,7 @@ function AppContent() {
       <Routes>
         <Route path="/preview/:userId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
         <Route path="/preview/:userId/:catId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
-        <Route path="/preview/:userId/:catId/:itemId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
-        <Route path="/preview/:userId/:catId/:itemId/:albumId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
+        <Route path="/preview/:userId/:catId/:albumId" element={<ErrorBoundary><Preview /></ErrorBoundary>} />
       </Routes>
     )
   }

@@ -28,11 +28,6 @@ export default function DigitalAlbum({ setPreviewSave }) {
   const [bannerError, setBannerError] = useState(null)
   const [pickerPage, setPickerPage] = useState(0)
 const [globalBannerUrl, setGlobalBannerUrl] = useState(null)
-const [globalBannerTitle, setGlobalBannerTitle] = useState('')
-const [globalBannerSubtitle, setGlobalBannerSubtitle] = useState('')
-const [editingBannerText, setEditingBannerText] = useState(false)
-const [bannerEditTitle, setBannerEditTitle] = useState('')
-const [bannerEditSubtitle, setBannerEditSubtitle] = useState('')
 const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   const [globalBannerError, setGlobalBannerError] = useState(null)
   const [festival, setFestival] = useState('')
@@ -170,8 +165,6 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
       const cats = (Array.isArray(publicAlbum.categories) ? publicAlbum.categories : []).map(c => ({ ...c, items: c.items || [] }))
       setCategories(cats)
       if (publicAlbum.bannerUrl) setGlobalBannerUrl(publicAlbum.bannerUrl)
-if (publicAlbum.bannerTitle) setGlobalBannerTitle(publicAlbum.bannerTitle)
-if (publicAlbum.bannerSubtitle) setGlobalBannerSubtitle(publicAlbum.bannerSubtitle)
       setLoading(false)
       const token = localStorage.getItem('token')
       if (token) {
@@ -191,8 +184,6 @@ if (publicAlbum.bannerSubtitle) setGlobalBannerSubtitle(publicAlbum.bannerSubtit
         setCategories(cats)
       }
       if (da.bannerUrl) setGlobalBannerUrl(da.bannerUrl)
-if (da.bannerTitle) setGlobalBannerTitle(da.bannerTitle)
-if (da.bannerSubtitle) setGlobalBannerSubtitle(da.bannerSubtitle)
       if (al.albums) setAlbums(al.albums)
       setLoading(false)
     }).catch(() => setLoading(false))
@@ -213,40 +204,32 @@ if (da.bannerSubtitle) setGlobalBannerSubtitle(da.bannerSubtitle)
     }).catch(() => {}).finally(() => setGeneratingPrompt(false))
   }, [festival])
 
-const save = useCallback(async (cats, bannerUrl, bannerTitle, bannerSubtitle) => {
+const save = useCallback(async (cats, bannerUrl) => {
 const token = localStorage.getItem('token')
 if (!token) return
 setCategories(cats)
 if (bannerUrl !== undefined) setGlobalBannerUrl(bannerUrl)
-if (bannerTitle !== undefined) setGlobalBannerTitle(bannerTitle)
-if (bannerSubtitle !== undefined) setGlobalBannerSubtitle(bannerSubtitle)
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
 body: JSON.stringify({
 categories: cats,
 bannerUrl: bannerUrl !== undefined ? bannerUrl : globalBannerUrl,
-bannerTitle: bannerTitle !== undefined ? bannerTitle : globalBannerTitle,
-bannerSubtitle: bannerSubtitle !== undefined ? bannerSubtitle : globalBannerSubtitle,
 }),
 })
-}, [globalBannerUrl, globalBannerTitle, globalBannerSubtitle])
+}, [globalBannerUrl])
 
 const publishAlbum = useCallback(async () => {
 const token = localStorage.getItem('token')
 if (!token) return
 const currentCategories = categories
 const currentBanner = globalBannerUrl
-const currentBannerTitle = globalBannerTitle
-const currentBannerSubtitle = globalBannerSubtitle
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
 body: JSON.stringify({
 categories: currentCategories,
 bannerUrl: currentBanner,
-bannerTitle: currentBannerTitle,
-bannerSubtitle: currentBannerSubtitle,
 }),
 })
     const pubRes = await fetch(`${API}/api/album/publish`, {
@@ -258,7 +241,7 @@ bannerSubtitle: currentBannerSubtitle,
       const pubData = await pubRes.json()
       if (pubData.id) editingPublicAlbumId.current = pubData.id
     }
-  }, [categories, globalBannerUrl, globalBannerTitle, globalBannerSubtitle])
+  }, [categories, globalBannerUrl])
 
   useEffect(() => {
     if (setPreviewSave) setPreviewSave(publishAlbum)
@@ -271,7 +254,6 @@ setGlobalBannerUrl(url)
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ categories, bannerUrl: url, bannerTitle: globalBannerTitle, bannerSubtitle: globalBannerSubtitle }),
 }).then(() => {
 fetch(`${API}/api/album/publish`, {
 method: 'POST',
@@ -301,7 +283,7 @@ headers: { Authorization: `Bearer ${token}` },
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl, bannerTitle: globalBannerTitle, bannerSubtitle: globalBannerSubtitle }),
+body: JSON.stringify({ categories: merged }),
 })
         if (merged.length > 0 && newCats.length > 0) {
           const firstId = newCats[0].id
@@ -427,7 +409,6 @@ body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl, bannerTit
       fetch(`${API}/api/digital-album`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ categories: [...categories, { id, name: '新分类', items: [] }], bannerUrl: globalBannerUrl, bannerTitle: globalBannerTitle, bannerSubtitle: globalBannerSubtitle }),
       }).catch(() => {})
     }, 100)
   }
@@ -759,66 +740,6 @@ body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl, bannerTit
               }}
             >重新生成</button>
             <img src={globalBannerUrl} alt="" style={{ width: '100%', display: 'block', borderRadius: 8 }} />
-            <div
-              onClick={() => {
-                if (!editingBannerText) {
-                  setBannerEditTitle(globalBannerTitle)
-                  setBannerEditSubtitle(globalBannerSubtitle)
-                  setEditingBannerText(true)
-                }
-              }}
-              style={{
-                padding: '16px 0 0',
-                cursor: editingBannerText ? 'default' : 'pointer',
-              }}
-            >
-              {editingBannerText ? (
-                <div onClick={e => e.stopPropagation()}>
-                  <input
-                    value={bannerEditTitle}
-                    onChange={e => setBannerEditTitle(e.target.value)}
-                    placeholder="主标题"
-                    style={{
-                      width: '100%', fontSize: 24, fontWeight: 700,
-                      color: '#333', border: '1px solid #d9d9d9', borderRadius: 6,
-                      padding: '8px 12px', marginBottom: 8, outline: 'none',
-                    }}
-                  />
-                  <input
-                    value={bannerEditSubtitle}
-                    onChange={e => setBannerEditSubtitle(e.target.value)}
-                    placeholder="副标题"
-                    style={{
-                      width: '100%', fontSize: 14,
-                      color: '#666', border: '1px solid #d9d9d9', borderRadius: 6,
-                      padding: '6px 12px', outline: 'none',
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    <button
-                      onClick={() => {
-                        save(categories, undefined, bannerEditTitle, bannerEditSubtitle)
-                        setEditingBannerText(false)
-                      }}
-                      style={{ padding: '4px 12px', fontSize: 12, background: '#1677FF', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
-                    >保存</button>
-                    <button
-                      onClick={() => setEditingBannerText(false)}
-                      style={{ padding: '4px 12px', fontSize: 12, background: '#f0f0f0', color: '#666', border: 'none', borderRadius: 4, cursor: 'pointer' }}
-                    >取消</button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ fontSize: 24, fontWeight: 700, color: '#333', marginBottom: 4 }}>
-                    {globalBannerTitle || '点击编辑标题'}
-                  </div>
-                  <div style={{ fontSize: 14, color: '#888' }}>
-                    {globalBannerSubtitle || '点击编辑副标题'}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
@@ -884,7 +805,7 @@ body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl, bannerTit
                 className="btn btn-outline"
                 style={{ fontSize: 13, padding: '4px 12px' }}
               ><ArrowLeftOutlined /> 返回</button>
-              <div style={{ fontSize: 18, fontWeight: 600, color: '#333' }}>{currentViewAlbum.productName || '产品名称'}</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: '#333' }}>{currentViewAlbum.productName || '组合名称'}</div>
               <div style={{ width: 60 }} />
             </div>
             <div
@@ -915,6 +836,7 @@ body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl, bannerTit
               {(currentViewAlbum.comboItems || []).map(item => {
                 const itemUrl = albumMap[item.albumId]?.imageUrls?.[0] || albumMap[item.albumId]?.imageUrl || item.imageUrls?.[0] || item.imageUrl
                 const liveParams = allAlbums.find(x => x.albumId === item.albumId)?.productParams || item.productParams || {}
+                const liveName = allAlbums.find(x => x.albumId === item.albumId)?.productName || ''
                 return (
                   <div key={item.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #eee' }}>
                     <div style={{ position: 'relative' }}>
@@ -925,6 +847,7 @@ body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl, bannerTit
                       ><CloseOutlined /></button>
                     </div>
                     <div style={{ padding: '2px 6px 4px', fontSize: 11, color: '#999', lineHeight: 1.5 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#333', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{liveName}</div>
                       <div>规格：{liveParams.spec || '-'}</div>
                       <div>保质期：{liveParams.shelfLife || '-'}</div>
                       <div>总重量：{liveParams.totalWeight || '-'}</div>
@@ -977,15 +900,15 @@ body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl, bannerTit
                     {editingProductNameId === a.albumId ? (
                       <input
                         autoFocus
-                        defaultValue={a.productName || '产品名称'}
-                        onBlur={e => { updateProductName(selectedCat, a._itemId, a.albumId, e.target.value || '产品名称'); setEditingProductNameId(null) }}
-                        onKeyDown={e => { if (e.key === 'Enter') { updateProductName(selectedCat, a._itemId, a.albumId, e.currentTarget.value || '产品名称'); setEditingProductNameId(null) } }}
+                        defaultValue={a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
+                        onBlur={e => { updateProductName(selectedCat, a._itemId, a.albumId, e.target.value || (a.type === '组合' ? '组合名称' : '产品名称')); setEditingProductNameId(null) }}
+                        onKeyDown={e => { if (e.key === 'Enter') { updateProductName(selectedCat, a._itemId, a.albumId, e.currentTarget.value || (a.type === '组合' ? '组合名称' : '产品名称')); setEditingProductNameId(null) } }}
                         style={{ width: '100%', fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box', transition: 'all .3s' }}
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
                       <div onClick={() => setEditingProductNameId(a.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {a.productName || '产品名称'}
+                        {a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
                       </div>
                     )}
                   </div>
@@ -1021,15 +944,15 @@ body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl, bannerTit
                     {editingProductNameId === a.albumId ? (
                       <input
                         autoFocus
-                        defaultValue={a.productName || '产品名称'}
-                        onBlur={e => { updateProductName(selectedCat, selectedItem, a.albumId, e.target.value || '产品名称'); setEditingProductNameId(null) }}
-                        onKeyDown={e => { if (e.key === 'Enter') { updateProductName(selectedCat, selectedItem, a.albumId, e.currentTarget.value || '产品名称'); setEditingProductNameId(null) } }}
+                        defaultValue={a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
+                        onBlur={e => { updateProductName(selectedCat, selectedItem, a.albumId, e.target.value || (a.type === '组合' ? '组合名称' : '产品名称')); setEditingProductNameId(null) }}
+                        onKeyDown={e => { if (e.key === 'Enter') { updateProductName(selectedCat, selectedItem, a.albumId, e.currentTarget.value || (a.type === '组合' ? '组合名称' : '产品名称')); setEditingProductNameId(null) } }}
                         style={{ width: '100%', fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box', transition: 'all .3s' }}
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
                       <div onClick={() => setEditingProductNameId(a.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {a.productName || '产品名称'}
+                        {a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
                       </div>
                     )}
                   </div>
@@ -1062,23 +985,23 @@ body: JSON.stringify({ categories: merged, bannerUrl: globalBannerUrl, bannerTit
                 <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => setViewAlbum(a)}>
                   <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
-                  <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }} onClick={e => e.stopPropagation()}>
-                    <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{a._catName} / {a._itemName}</div>
-                    {editingProductNameId === a.albumId ? (
-                      <input
-                        autoFocus
-                        defaultValue={a.productName || '产品名称'}
-                        onBlur={e => { updateProductName(a._catId, a._itemId, a.albumId, e.target.value || '产品名称'); setEditingProductNameId(null) }}
-                        onKeyDown={e => { if (e.key === 'Enter') { updateProductName(a._catId, a._itemId, a.albumId, e.currentTarget.value || '产品名称'); setEditingProductNameId(null) } }}
-                        style={{ width: '100%', fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box', transition: 'all .3s' }}
-                        onClick={e => e.stopPropagation()}
-                      />
-                    ) : (
-                      <div onClick={() => setEditingProductNameId(a.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {a.productName || '产品名称'}
-                      </div>
-                    )}
-                  </div>
+                    <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{a._catName} / {a._itemName}</div>
+                      {editingProductNameId === a.albumId ? (
+                        <input
+                          autoFocus
+                          defaultValue={a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
+                          onBlur={e => { updateProductName(a._catId, a._itemId, a.albumId, e.target.value || (a.type === '组合' ? '组合名称' : '产品名称')); setEditingProductNameId(null) }}
+                          onKeyDown={e => { if (e.key === 'Enter') { updateProductName(a._catId, a._itemId, a.albumId, e.currentTarget.value || (a.type === '组合' ? '组合名称' : '产品名称')); setEditingProductNameId(null) } }}
+                          style={{ width: '100%', fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box', transition: 'all .3s' }}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      ) : (
+                        <div onClick={() => setEditingProductNameId(a.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
+                        </div>
+                      )}
+                    </div>
                 </div>
               ))}
             </div>

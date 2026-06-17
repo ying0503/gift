@@ -5,11 +5,11 @@ import { API } from '../AuthContext'
 export default function Preview() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { userId, catId: urlCatId, itemId: urlItemId, albumId: urlAlbumId } = useParams()
+  const { userId, catId: urlCatId, albumId: urlAlbumId } = useParams()
   const [categories, setCategories] = useState(location.state?.categories || [])
   const [bannerUrl, setBannerUrl] = useState(location.state?.bannerUrl || null)
   const [selectedCat, setSelectedCat] = useState(null)
-  const [selectedItem, setSelectedItem] = useState(null)
+  
   const [viewAlbum, setViewAlbum] = useState(null)
   const [albums, setAlbums] = useState([])
   const [loading, setLoading] = useState(categories.length === 0)
@@ -43,7 +43,7 @@ export default function Preview() {
   }
 
   const currentCat = categories.find(c => c.id === selectedCat)
-  const currentItem = currentCat?.items.find(i => i.id === selectedItem)
+  
 
   const allAlbums = useMemo(() => {
     const result = []
@@ -86,11 +86,6 @@ export default function Preview() {
       if (!categories.some(c => c.id === urlCatId)) { navigate(`/preview/${userId}`, { replace: true }); return }
       setSelectedCat(urlCatId)
     }
-    if (urlItemId) {
-      const cat = categories.find(c => c.id === urlCatId)
-      if (!cat?.items.some(i => i.id === urlItemId)) { navigate(urlCatId ? `/preview/${userId}/${urlCatId}` : `/preview/${userId}`, { replace: true }); return }
-      setSelectedItem(urlItemId)
-    }
     if (urlAlbumId) {
       for (const c of categories) {
         for (const i of c.items) {
@@ -99,6 +94,7 @@ export default function Preview() {
         }
       }
     }
+
   }, [loading])
 
   useEffect(() => {
@@ -107,14 +103,7 @@ export default function Preview() {
       if (!categories.some(c => c.id === urlCatId)) { navigate(`/preview/${userId}`, { replace: true }); return }
       setSelectedCat(urlCatId)
     } else {
-      setSelectedCat(null); setSelectedItem(null); setViewAlbum(null)
-    }
-    if (urlItemId) {
-      const cat = categories.find(c => c.id === urlCatId)
-      if (!cat?.items.some(i => i.id === urlItemId)) { navigate(urlCatId ? `/preview/${userId}/${urlCatId}` : `/preview/${userId}`, { replace: true }); return }
-      setSelectedItem(urlItemId)
-    } else if (!urlItemId && !urlCatId) {
-      setSelectedItem(null); setViewAlbum(null)
+      setSelectedCat(null); setViewAlbum(null)
     }
     if (urlAlbumId) {
       for (const c of categories) {
@@ -123,10 +112,10 @@ export default function Preview() {
           if (a) { setViewAlbum(a); return }
         }
       }
-    } else if (!urlAlbumId) {
+    } else {
       setViewAlbum(null)
     }
-  }, [urlCatId, urlItemId, urlAlbumId, loading])
+  }, [urlCatId, urlAlbumId, loading])
 
   function renderContent(m) {
     return (
@@ -141,16 +130,10 @@ export default function Preview() {
                 categories.map(cat => (
                   <div key={cat.id} className="album-tree-group">
                     <div
-                      onClick={() => { setSelectedCat(cat.id); setSelectedItem(null); navigate(`/preview/${userId}/${cat.id}`) }}
-                      className={`album-tree-node album-tree-node-level1${selectedCat === cat.id && selectedItem === null ? ' active' : ''}${m ? ' album-tree-node-compact' : ''}`}
+                      onClick={() => { setSelectedCat(cat.id); navigate(`/preview/${userId}/${cat.id}`) }}
+                      className={`album-tree-node album-tree-node-level1${selectedCat === cat.id ? ' active' : ''}${m ? ' album-tree-node-compact' : ''}`}
                     >{cat.name}</div>
-                    {cat.items.map(item => (
-                      <div
-                        key={item.id}
-                        onClick={() => { setSelectedCat(cat.id); setSelectedItem(item.id); navigate(`/preview/${userId}/${cat.id}/${item.id}`) }}
-                        className={`album-tree-node album-tree-node-level2${selectedItem === item.id ? ' active' : ''}${m ? ' album-tree-node-compact' : ''}`}
-                      >{item.name}</div>
-                    ))}
+
                   </div>
                 ))
               )}
@@ -216,36 +199,25 @@ export default function Preview() {
                   )
                 })()}
               </div>
-            ) : selectedCat && currentCat && !selectedItem ? (
+            ) : selectedCat && currentCat ? (
               <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
                 <div style={{ fontSize: m ? 13 : 16, fontWeight: 600, color: '#333', marginBottom: m ? 0 : 12, display: m ? 'none' : 'block' }}>{currentCat.name}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: m ? 8 : 12 }}>
-                  {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a, _pageName: i.name, _itemId: i.id }))).map((a, i) => (
-                    <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${selectedCat}/${a._itemId}/${a.albumId}`) }}>
+                  {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a }))).map((a, i) => (
+                    <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${selectedCat}/${a.albumId}`) }}>
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0' }}>{a.productName || '产品名称'}</div>
                     </div>
                   ))}
                 </div>
               </div>
-            ) : currentItem ? (
-              <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
-                <div style={{ fontSize: m ? 13 : 16, fontWeight: 600, color: '#333', marginBottom: m ? 0 : 12, display: m ? 'none' : 'block' }}>{currentItem.name}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: m ? 8 : 12 }}>
-                  {(currentItem.albums || []).map(a => (
-                    <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${selectedCat}/${selectedItem}/${a.albumId}`) }}>
-                      <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                      <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0' }}>{a.productName || '产品名称'}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+
             ) : !selectedCat && allAlbums.length > 0 ? (
               <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
                 <div style={{ fontSize: m ? 13 : 16, fontWeight: 600, color: '#333', marginBottom: m ? 0 : 12, display: m ? 'none' : 'block' }}>所有画册</div>
                 <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: m ? 8 : 12 }}>
                   {allAlbums.map(a => (
-                    <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${a._catId}/${a._itemId}/${a.albumId}`) }}>
+                    <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${a._catId}/${a.albumId}`) }}>
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>
                         <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{a._catName} / {a._itemName}</div>

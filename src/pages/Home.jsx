@@ -96,6 +96,14 @@ export default function Home() {
       .catch(() => {})
   }, [])
 
+  const textareaRefs = useRef([])
+
+  useEffect(() => {
+    textareaRefs.current.forEach(el => {
+      if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' }
+    })
+  }, [prompts])
+
   useEffect(() => {
     fetchAlbums()
     const token = localStorage.getItem('token')
@@ -370,15 +378,16 @@ export default function Home() {
             {prompts.map((p, i) => (
               <div key={i} style={{ position: 'relative', flex: 1 }}>
               <textarea
+              ref={el => textareaRefs.current[i] = el}
               style={{
-                width: '100%', height: 65, padding: '10px 12px', fontSize: 15, color: '#333',
+                width: '100%', minHeight: 65, padding: '10px 12px', fontSize: 15, color: '#333',
                 border: 'none', borderRadius: 8, background: '#fcfcfc',
-                resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none', transition: 'all .2s',
+                resize: 'none', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none', transition: 'all .2s',
               }}
               onFocus={e => { e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,.1)'; e.target.style.background = '#fff' }}
               onBlur={e => { e.target.style.boxShadow = 'none'; e.target.style.background = '#fcfcfc' }}
               value={p}
-              onChange={e => { const next = [...prompts]; next[i] = e.target.value; setPrompts(next) }}
+              onChange={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; const next = [...prompts]; next[i] = e.target.value; setPrompts(next) }}
               placeholder={''}
             />
               {generatingPrompts && i === 0 && (
@@ -434,14 +443,7 @@ export default function Home() {
         </div>
         {/* My Albums */}
         <div style={{ fontSize: 15, fontWeight: 600, color: '#333', marginTop: -7, marginBottom: 8 }}>我的礼品</div>
-        {viewAlbum ? (
-          <div className="card" style={{ padding: 16, marginBottom: 0 }}>
-            <button onClick={() => setViewAlbum(null)} className="btn btn-outline" style={{ marginBottom: 12, fontSize: 13, padding: '4px 12px' }}>← 返回</button>
-            {(viewAlbum.imageUrls || [viewAlbum.imageUrl]).map((url, i) => (
-              <img key={i} src={url} alt="" style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: i < (viewAlbum.imageUrls || [viewAlbum.imageUrl]).length - 1 ? 12 : 0 }} />
-            ))}
-          </div>
-        ) : albums.length === 0 && generations.length === 0 ? (
+        {albums.length === 0 && generations.length === 0 ? (
           <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>
             <div>配置完成后点击「生成画册」</div>
           </div>
@@ -473,7 +475,6 @@ export default function Home() {
                     {album.imageUrls?.length > 1 && (
                       <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.length}张</div>
                     )}
-                    <div onClick={e => handleDelete(e, album.id)} style={{ position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,.4)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12 }}><DeleteOutlined /></div>
                   </div>
                   <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
                     <div style={{ color: '#999' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
@@ -494,6 +495,24 @@ export default function Home() {
         </div>
       </div>
     </div>
+    {viewAlbum && (
+      <CloseOutlined
+        onClick={() => setViewAlbum(null)}
+        style={{ position: 'fixed', top: 16, right: 16, zIndex: 10000, width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16 }}
+      />
+    )}
+    <Modal
+      open={!!viewAlbum}
+      onCancel={() => setViewAlbum(null)}
+      closable={false}
+      footer={null}
+      width={600}
+      centered
+    >
+      {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).map((url, i) => (
+        <img key={i} src={url} alt="" style={{ width: '100%', display: 'block' }} />
+      ))}
+    </Modal>
     </>
   )
 }
