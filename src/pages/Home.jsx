@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { CloseOutlined, DeleteOutlined } from '@ant-design/icons'
-import { Modal } from 'antd'
 import { API } from '../AuthContext'
 
 export default function Home() {
@@ -103,6 +102,15 @@ export default function Home() {
       if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' }
     })
   }, [prompts])
+
+  useEffect(() => {
+    if (viewAlbum) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [viewAlbum])
 
   useEffect(() => {
     fetchAlbums()
@@ -496,23 +504,18 @@ export default function Home() {
       </div>
     </div>
     {viewAlbum && (
-      <CloseOutlined
-        onClick={() => setViewAlbum(null)}
-        style={{ position: 'fixed', top: 16, right: 16, zIndex: 10000, width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16 }}
-      />
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setViewAlbum(null)}>
+        <div style={{ maxWidth: '96%', maxHeight: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? '96%' : 'none', overflowY: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? 'auto' : 'hidden' }} onClick={e => e.stopPropagation()}>
+          {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).map((url, i) => (
+            <img key={i} src={url} alt="" style={{ width: '100%', maxHeight: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? 'none' : '96vh', display: 'block', objectFit: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? 'none' : 'contain' }} />
+          ))}
+        </div>
+        <CloseOutlined
+          onClick={() => setViewAlbum(null)}
+          style={{ position: 'fixed', top: 16, right: 16, zIndex: 1001, width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16 }}
+        />
+      </div>
     )}
-    <Modal
-      open={!!viewAlbum}
-      onCancel={() => setViewAlbum(null)}
-      closable={false}
-      footer={null}
-      width={600}
-      centered
-    >
-      {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).map((url, i) => (
-        <img key={i} src={url} alt="" style={{ width: '100%', display: 'block' }} />
-      ))}
-    </Modal>
     </>
   )
 }
