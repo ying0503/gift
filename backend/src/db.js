@@ -90,6 +90,10 @@ export async function initSchema() {
       await p.query('DROP TABLE digital_albums')
       await p.query('RENAME TABLE digital_albums_new TO digital_albums')
     }
+    const [oldCol] = await p.query("SHOW COLUMNS FROM digital_albums WHERE Field = 'album_title'")
+    if (oldCol.length > 0) {
+      await p.query('ALTER TABLE digital_albums CHANGE COLUMN album_title banner_title TEXT')
+    }
   } catch (e) {
     await p.query(`CREATE TABLE IF NOT EXISTS digital_albums (
       id VARCHAR(36) NOT NULL,
