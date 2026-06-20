@@ -185,7 +185,10 @@ function AppContent() {
           <Route path="/digital-album" element={<ErrorBoundary>{user ? <DigitalAlbumList /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/digital-album/new" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/digital-album/:albumId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/:albumId/detail/:albumDtlId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/digital-album/:albumId/:catId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/:albumId/:catId/:itemId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/:albumId/:catId/:itemId/:albumDtlId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/generate" element={<ErrorBoundary>{user ? <Generate /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/model-use" element={<ErrorBoundary>{user ? <ModelUse /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/my-albums" element={<ErrorBoundary>{user ? <MyAlbums /> : <Navigate to="/" />}</ErrorBoundary>} />

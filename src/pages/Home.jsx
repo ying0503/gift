@@ -205,21 +205,6 @@ export default function Home() {
   function startBatchPolling(id, batchId, token, prompts, onDone) {
     let cancelled = false, realDone = false
 
-    const sim = setInterval(() => {
-      if (cancelled || realDone) return
-      setGenerations(g => g.map(item => {
-        if (item.id !== id) return item
-        const p = item.progress >= 95 ? item.progress : Math.min(item.progress + Math.floor(Math.random() * 2) + 1, 95)
-        let s = item.statusText
-        if (p < 20) s = '正在提交任务...'
-        else if (p < 40) s = 'AI 模型加载中...'
-        else if (p < 60) s = '正在生成画册...'
-        else if (p < 80) s = '正在优化画面细节...'
-        else s = '即将完成...'
-        return { ...item, progress: p, statusText: s }
-      }))
-    }, 800)
-
     const poll = async () => {
       try {
         const r = await fetch(`${API}/api/generate/batch-status?batchId=${batchId}`, {
@@ -228,15 +213,18 @@ export default function Home() {
         const res = await r.json()
         if (!r.ok || cancelled) return
 
+        if (typeof res.progress === 'number' && res.progress > 0) {
+          setGenerations(g => g.map(item => item.id === id ? { ...item, progress: res.progress, statusText: res.statusText || item.statusText } : item))
+        }
         if (res.status === 'FAILED') {
-          realDone = true; clearInterval(sim)
+          realDone = true
           setGenerations(g => g.map(item => item.id === id ? { ...item, error: res.statusText || '生成失败' } : item))
           fetchAlbums()
           onDone?.()
           return
         }
         if (res.status === 'SUCCEEDED' && res.imageUrl) {
-          realDone = true; clearInterval(sim)
+          realDone = true
           setGenerations(g => g.filter(item => item.id !== id))
           fetchAlbums()
           onDone?.()
@@ -253,8 +241,19 @@ export default function Home() {
     }
 
     poll()
-    pollTimers.current[id] = { sim, poll: true }
   }
+
+  useEffect(() => {
+    if (!generations.length) return
+    const sim = setInterval(() => {
+      setGenerations(g => g.map(item => {
+        if (item.error || item.progress >= 95) return item
+        const p = Math.min(item.progress + Math.floor(Math.random() * 2) + 1, 95)
+        return { ...item, progress: p }
+      }))
+    }, 800)
+    return () => clearInterval(sim)
+  }, [generations.length])
 
   function ensureMinSize(url) {
     return new Promise(resolve => {
@@ -383,7 +382,7 @@ export default function Home() {
         <div className="desktop-only">
         {/* Generate Panel */}
         <div className="card" style={{ marginBottom: 20, maxWidth: 800, marginLeft: 'auto', marginRight: 'auto', marginTop: 116, borderRadius: 16, border: '1px solid #f0f0f0', boxShadow: '0 2px 12px rgba(0,0,0,.06)' }}>
-          <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => setUploadedRef({ url: fr.result, blob: f }); fr.readAsDataURL(f) } e.target.value = '' }} />
+          <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => { setUploadedRef({ url: fr.result, blob: f }); if (prompts.some(p => p.trim()) && festival) generatePrompts(festival, templateCountRef.current, fr.result) }; fr.readAsDataURL(f) } e.target.value = '' }} />
           {previewUrl === uploadedRef?.url && (
             <div style={{ position: 'fixed', zIndex: 1000, left: previewPos.left, top: previewPos.top, background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.2)', padding: 6, pointerEvents: 'none', border: '1px solid rgba(0,0,0,.06)' }}>
               <img src={uploadedRef.url} alt="" style={{ maxWidth: '30vw', maxHeight: '50vh', borderRadius: 6, display: 'block' }} />

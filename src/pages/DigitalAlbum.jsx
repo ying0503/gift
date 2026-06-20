@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { EditOutlined, CloseOutlined, CheckOutlined, ArrowLeftOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
 import { API } from '../AuthContext'
 
 export default function DigitalAlbum({ setPreviewSave, setPreviewAlbumId }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const albumIdRef = useRef(null)
   const [categories, setCategories] = useState([])
   const [albums, setAlbums] = useState([])
@@ -43,7 +44,7 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   useEffect(() => { categoriesRef.current = categories }, [categories])
   const festivals = ['春节', '元宵节', '端午节', '中秋节', '情人节', '圣诞节', '国庆节', '新年', '母亲节', '父亲节', '教师节', '七夕节', '万圣节', '感恩节']
 
-  const { albumId: urlAlbumId, catId: urlCatId, itemId: urlItemId } = useParams()
+  const { albumId: urlAlbumId, catId: urlCatId, itemId: urlItemId, albumDtlId: urlAlbumDtlId } = useParams()
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -94,6 +95,55 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
     }
     return result
   }, [categories])
+
+  const mergedAlbums = useMemo(() => {
+    const catMap = {}
+    for (const a of allAlbums) {
+      if (a.albumId) catMap[a.albumId] = a
+    }
+
+    const fixUrl = (url) => {
+      if (!url) return url
+      const idx = url.indexOf('https://', 8)
+      return idx > 0 ? url.slice(idx) : url
+    }
+    const fixUrls = (arr) => (arr || []).map(u => fixUrl(u))
+
+    const seen = new Set()
+    const result = []
+    for (const a of albums) {
+      if (!a.id) continue
+      const cat = catMap[a.id]
+      result.push(cat ? { ...a, ...cat, id: a.id, albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls } : { ...a, id: a.id })
+      seen.add(a.id)
+    }
+    for (const a of allAlbums) {
+      if (!a.albumId || seen.has(a.albumId)) continue
+      seen.add(a.albumId)
+      result.push({ ...a, id: a.albumId, imageUrl: fixUrl(a.imageUrl), imageUrls: fixUrls(a.imageUrls) })
+    }
+    return result.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+  }, [albums, allAlbums])
+
+  useEffect(() => {
+    if (loading || !urlAlbumDtlId || !mergedAlbums.length) return
+    const searchParams = new URLSearchParams(location.search)
+    const fromCombo = searchParams.get('fromCombo')
+    if (fromCombo) {
+      const parts = fromCombo.split('/')
+      const cat = categories.find(c => c.id === parts[0])
+      const item = cat?.items.find(i => i.id === parts[1])
+      const combo = item?.albums.find(a => a.albumId === parts[2])
+      const comboItem = combo?.comboItems?.find(ci => ci.albumId === urlAlbumDtlId)
+      if (comboItem) {
+        const liveName = mergedAlbums.find(x => x.id === comboItem.albumId)?.productName || ''
+        setViewAlbum({ ...comboItem, productName: liveName, productParams: comboItem.productParams || {} })
+        return
+      }
+    }
+    const found = mergedAlbums.find(a => a.id === urlAlbumDtlId || a.albumId === urlAlbumDtlId)
+    if (found) setViewAlbum(found)
+  }, [loading, mergedAlbums, urlAlbumDtlId, categories, location.search])
 
   function getImageUrls(a) {
     const fresh = albumMap[a.albumId]
@@ -408,12 +458,46 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         } : a)
       } : i)
     } : c)
-    save(newCats)
+    setCategories(newCats)
+    const token = localStorage.getItem('token')
+    if (token) {
+      fetch(`${API}/api/digital-album`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: albumIdRef.current, categories: newCats, bannerUrl: globalBannerUrl, bannerTitle }),
+      }).catch(() => {})
+    }
     const cat = newCats.find(c => c.id === catId)
     const item = cat?.items.find(i => i.id === itemId)
     const updated = item?.albums.find(a => a.albumId === albumId)
     if (updated) setViewAlbum(updated)
-  }, [categories, save])
+  }, [categories, globalBannerUrl, bannerTitle])
+
+  const updateComboItemProductParams = useCallback((catId, itemId, comboAlbumId, itemAlbumId, field, value) => {
+    const newCats = categories.map(c => c.id === catId ? {
+      ...c, items: c.items.map(i => i.id === itemId ? {
+        ...i, albums: i.albums.map(a => a.albumId === comboAlbumId ? {
+          ...a, comboItems: (a.comboItems || []).map(item => item.albumId === itemAlbumId ? {
+            ...item, productParams: { ...(item.productParams || { spec: '', shelfLife: '', totalWeight: '', note: '' }), [field]: value }
+          } : item)
+        } : a)
+      } : i)
+    } : c)
+    setCategories(newCats)
+    const token = localStorage.getItem('token')
+    if (token) {
+      fetch(`${API}/api/digital-album`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: albumIdRef.current, categories: newCats, bannerUrl: globalBannerUrl, bannerTitle }),
+      }).catch(() => {})
+    }
+    const cat = newCats.find(c => c.id === catId)
+    const item = cat?.items.find(i => i.id === itemId)
+    const combo = item?.albums.find(a => a.albumId === comboAlbumId)
+    const updated = combo?.comboItems?.find(item => item.albumId === itemAlbumId)
+    if (updated) setViewAlbum({ ...updated, productName: combo?.productName })
+  }, [categories, globalBannerUrl, bannerTitle])
 
   const updateProductName = useCallback((catId, itemId, albumId, name) => {
     save(categories.map(c => c.id === catId ? {
@@ -422,6 +506,25 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       } : i)
     } : c))
   }, [categories, save])
+
+  const updateComboItemProductName = useCallback((catId, itemId, comboAlbumId, itemAlbumId, name) => {
+    const newCats = categories.map(c => c.id === catId ? {
+      ...c, items: c.items.map(i => i.id === itemId ? {
+        ...i, albums: i.albums.map(a => a.albumId === comboAlbumId ? {
+          ...a, comboItems: (a.comboItems || []).map(item => item.albumId === itemAlbumId ? { ...item, productName: name } : item)
+        } : a)
+      } : i)
+    } : c)
+    setCategories(newCats)
+    const token = localStorage.getItem('token')
+    if (token) {
+      fetch(`${API}/api/digital-album`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id: albumIdRef.current, categories: newCats, bannerUrl: globalBannerUrl, bannerTitle }),
+      }).catch(() => {})
+    }
+  }, [categories, globalBannerUrl, bannerTitle])
 
   const openPicker = useCallback((type) => {
     setPicked(new Set())
@@ -434,7 +537,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     const catId = selectedCat
     let itemId = selectedItem
     if (!catId) return
-    const added = albums.filter(a => picked.has(a.id))
+    const added = mergedAlbums.filter(a => picked.has(a.id))
     if (added.length === 0) return
     if (!itemId) {
       itemId = crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
@@ -460,7 +563,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       save(categories.map(c => c.id === catId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, albums: [...i.albums, ...added.map(a => ({ ...a, albumId: a.id, _albumData: a, type: pendingType || '单品', productName: '产品名称' }))] } : i) } : c))
     }
     setShowPicker(false)
-  }, [selectedCat, selectedItem, albums, picked, categories, save, pendingType])
+  }, [selectedCat, selectedItem, mergedAlbums, picked, categories, save, pendingType])
 
   const currentCat = categories.find(c => c.id === selectedCat)
   const currentItem = currentCat?.items.find(i => i.id === selectedItem)
@@ -524,12 +627,12 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
 
   const confirmComboPick = useCallback(() => {
     if (!albumLocation || !viewAlbum) return
-    const added = albums.filter(a => comboPicked.has(a.id))
+    const added = mergedAlbums.filter(a => comboPicked.has(a.id))
     const newCats = categories.map(c => c.id === albumLocation.catId ? {
       ...c, items: c.items.map(i => i.id === albumLocation.itemId ? {
         ...i, albums: i.albums.map(alb => alb.albumId === viewAlbum.albumId ? {
           ...alb, comboItems: [...(alb.comboItems || []), ...added.map(a => {
-            const live = allAlbums.find(x => x.albumId === a.id)
+            const live = mergedAlbums.find(x => x.id === a.id)
             return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: a.prompt, productParams: live?.productParams || a.productParams || { spec: '', shelfLife: '', totalWeight: '', note: '' } }
           })]
         } : alb)
@@ -541,30 +644,47 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     const updated = item?.albums.find(a => a.albumId === viewAlbum.albumId)
     if (updated) setViewAlbum(updated)
     setComboPickerOpen(false)
-  }, [albumLocation, viewAlbum, albums, comboPicked, categories, allAlbums, save])
+  }, [albumLocation, viewAlbum, mergedAlbums, comboPicked, categories, save])
+
+  useEffect(() => {
+    document.body.style.overflow = (showPicker || comboPickerOpen) ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [showPicker, comboPickerOpen])
 
   const renderProductParams = () => {
-    if (!albumLocation) return null
     const a = viewAlbum
-    if (editingParams === a.albumId) {
+    if (!a) return null
+    const fromCombo = new URLSearchParams(location.search).get('fromCombo')
+    const comboParts = fromCombo ? fromCombo.split('/') : null
+    const editCatId = albumLocation?.catId || (comboParts ? comboParts[0] : null)
+    const editItemId = albumLocation?.itemId || (comboParts ? comboParts[1] : null)
+    const editComboAlbumId = comboParts ? comboParts[2] : null
+    const saveParam = (field, value) => {
+      if (editComboAlbumId) {
+        updateComboItemProductParams(editCatId, editItemId, editComboAlbumId, a.albumId, field, value)
+      } else if (albumLocation) {
+        updateProductParams(editCatId, editItemId, a.albumId, field, value)
+      }
+    }
+    if (editingParams === a.albumId && (albumLocation || editComboAlbumId)) {
       return (
         <div style={{ marginTop: 12, borderTop: '1px solid #eee', paddingTop: 12 }}>
           <div style={{ fontSize: 15, color: '#666', marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>产品参数</div>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 8 }}>
             <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56, marginTop: 4 }}>规格</span>
-            <textarea value={(a.productParams || {}).spec || ''} onChange={e => updateProductParams(albumLocation.catId, albumLocation.itemId, a.albumId, 'spec', e.target.value)} style={{ flex: 1, fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, resize: 'none', height: 120, lineHeight: 1.5, outline: 'none', transition: 'all .3s' }} />
+            <textarea defaultValue={(a.productParams || {}).spec || ''} onChange={e => saveParam('spec', e.target.value)} onBlur={e => saveParam('spec', e.target.value)} style={{ flex: 1, fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, resize: 'none', height: 120, lineHeight: 1.5, outline: 'none', transition: 'all .3s' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
             <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>保质期</span>
-            <input value={(a.productParams || {}).shelfLife || ''} onChange={e => updateProductParams(albumLocation.catId, albumLocation.itemId, a.albumId, 'shelfLife', e.target.value)} style={{ flex: 1, fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', transition: 'all .3s' }} />
+            <input defaultValue={(a.productParams || {}).shelfLife || ''} onChange={e => saveParam('shelfLife', e.target.value)} onBlur={e => saveParam('shelfLife', e.target.value)} style={{ flex: 1, fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', transition: 'all .3s' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
             <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>总重量</span>
-            <input value={(a.productParams || {}).totalWeight || ''} onChange={e => updateProductParams(albumLocation.catId, albumLocation.itemId, a.albumId, 'totalWeight', e.target.value)} style={{ flex: 1, fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', transition: 'all .3s' }} />
+            <input defaultValue={(a.productParams || {}).totalWeight || ''} onChange={e => saveParam('totalWeight', e.target.value)} onBlur={e => saveParam('totalWeight', e.target.value)} style={{ flex: 1, fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', transition: 'all .3s' }} />
           </div>
           <div style={{ marginTop: 24 }}>
             <div style={{ color: '#FF4D4F', fontSize: 12, marginBottom: 2 }}>温馨提示</div>
-            <input value={(a.productParams || {}).note || ''} onChange={e => updateProductParams(albumLocation.catId, albumLocation.itemId, a.albumId, 'note', e.target.value)} style={{ width: '100%', fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box', transition: 'all .3s' }} />
+            <input defaultValue={(a.productParams || {}).note || ''} onChange={e => saveParam('note', e.target.value)} onBlur={e => saveParam('note', e.target.value)} style={{ width: '100%', fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box', transition: 'all .3s' }} />
           </div>
           <button onClick={() => setEditingParams(null)} style={{ marginTop: 8, fontSize: 13, padding: '4px 16px', border: 'none', borderRadius: 4, background: '#1677FF', cursor: 'pointer', color: '#fff' }}>保存</button>
         </div>
@@ -592,7 +712,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
               <div style={{ color: '#FF4D4F', whiteSpace: 'pre-wrap', fontSize: 12 }}>{(a.productParams || {}).note || '-'}</div>
             </div>
           </div>
-          <span onClick={() => setEditingParams(a.albumId)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 15, flexShrink: 0, marginTop: 8, padding: '2px' }}><EditOutlined /></span>
+          {(albumLocation || editComboAlbumId) && <span onClick={() => setEditingParams(a.albumId)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 15, flexShrink: 0, marginTop: 8, padding: '2px' }}><EditOutlined /></span>}
         </div>
       </div>
     )
@@ -766,10 +886,10 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, alignItems: 'start' }}>
               {(currentViewAlbum.comboItems || []).map(item => {
                 const itemUrl = albumMap[item.albumId]?.imageUrls?.[0] || albumMap[item.albumId]?.imageUrl || item.imageUrls?.[0] || item.imageUrl
-                const liveParams = allAlbums.find(x => x.albumId === item.albumId)?.productParams || item.productParams || {}
-                const liveName = allAlbums.find(x => x.albumId === item.albumId)?.productName || ''
+                const liveParams = mergedAlbums.find(x => x.id === item.albumId)?.productParams || item.productParams || {}
+                const liveName = mergedAlbums.find(x => x.id === item.albumId)?.productName || ''
                 return (
-                  <div key={item.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #eee' }}>
+                  <div key={item.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum({ ...item, productName: liveName, productParams: liveParams }); const aid = urlAlbumId || albumIdRef.current; const found = mergedAlbums.find(x => x.id === item.albumId); const comboPath = albumLocation ? `${albumLocation.catId}/${albumLocation.itemId}/${currentViewAlbum?.albumId}` : ''; if (found?._catId && found?._itemId) navigate(`/digital-album/${aid}/${found._catId}/${found._itemId}/${found.albumId || found.id}${comboPath ? `?fromCombo=${comboPath}` : ''}`); else navigate(`/digital-album/${aid}/detail/${item.albumId}${comboPath ? `?fromCombo=${comboPath}` : ''}`) }}>
                     <div style={{ position: 'relative' }}>
                       <img src={itemUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <button
@@ -777,12 +897,18 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                         style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.4)', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
                       ><CloseOutlined /></button>
                     </div>
-                    <div style={{ padding: '2px 6px 4px', fontSize: 11, color: '#999', lineHeight: 1.5 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#333', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{liveName}</div>
-                      <div>规格：{liveParams.spec || '-'}</div>
-                      <div>保质期：{liveParams.shelfLife || '-'}</div>
-                      <div>总重量：{liveParams.totalWeight || '-'}</div>
-                      <div style={{ color: '#FF4D4F', marginTop: 2 }}>温馨提示：{liveParams.note || '-'}</div>
+                    <div style={{ padding: '2px 6px 4px', fontSize: 11, color: '#999', lineHeight: 1.5 }} onClick={e => e.stopPropagation()}>
+                      {editingProductNameId === item.albumId ? (
+                        <input autoFocus defaultValue={liveName || '产品名称'}
+                          onBlur={e => { updateComboItemProductName(albumLocation?.catId, albumLocation?.itemId, currentViewAlbum?.albumId, item.albumId, e.target.value || '产品名称'); setEditingProductNameId(null) }}
+                          onKeyDown={e => { if (e.key === 'Enter') { updateComboItemProductName(albumLocation?.catId, albumLocation?.itemId, currentViewAlbum?.albumId, item.albumId, e.currentTarget.value || '产品名称'); setEditingProductNameId(null) } }}
+                          style={{ width: '100%', fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box', transition: 'all .3s' }}
+                        />
+                      ) : (
+                        <div onClick={() => setEditingProductNameId(item.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {liveName || '产品名称'}
+                        </div>
+                      )}
             </div>
           </div>
                 )
@@ -801,7 +927,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         ) : viewAlbum ? (
           <div className="card" style={{ padding: 16, marginBottom: 0, maxWidth: 900, marginLeft: 'auto', marginRight: 'auto' }}>
             <button
-              onClick={() => { const aid = urlAlbumId || albumIdRef.current; setViewAlbum(null); navigate(urlItemId ? `/digital-album/${aid}/${urlCatId}/${urlItemId}` : urlCatId ? `/digital-album/${aid}/${urlCatId}` : aid ? `/digital-album/${aid}` : '/digital-album') }}
+              onClick={() => { const aid = urlAlbumId || albumIdRef.current; setViewAlbum(null); const fromCombo = new URLSearchParams(location.search).get('fromCombo'); if (fromCombo) { navigate(`/digital-album/${aid}/${fromCombo}`) } else { navigate(urlItemId ? `/digital-album/${aid}/${urlCatId}/${urlItemId}` : urlCatId ? `/digital-album/${aid}/${urlCatId}` : aid ? `/digital-album/${aid}` : '/digital-album') } }}
               className="btn btn-outline"
               style={{ marginBottom: 12, fontSize: 13, padding: '4px 12px' }}
             ><ArrowLeftOutlined /> 返回</button>
@@ -823,7 +949,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 12 }}>{currentCat.name}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a, _pageName: i.name, _itemId: i.id }))).filter((a, i, arr) => arr.findIndex(x => x.albumId === a.albumId) === i).map((a, i) => (
-                <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a) }}>
+                <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); const aid = urlAlbumId || albumIdRef.current; navigate(`/digital-album/${aid}/${selectedCat}/${a._itemId}/${a.albumId}`) }}>
                   <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
                   <button onClick={e => { e.stopPropagation(); removeAlbum(selectedCat, a._itemId, a.albumId) }} style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.4)', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><CloseOutlined /></button>
@@ -864,7 +990,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 12 }}>{currentItem.name}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               {(currentItem.albums || []).map(a => (
-                <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => setViewAlbum(a)}>
+                <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); const aid = urlAlbumId || albumIdRef.current; navigate(`/digital-album/${aid}/${selectedCat}/${selectedItem}/${a.albumId}`) }}>
                   <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
                   <button
@@ -913,7 +1039,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 12 }}>所有画册</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
               {allAlbums.map(a => (
-                <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => setViewAlbum(a)}>
+                <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); const aid = urlAlbumId || albumIdRef.current; navigate(`/digital-album/${aid}/${a._catId}/${a._itemId}/${a.albumId}`) }}>
                   <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
                     <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }} onClick={e => e.stopPropagation()}>
@@ -956,9 +1082,9 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             </div>
             {(() => {
               const pageSize = 12
-              const totalPages = Math.ceil(albums.length / pageSize) || 1
-              const pageAlbums = albums.slice(pickerPage * pageSize, (pickerPage + 1) * pageSize)
-              if (albums.length === 0) {
+              const totalPages = Math.ceil(mergedAlbums.length / pageSize) || 1
+              const pageAlbums = mergedAlbums.slice(pickerPage * pageSize, (pickerPage + 1) * pageSize)
+              if (mergedAlbums.length === 0) {
                 return (
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', color: 'rgba(0,0,0,.25)', fontSize: 14 }}>
                     暂无已生成的画册
@@ -1035,7 +1161,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             </div>
             {(() => {
               const pageSize = 12
-              const filtered = albums.filter(a => !(currentViewAlbum?.comboItems || []).some(c => c.albumId === a.id))
+              const filtered = mergedAlbums.filter(a => !(currentViewAlbum?.comboItems || []).some(c => c.albumId === a.id))
               const totalPages = Math.ceil(filtered.length / pageSize) || 1
               const pageAlbums = filtered.slice(pickerPage * pageSize, (pickerPage + 1) * pageSize)
               if (filtered.length === 0) {
