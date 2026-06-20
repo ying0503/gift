@@ -432,17 +432,17 @@ body {
 .album-tree-list-preview .album-tree-node-level1 {
   width: 78px;
   padding: 7px 10px;
-  background: #fbea9f;
-  border-color: #f0d060;
+  background: #f9f9f9;
+  border-color: transparent;
   color: #6b5b12;
   font-size: 14px;
   border-radius: 0;
 }
 .album-tree-list-preview .album-tree-node-level1.active {
   background: #fbea9f;
-  border-color: #e8c43a;
+  border-color: transparent;
   box-shadow: none;
-  border-radius: 0 10px 10px 0;
+  border-radius: 0 15px 15px 0;
 }
 .album-tree-list-preview .album-tree-node-level2 {
   width: 78px;

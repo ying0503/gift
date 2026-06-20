@@ -122,7 +122,7 @@ export default function Preview() {
       <div>
         {bannerUrl && <div style={{ width: '100%', height: 200, background: '#fff', position: 'relative' }}><img src={bannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} /></div>}
         <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', minHeight: 'calc(100vh - 60px)', background: '#fffdf1' }}>
-          <div style={{ flex: '0 0 auto', width: 'max-content', background: '#fffdf1', border: '1px solid #f0f0f0', borderLeft: 'none', borderRadius: '0 8px 8px 0', overflow: 'hidden', alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: '0 0 auto', width: 'max-content', background: '#fffdf1', border: 'none', borderRadius: '0 8px 8px 0', overflow: 'hidden', alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
             <div className="album-tree-list album-tree-list-preview">
               {categories.length === 0 ? (
                 <div className="album-tree-empty">暂无内容</div>
