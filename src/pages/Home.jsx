@@ -1,21 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { Modal } from 'antd'
 import { CloseOutlined, DeleteOutlined, DownloadOutlined } from '@ant-design/icons'
 import { API } from '../AuthContext'
 
-const TEMPLATES = [
-  { id: 1, img: 'https://picsum.photos/seed/gift1/400/400', prompt: '高端商务礼品套装，深色皮质礼盒，金色logo压印，内衬丝绸，包含钢笔和名片夹，轻奢简约风格' },
-  { id: 2, img: 'https://picsum.photos/seed/gift2/400/400', prompt: '精美鲜花礼盒，粉白色玫瑰搭配尤加利叶，韩式花艺包装，蝴蝶结丝带，自然光拍摄，温馨浪漫氛围' },
-  { id: 3, img: 'https://picsum.photos/seed/gift3/400/400', prompt: '中式糕点礼盒，红色烫金包装，传统花纹图案，内含月饼蛋黄酥，古风韵味，喜庆节日风格' },
-]
-
 export default function Home() {
-  const [image_size, setImageSize] = useState('1K')
+  const [image_size] = useState('1K')
   const [generating, setGenerating] = useState(false)
   const [generatingPrompts, setGeneratingPrompts] = useState(false)
   const promptGenId = useRef(0)
   const templateCountRef = useRef(1)
-  const [showTemplates, setShowTemplates] = useState(false)
-  const templateBtnRef = useRef(null)
 
   const getModel = () => {
     const saved = localStorage.getItem('defaultImageModel')
@@ -28,25 +21,37 @@ export default function Home() {
   const getTemperature = () => parseFloat(localStorage.getItem('textTemperature') || '0.8')
   const getMaxTokens = () => parseInt(localStorage.getItem('textMaxTokens') || '2000', 10)
 
-  async function generatePrompts(fest, count, refImageUrl) {
+  async function generatePrompts(fest, count, refImageUrl, imgType) {
     if (!fest) { setPrompts(Array.from({ length: count }, () => '')); return }
     const token = localStorage.getItem('token')
     if (!token) return
     const genId = ++promptGenId.current
     setGeneratingPrompts(true)
-    setPrompts(Array.from({ length: count }, () => ''))
+    if (imgType === '详情图') {
+      const p = Array.from({ length: count }, () => '')
+      p[0] = '生成白底图'
+      setPrompts(p)
+    } else {
+      setPrompts(Array.from({ length: count }, () => ''))
+    }
     try {
       const res = await fetch(`${API}/api/generate/prompts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ festival: fest, count, refImage: refImageUrl, model: getTextModel(), temperature: getTemperature(), maxTokens: getMaxTokens() }),
+        body: JSON.stringify({ festival: fest, count, refImage: refImageUrl, model: getTextModel(), temperature: getTemperature(), maxTokens: getMaxTokens(), imageType: imgType }),
       })
       const data = await res.json()
       if (genId !== promptGenId.current) return
-      if (data.prompts) setPrompts(data.prompts)
-    } catch (e) {
+      if (data.prompts) {
+        const result = data.prompts.slice(0, count)
+        if (imgType === '详情图' && result.length > 0) result[0] = '生成白底图'
+        setPrompts(result)
+      }
+    } catch {
       if (genId !== promptGenId.current) return
-      setPrompts(Array.from({ length: count }, () => ''))
+      const empty = Array.from({ length: count }, () => '')
+      if (imgType === '详情图' && empty.length > 0) empty[0] = '生成白底图'
+      setPrompts(empty)
     } finally {
       if (genId === promptGenId.current) setGeneratingPrompts(false)
     }
@@ -55,7 +60,7 @@ export default function Home() {
   const [templateCount, setTemplateCount] = useState(1)
   const [prompts, setPrompts] = useState([''])
   const [festival, setFestival] = useState('')
-  const [imageType, setImageType] = useState('白底图')
+  const [imageType, setImageType] = useState('图类型')
 
   const [generations, setGenerations] = useState([])
   const pollTimers = useRef({})
@@ -120,6 +125,13 @@ export default function Home() {
   }, [prompts])
 
   useEffect(() => {
+    if (imageType !== '图类型' && imageType !== '白底图') {
+      const c = imageType === '详情图' ? 3 : 1
+      generatePrompts(festival || '通用礼品', c, undefined, imageType)
+    }
+  }, [])
+
+  useEffect(() => {
     if (viewAlbum) {
       document.body.style.overflow = 'hidden'
     } else {
@@ -168,9 +180,17 @@ export default function Home() {
     const promptList = prompts.filter(p => p.trim())
     if (promptList.length === 0) return
 
+    const imageTypePrefixes = {
+      '白底图': '白底图，把主图抠出来，',
+      '场景图': '场景图，使用场景图，',
+    }
+    const prefixed = imageType === '详情图'
+      ? promptList
+      : promptList.map(p => (imageTypePrefixes[imageType] || '') + p)
+
     const id = Date.now() + Math.random().toString(36).slice(2, 6)
-    setGenerations(g => [...g, { id, batchId: null, progress: 0, statusText: '准备中...',         imageUrl: null, imageUrls: null, error: null, prompt: promptList[0], promptCount: promptList.length }])
-    savePendingBatch(id, null, promptList)
+    setGenerations(g => [...g, { id, batchId: null, progress: 0, statusText: '准备中...',         imageUrl: null, imageUrls: null, error: null, prompt: prefixed[0], promptCount: prefixed.length }])
+    savePendingBatch(id, null, prefixed)
 
     try {
       const imgs = uploadedRef ? [uploadedRef.url] : []
@@ -185,7 +205,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           config: { size: '3:4', model: getModel(), image_size, n: 1, festival: festival || undefined },
-          prompts: promptList,
+          prompts: prefixed,
           images: sendImages.length ? sendImages : undefined,
         }),
       })
@@ -194,8 +214,8 @@ export default function Home() {
       if (!res.ok) throw new Error(r.error || '请求失败')
 
       setGenerations(g => g.map(item => item.id === id ? { ...item, batchId: r.batchId, statusText: '任务已提交' } : item))
-      savePendingBatch(id, r.batchId, promptList)
-      startBatchPolling(id, r.batchId, token, promptList, () => { setGenerating(false); removePendingBatch(id) })
+      savePendingBatch(id, r.batchId, prefixed)
+      startBatchPolling(id, r.batchId, token, prefixed, () => { setGenerating(false); removePendingBatch(id) })
     } catch (err) {
       setGenerations(g => g.map(item => item.id === id ? { ...item, error: err.message } : item))
       setGenerating(false)
@@ -203,7 +223,7 @@ export default function Home() {
   }
 
   function startBatchPolling(id, batchId, token, prompts, onDone) {
-    let cancelled = false, realDone = false
+    let cancelled = false
 
     const poll = async () => {
       try {
@@ -217,21 +237,20 @@ export default function Home() {
           setGenerations(g => g.map(item => item.id === id ? { ...item, progress: res.progress, statusText: res.statusText || item.statusText } : item))
         }
         if (res.status === 'FAILED') {
-          realDone = true
+          cancelled = true
           setGenerations(g => g.map(item => item.id === id ? { ...item, error: res.statusText || '生成失败' } : item))
           fetchAlbums()
           onDone?.()
           return
         }
         if (res.status === 'SUCCEEDED' && res.imageUrl) {
-          realDone = true
           setGenerations(g => g.filter(item => item.id !== id))
           fetchAlbums()
           onDone?.()
           return
         }
         pollTimers.current[id] = setTimeout(poll, 2000)
-      } catch (e) {
+    } catch (e) {
         if (!cancelled) {
           setGenerations(g => g.map(item => item.id === id ? { ...item, error: e.message } : item))
           fetchAlbums()
@@ -382,7 +401,7 @@ export default function Home() {
         <div className="desktop-only">
         {/* Generate Panel */}
         <div className="card" style={{ marginBottom: 20, maxWidth: 800, marginLeft: 'auto', marginRight: 'auto', marginTop: 116, borderRadius: 16, border: '1px solid #f0f0f0', boxShadow: '0 2px 12px rgba(0,0,0,.06)' }}>
-          <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => { setUploadedRef({ url: fr.result, blob: f }); if (prompts.some(p => p.trim()) && festival) generatePrompts(festival, templateCountRef.current, fr.result) }; fr.readAsDataURL(f) } e.target.value = '' }} />
+          <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => { setUploadedRef({ url: fr.result, blob: f }); if (imageType === '白底图') { setPrompts(['生成白底图']) } else if (prompts.some(p => p.trim()) || festival) { generatePrompts(festival || '通用礼品', templateCountRef.current, fr.result, imageType) } }; fr.readAsDataURL(f) } e.target.value = '' }} />
           {previewUrl === uploadedRef?.url && (
             <div style={{ position: 'fixed', zIndex: 1000, left: previewPos.left, top: previewPos.top, background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.2)', padding: 6, pointerEvents: 'none', border: '1px solid rgba(0,0,0,.06)' }}>
               <img src={uploadedRef.url} alt="" style={{ maxWidth: '30vw', maxHeight: '50vh', borderRadius: 6, display: 'block' }} />
@@ -437,10 +456,11 @@ export default function Home() {
           </div>
           <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <select value={imageType} onChange={e => { const v = e.target.value; setImageType(v); const c = v === '详情图' ? 3 : 1; setTemplateCount(c); templateCountRef.current = c; if (festival) { generatePrompts(festival, c, uploadedRef?.url) } else { setPrompts(Array.from({ length: c }, (_, i) => prompts[i] || '')) } }}
+               <select value={imageType} onChange={e => { const v = e.target.value; setImageType(v); const c = v === '详情图' ? 3 : 1; setTemplateCount(c); templateCountRef.current = c; if (v === '图类型') { setPrompts(Array.from({ length: c }, (_, i) => prompts[i] || '')) } else if (v === '白底图') { setPrompts([`生成${v}`]) } else { generatePrompts(festival || '通用礼品', c, uploadedRef?.url, v) } }}
                 style={{ height: 34, padding: '0 12px', fontSize: 13, border: '1px solid #e8e8e8', borderRadius: 8, background: '#fff', cursor: 'pointer', outline: 'none', color: '#333', transition: 'border-color .2s' }}
                 onFocus={e => e.target.style.borderColor = '#8B5CF6'}
                 onBlur={e => e.target.style.borderColor = '#e8e8e8'}>
+                <option value="图类型">图类型</option>
                 <option value="白底图">白底图</option>
                 <option value="场景图">场景图</option>
                 <option value="详情图">详情图</option>
@@ -449,46 +469,16 @@ export default function Home() {
                 style={{ height: 34, padding: '0 12px', fontSize: 13, border: '1px solid #eee', borderRadius: 8, background: '#f8f8f8', cursor: 'not-allowed', outline: 'none', color: '#bbb' }}>
                 {[1,2,3,4,5].map(v => <option key={v} value={v}>{v}张</option>)}
               </select>
-              <select value={festival} onChange={e => { const v = e.target.value; setFestival(v); generatePrompts(v, templateCountRef.current, uploadedRef?.url) }}
-                style={{ height: 34, padding: '0 12px 0 28px', fontSize: 13, border: '1px solid #e8e8e8', borderRadius: 8, background: '#fff', cursor: 'pointer', outline: 'none', color: '#333', transition: 'border-color .2s', backgroundImage: 'radial-gradient(circle at 12px 50%, #8B5CF6 3px, transparent 3px)' }}
-                onFocus={e => e.target.style.borderColor = '#8B5CF6'}
-                onBlur={e => e.target.style.borderColor = '#e8e8e8'}>
+               <select value={festival} disabled={imageType === '白底图'} onChange={e => { const v = e.target.value; setFestival(v); if (imageType !== '图类型' && imageType !== '白底图') generatePrompts(v, templateCountRef.current, uploadedRef?.url, imageType) }}
+                style={{ height: 34, padding: '0 12px 0 28px', fontSize: 13, border: `1px solid ${imageType === '白底图' ? '#eee' : '#e8e8e8'}`, borderRadius: 8, background: imageType === '白底图' ? '#f8f8f8' : '#fff', cursor: imageType === '白底图' ? 'not-allowed' : 'pointer', outline: 'none', color: imageType === '白底图' ? '#bbb' : '#333', transition: 'border-color .2s', backgroundImage: 'radial-gradient(circle at 12px 50%, #8B5CF6 3px, transparent 3px)' }}
+                onFocus={e => { if (imageType !== '白底图') e.target.style.borderColor = '#8B5CF6' }}
+                onBlur={e => { if (imageType !== '白底图') e.target.style.borderColor = '#e8e8e8' }}>
                 <option value="">节日</option>
                 <option value="端午">端午</option>
                 <option value="中秋">中秋</option>
                 <option value="国庆">国庆</option>
                 <option value="春节">春节</option>
               </select>
-              {imageType !== '详情图' ? (
-                <div style={{ position: 'relative' }}>
-                  <button ref={templateBtnRef} onClick={() => setShowTemplates(v => !v)}
-                    style={{ height: 34, padding: '0 14px', fontSize: 13, border: '1px solid #e8e8e8', borderRadius: 8, background: showTemplates ? '#f5f0ff' : '#fff', cursor: 'pointer', outline: 'none', color: showTemplates ? '#8B5CF6' : '#333', transition: 'all .2s', whiteSpace: 'nowrap' }}
-                    onMouseEnter={e => { if (!showTemplates) { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#8B5CF6' } }}
-                    onMouseLeave={e => { if (!showTemplates) { e.currentTarget.style.borderColor = '#e8e8e8'; e.currentTarget.style.color = '#333' } }}
-                  >模板</button>
-                  {showTemplates && (
-                    <>
-                      <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setShowTemplates(false)} />
-                      <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)', background: '#fff', borderRadius: 12, boxShadow: '0 8px 40px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.04)', padding: 16, zIndex: 1000, display: 'flex', gap: 12 }}>
-                        {TEMPLATES.map(t => (
-                          <div key={t.id} style={{ width: 200, borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative' }}>
-                            <img src={t.img} alt="" style={{ width: '100%', height: 240, objectFit: 'cover', display: 'block' }} />
-                            <button onClick={() => { setPrompts(prev => { const next = [...prev]; next[0] = t.prompt; return next }); setShowTemplates(false) }}
-                              style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', padding: '6px 16px', fontSize: 12, color: '#fff', background: 'linear-gradient(135deg, #8B5CF6, #EC4899)', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 500, transition: 'opacity .2s', whiteSpace: 'nowrap' }}
-                              onMouseEnter={e => e.currentTarget.style.opacity = '.85'}
-                              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                            >做同款</button>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <button disabled
-                  style={{ height: 34, padding: '0 14px', fontSize: 13, border: '1px solid #eee', borderRadius: 8, background: '#f8f8f8', cursor: 'not-allowed', outline: 'none', color: '#bbb', whiteSpace: 'nowrap' }}
-                >模板</button>
-              )}
             </div>
             <button
               disabled={!canGenerate || generating}
@@ -565,15 +555,15 @@ export default function Home() {
       <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px) saturate(1.2)' }} onClick={() => setViewAlbum(null)}>
         <div className="preview-enter" style={{ position: 'relative', background: '#fff', padding: 6, borderRadius: 8, boxShadow: '0 8px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.12)', maxWidth: '96%', maxHeight: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? '94%' : 'none', overflowY: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? 'auto' : 'visible', overflowX: 'visible' }} onClick={e => e.stopPropagation()}>
           {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 && (
-            <div style={{ position: 'sticky', top: 0, zIndex: 2, textAlign: 'center', padding: '6px 0 4px', fontSize: 12, color: '#999', letterSpacing: 1, background: 'rgba(255,255,255,.85)' }}>
+            <div style={{ position: 'sticky', top: 0, zIndex: 2, textAlign: 'center', padding: '10px 6px 8px', fontSize: 12, color: '#999', letterSpacing: 1, background: 'rgba(255,255,255,.85)', margin: '-6px -6px 6px', borderRadius: '8px 8px 0 0' }}>
               共 {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length} 张
             </div>
           )}
           {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).map((url, i) => (
-            <img key={i} src={url} alt="" style={{ width: '100%', display: 'block', maxHeight: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? 'none' : '94vh', objectFit: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? 'none' : 'contain', borderRadius: 4 }} />
+            <img key={i} src={url} alt="" style={{ width: '100%', display: 'block', maxHeight: '94vh', objectFit: 'contain', borderRadius: 4, marginBottom: i < (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length - 1 ? 5 : 0 }} />
           ))}
-          <a href={viewAlbum?.imageUrls?.[0] || viewAlbum?.imageUrl || '#'} download style={{ position: 'absolute', bottom: 2, right: -68, zIndex: 3, width: 40, height: 40, borderRadius: '50%', background: '#fff', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, boxShadow: '0 2px 12px rgba(0,0,0,.18)', textDecoration: 'none', transition: 'all .2s' }} onClick={e => e.stopPropagation()}><DownloadOutlined /></a>
         </div>
+        <a href={viewAlbum?.imageUrls?.[0] || viewAlbum?.imageUrl || '#'} download style={{ position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)', zIndex: 1001, width: 44, height: 44, borderRadius: '50%', background: '#fff', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, boxShadow: '0 2px 12px rgba(0,0,0,.2)', textDecoration: 'none', transition: 'all .2s' }} onClick={e => e.stopPropagation()}><DownloadOutlined /></a>
         <CloseOutlined
           onClick={() => setViewAlbum(null)}
           className="preview-close-btn"
