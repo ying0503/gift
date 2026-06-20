@@ -13,9 +13,9 @@
 | 路由 | react-router-dom v7 |
 | UI | Ant Design 6 + 内联样式 |
 | 构建 | Vite + @vitejs/plugin-react |
-| 后端方案1 | Express 5 + MySQL2 + 阿里云 OSS（自托管 ECS） |
-| 后端方案2 | Cloudflare Workers + KV（无服务器边缘部署） |
-| 数据库 | MySQL / Cloudflare KV |
+| 后端 | Express 5 + MySQL2 + 阿里云 OSS（自托管 ECS） |
+| 数据库 | MySQL |
+| 图片存储 | 阿里云 OSS |
 | 图片存储 | 阿里云 OSS |
 | 图片处理 | sharp（WebP 转换） |
 
@@ -42,16 +42,12 @@ gift-album/
 │   │   ├── ModelUse.jsx        # AI 模型管理
 │   │   └── ...
 │   └── assets/
-├── backend/                    # Cloudflare Workers 后端
-│   └── src/
-│       ├── index.js            # Workers 路由主入口
-│       ├── auth.js             # 密码哈希与 Token
-│       ├── db.js               # 数据库操作
-│       └── utils.js            # CORS/响应工具
 ├── server.js                   # Express 后端（生产/自托管）
+│   └── src/server/
+│       ├── auth.js             # 密码哈希与 Token
+│       └── db.js               # 数据库操作
 ├── package.json
 ├── vite.config.js
-├── wrangler.jsonc              # Workers 部署配置
 └── .env                        # 环境变量（DB/API Key/OSS）
 ```
 

@@ -7,8 +7,8 @@ import { fileURLToPath } from 'url'
 import crypto from 'crypto'
 import OSS from 'ali-oss'
 import sharp from 'sharp'
-import { hashPassword, verifyPassword, generateToken } from './backend/src/auth.js'
-import * as db from './backend/src/db.js'
+import { hashPassword, verifyPassword, generateToken } from './src/server/auth.js'
+import * as db from './src/server/db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
