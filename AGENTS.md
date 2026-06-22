@@ -117,4 +117,5 @@ gift-album/
 没有明确指令不能部署到ECS
 没有明确指令不能push代码到github仓库
 
-部署脚本：`bash deploy-ecs.sh`（需手动输入 YES 确认）
+push 和 deploy 均需通过 macOS `osascript` 弹窗确认（AI 无法点击按钮，必须用户手动确认）
+部署脚本：`bash deploy-ecs.sh`
