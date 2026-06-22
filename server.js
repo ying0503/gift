@@ -103,7 +103,7 @@ app.post('/api/logout', auth, async (req, res) => {
 })
 
 app.get('/api/ping', (req, res) => {
-  res.json({ ok: true, hasMaiziaiKey: !!process.env.MAIZIAI_API_KEY, hasAgnesKey: !!process.env.AGNES_API_KEY, hasGlmKey: !!process.env.GLM_API_KEY, hasQwenKey: !!process.env.QWEN_API_KEY, hasDoubaoKey: !!process.env.DOUBAO_API_KEY })
+  res.json({ ok: true, hasMaiziaiKey: !!process.env.MAIZIAI_API_KEY, hasAgnesKey: !!process.env.AGNES_API_KEY, hasIthinkaiKey: !!process.env.ITHINKAI_API_KEY, hasGlmKey: !!process.env.GLM_API_KEY, hasQwenKey: !!process.env.QWEN_API_KEY, hasDoubaoKey: !!process.env.DOUBAO_API_KEY })
 })
 
 app.get('/api/model-stats', (req, res) => {
@@ -160,8 +160,25 @@ app.post('/api/generate', auth, async (req, res) => {
       if (!agnesKey) return res.status(500).json({ error: 'AGNES_API_KEY not configured' })
       const agnesSizeMap = { 'auto': '1024x1024', '1:1': '1024x1024', '16:9': '1024x768', '9:16': '768x1024', '4:3': '1024x768', '3:4': '768x1024' }
       const apiSize = agnesSizeMap[config.size] || config.size || '1024x1024'
+      if (hasImages) {
+        const body = { model: 'agnes-image-2.0-flash', prompt, size: apiSize, n: 1, tags: ['img2img'], extra_body: { image: images.slice(0, 1), response_format: 'url' } }
+        const apiRes = await fetch('https://apihub.agnes-ai.com/v1/images/generations', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agnesKey}` }, body: JSON.stringify(body),
+        })
+        const data = await apiRes.json()
+        if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'Agnes API call failed' })
+        const imageUrl = data.data?.[0]?.url
+        if (!imageUrl) return res.status(500).json({ error: 'No image URL from Agnes API' })
+        const ossUrl = await uploadToOSS(imageUrl)
+        const taskId = uuid()
+        await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'SUCCEEDED', imageUrl: ossUrl, createdAt: Date.now(), productCount: 0 })
+        const albumId = uuid().slice(0, 8)
+        await db.createAlbum({ id: albumId, userId: req.user.userId, taskId, imageUrl: ossUrl, config, prompt, productCount: 0, banner: config.banner || false, createdAt: Date.now() })
+        await db.addUserAlbum(req.user.userId, albumId)
+        modelLatencies.push({ model: imgModel, ms: Date.now() - imgStart, ts: Date.now() })
+        return res.json({ taskId })
+      }
       const body = { model: 'agnes-image-2.1-flash', prompt, size: apiSize, n: 1 }
-      if (hasImages) body.extra_body = { image: images.slice(0, 1), response_format: 'url' }
       const apiRes = await fetch('https://apihub.agnes-ai.com/v1/images/generations', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agnesKey}` }, body: JSON.stringify(body),
       })
@@ -169,6 +186,28 @@ app.post('/api/generate', auth, async (req, res) => {
       if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'Agnes API call failed' })
       const imageUrl = data.data?.[0]?.url
       if (!imageUrl) return res.status(500).json({ error: 'No image URL from Agnes API' })
+      const ossUrl = await uploadToOSS(imageUrl)
+      const taskId = uuid()
+      await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'SUCCEEDED', imageUrl: ossUrl, createdAt: Date.now(), productCount: 0 })
+      const albumId = uuid().slice(0, 8)
+      await db.createAlbum({ id: albumId, userId: req.user.userId, taskId, imageUrl: ossUrl, config, prompt, productCount: 0, banner: config.banner || false, createdAt: Date.now() })
+      await db.addUserAlbum(req.user.userId, albumId)
+      modelLatencies.push({ model: imgModel, ms: Date.now() - imgStart, ts: Date.now() })
+      return res.json({ taskId })
+    }
+
+    if (config.model === 'ithinkai-gpt-image-2') {
+      const ithinkaiKey = process.env.ITHINKAI_API_KEY
+      if (!ithinkaiKey) return res.status(500).json({ error: 'ITHINKAI_API_KEY not configured' })
+      const body = { model: 'gpt-image-2', prompt, size: config.size || 'auto', response_format: 'url' }
+      if (hasImages) body.image = images
+      const apiRes = await fetch('https://token.ithinkai.cn/v1/images/generations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ithinkaiKey}` }, body: JSON.stringify(body),
+      })
+      const data = await apiRes.json()
+      if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'iThinkAPI call failed' })
+      const imageUrl = data.data?.[0]?.url
+      if (!imageUrl) return res.status(500).json({ error: 'No image URL from iThinkAPI' })
       const ossUrl = await uploadToOSS(imageUrl)
       const taskId = uuid()
       await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'SUCCEEDED', imageUrl: ossUrl, createdAt: Date.now(), productCount: 0 })
@@ -192,18 +231,16 @@ app.post('/api/generate/batch', auth, async (req, res) => {
     const hasImages = images && images.length
     const batchId = uuid().slice(0, 8)
 
-    if (config.model === 'agnes-image-2.1-flash') {
-      const agnesKey = process.env.AGNES_API_KEY
-      if (!agnesKey) return res.status(500).json({ error: 'AGNES_API_KEY not configured' })
-      const agnesSizeMap = { 'auto': '1024x1024', '1:1': '1024x1024', '16:9': '1024x768', '9:16': '768x1024', '4:3': '1024x768', '3:4': '768x1024' }
-      const apiSize = agnesSizeMap[config.size] || config.size || '1024x1024'
+    const handleSyncBatch = async (modelKey, modelLabel, apiUrl, apiBodyFn) => {
+      const key = process.env[modelKey]
+      if (!key) return res.status(500).json({ error: `${modelKey} not configured` })
       const imageUrls = []
       for (const prompt of prompts) {
-        const apiRes = await fetch('https://apihub.agnes-ai.com/v1/images/generations', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agnesKey}` }, body: JSON.stringify({ model: 'agnes-image-2.1-flash', prompt, size: apiSize, n: 1 }),
+        const apiRes = await fetch(apiUrl, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify(apiBodyFn(prompt)),
         })
         const data = await apiRes.json()
-        if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'Agnes API call failed' })
+        if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || `${modelLabel} API call failed` })
         if (data.data?.[0]?.url) imageUrls.push(data.data[0].url)
       }
       if (!imageUrls.length) return res.status(500).json({ error: 'No images generated' })
@@ -213,6 +250,21 @@ app.post('/api/generate/batch', auth, async (req, res) => {
       await db.addUserAlbum(req.user.userId, albumId)
       await db.createBatch({ batchId, userId: req.user.userId, taskIds: [], config, prompts, createdAt: Date.now(), done: true })
       return res.json({ batchId })
+    }
+
+    if (config.model === 'agnes-image-2.1-flash') {
+      const agnesSizeMap = { 'auto': '1024x1024', '1:1': '1024x1024', '16:9': '1024x768', '9:16': '768x1024', '4:3': '1024x768', '3:4': '768x1024' }
+      const apiSize = agnesSizeMap[config.size] || config.size || '1024x1024'
+      return handleSyncBatch('AGNES_API_KEY', 'Agnes', 'https://apihub.agnes-ai.com/v1/images/generations', (prompt) => {
+        if (hasImages) {
+          return { model: 'agnes-image-2.0-flash', prompt, size: apiSize, n: 1, tags: ['img2img'], extra_body: { image: images.slice(0, 1), response_format: 'url' } }
+        }
+        return { model: 'agnes-image-2.1-flash', prompt, size: apiSize, n: 1 }
+      })
+    }
+
+    if (config.model === 'ithinkai-gpt-image-2') {
+      return handleSyncBatch('ITHINKAI_API_KEY', 'iThinkAPI', 'https://token.ithinkai.cn/v1/images/generations', (prompt) => ({ model: 'gpt-image-2', prompt, size: config.size || 'auto', response_format: 'url', image: hasImages ? images : undefined }))
     }
 
     const maiziaiKey = process.env.MAIZIAI_API_KEY

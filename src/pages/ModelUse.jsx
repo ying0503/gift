@@ -14,6 +14,14 @@ const MODELS = [
     keyLabel: 'MAIZIAI_API_KEY',
   },
   {
+    id: 'ithinkai-gpt-image-2',
+    name: 'iThinkAPI GPT-Image-2',
+    provider: 'iThinkAPI',
+    usage: '画册图片生成、Banner生成',
+    keyStatus: 'hasIthinkaiKey',
+    keyLabel: 'ITHINKAI_API_KEY',
+  },
+  {
     id: 'agnes-image-2.1-flash',
     name: 'Agnes Image 2.1 Flash',
     provider: 'Agnes AI',
@@ -51,7 +59,7 @@ export default function ModelUse() {
   const [keyStatus, setKeyStatus] = useState(null)
   const [defaultImageModel, setDefaultImageModel] = useState(() => {
     const saved = localStorage.getItem('defaultImageModel')
-    const valid = ['maiziai-chatgpt-image-2', 'agnes-image-2.1-flash']
+    const valid = ['maiziai-chatgpt-image-2', 'agnes-image-2.1-flash', 'ithinkai-gpt-image-2']
     return valid.includes(saved) ? saved : 'maiziai-chatgpt-image-2'
   })
   const [textModel, setTextModel] = useState(() => {
@@ -167,7 +175,7 @@ export default function ModelUse() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: '#333', marginBottom: 12 }}>文案生成模型</div>
         <div style={{ display: 'flex', gap: 12 }}>
-          {MODELS.filter(m => m.id !== 'maiziai-chatgpt-image-2' && m.id !== 'agnes-image-2.1-flash').map(m => (
+          {MODELS.filter(m => m.id !== 'maiziai-chatgpt-image-2' && m.id !== 'ithinkai-gpt-image-2' && m.id !== 'agnes-image-2.1-flash').map(m => (
             <div
               key={m.id}
               onClick={() => handleTextModelChange(m.id)}
@@ -238,7 +246,7 @@ export default function ModelUse() {
       <div style={{ padding: 16, background: '#fffbe6', borderRadius: 12, border: '1px solid #ffe58f' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#ad8b00', marginBottom: 4 }}>说明</div>
         <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: '#8c7a0a', lineHeight: 2 }}>
-          <li>图片生成模型可切换默认使用哪个服务商（MaiziAI / Agnes AI）</li>
+          <li>图片生成模型可切换默认使用哪个服务商（MaiziAI / iThinkAPI / Agnes AI）</li>
           <li>文案策划和智能目录可在 Qwen / GLM / Doubao 间切换</li>
           <li>温度和 Token 数在"文案生成参数"中调节，控制生成结果的随机性和长度</li>
           <li>API 密钥在 <code style={{ background: '#fff2cc', padding: '1px 4px', borderRadius: 3 }}>.env</code> 文件中配置</li>

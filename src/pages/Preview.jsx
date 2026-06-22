@@ -66,6 +66,7 @@ export default function Preview() {
       .then(data => {
         if (data.categories?.length && categories.length === 0) {
           setCategories(data.categories)
+          if (!urlCatId) setSelectedCat(data.categories[0].id)
         }
         if (data.bannerUrl) setBannerUrl(data.bannerUrl)
       })
@@ -122,7 +123,7 @@ export default function Preview() {
       <div>
         {bannerUrl && <div style={{ width: '100%', height: 200, background: '#fff', position: 'relative' }}><img src={bannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} /></div>}
         <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', minHeight: 'calc(100vh - 60px)', background: '#fffdf1' }}>
-          <div style={{ flex: '0 0 auto', width: 'max-content', background: '#fffdf1', border: 'none', borderRadius: '0 8px 8px 0', overflow: 'hidden', alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: '0 0 auto', width: 'max-content', background: '#fffdf1', border: 'none', borderRadius: '0 20px 20px 0', alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
             <div className="album-tree-list album-tree-list-preview">
               {categories.length === 0 ? (
                 <div className="album-tree-empty">暂无内容</div>
@@ -143,7 +144,7 @@ export default function Preview() {
           <div style={{ flex: 1, minWidth: 0, alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
             {viewAlbum?.type === '组合' ? (
-              <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
+              <div style={{ background: '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
                 <div style={{ fontSize: m ? 15 : 18, fontWeight: 600, color: '#333', marginBottom: 12 }}>{viewAlbum.productName || '产品名称'}</div>
                 {viewAlbum.bannerUrl && (
                   <div style={{ height: m ? 'auto' : 350, aspectRatio: m ? '2/1' : undefined, background: `url(${viewAlbum.bannerUrl}) center/cover no-repeat`, borderRadius: 8, marginBottom: 16 }} />
@@ -167,7 +168,7 @@ export default function Preview() {
                 </div>
               </div>
             ) : viewAlbum ? (
-              <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
+              <div style={{ background: '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
                 {(() => {
                   const urls = getImageUrls(viewAlbum)
                   return (
@@ -200,24 +201,28 @@ export default function Preview() {
                 })()}
               </div>
             ) : selectedCat && currentCat ? (
-              <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
+              <div style={{ background: '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
                 <div style={{ fontSize: m ? 13 : 16, fontWeight: 600, color: '#333', marginBottom: m ? 0 : 12, display: m ? 'none' : 'block' }}>{currentCat.name}</div>
+                {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a }))).length === 0 ? (
+                  <div style={{ padding: 60, textAlign: 'center', color: 'rgba(0,0,0,.25)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>暂无数据</div>
+                ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: m ? 8 : 12 }}>
                   {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a }))).map((a, i) => (
-                    <div key={a.albumId + '-' + i} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${albumId}/${selectedCat}/${a.albumId}`) }}>
+                    <div key={a.albumId + '-' + i} style={{ background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${albumId}/${selectedCat}/${a.albumId}`) }}>
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0' }}>{a.productName || '产品名称'}</div>
                     </div>
                   ))}
                 </div>
+                )}
               </div>
 
             ) : !selectedCat && allAlbums.length > 0 ? (
-              <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
+              <div style={{ background: '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
                 <div style={{ fontSize: m ? 13 : 16, fontWeight: 600, color: '#333', marginBottom: m ? 0 : 12, display: m ? 'none' : 'block' }}>所有画册</div>
                 <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: m ? 8 : 12 }}>
                   {allAlbums.map(a => (
-                    <div key={a.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${albumId}/${a._catId}/${a.albumId}`) }}>
+                    <div key={a.albumId} style={{ background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${albumId}/${a._catId}/${a.albumId}`) }}>
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>
                         <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{a._catName} / {a._itemName}</div>
@@ -228,8 +233,8 @@ export default function Preview() {
                 </div>
               </div>
             ) : (
-              <div style={{ background: '#fff', borderRadius: 8, border: '1px solid #f0f0f0', padding: 60, textAlign: 'center', color: 'rgba(0,0,0,.25)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                请选择
+              <div style={{ background: '#fffdf1', borderRadius: 8, padding: 60, textAlign: 'center', color: 'rgba(0,0,0,.25)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                暂无数据
               </div>
             )}
             </div>

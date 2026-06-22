@@ -31,6 +31,7 @@ export default function DigitalAlbum({ setPreviewSave, setPreviewAlbumId }) {
 const [globalBannerUrl, setGlobalBannerUrl] = useState(null)
 const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   const [globalBannerError, setGlobalBannerError] = useState(null)
+  const [bannerAiMode, setBannerAiMode] = useState(false)
   const [bannerTitle, setBannerTitle] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
   const [festival, setFestival] = useState('')
@@ -304,21 +305,37 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     if (!token) return
     const prompt = festivalPrompt || `生成一个${festival || '节日'}的banner，喜庆、大气`
     setGeneratingGlobalBanner(true)
-    setGlobalBannerProgress(0)
+    setGlobalBannerProgress(1)
     setGlobalBannerError(null)
+    setTimeout(() => setGlobalBannerProgress(2), 200)
+    let prog = 2
+    const progTimer = setInterval(() => {
+      prog = Math.min(prog + Math.random() * 2, 95)
+      setGlobalBannerProgress(Math.round(prog))
+    }, 800)
+
+    const finish = (url) => {
+      clearInterval(progTimer)
+      setGlobalBannerProgress(100)
+      setTimeout(() => {
+        saveGlobalBannerUrl(url)
+        setGeneratingGlobalBanner(false)
+      }, 300)
+    }
 
     fetch(`${API}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         config: {
-          model: 'maiziai-chatgpt-image-2',
+          model: localStorage.getItem('defaultImageModel') || 'maiziai-chatgpt-image-2',
           prompt,
           size: '16:9',
         },
       }),
     }).then(r => r.json()).then(data => {
       if (!data.taskId) {
+        clearInterval(progTimer)
         setGlobalBannerError(data.error || '生成失败')
         setGeneratingGlobalBanner(false)
         return
@@ -328,18 +345,11 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           headers: { Authorization: `Bearer ${token}` },
         }).then(r => r.json()).then(status => {
           if (status.imageUrl) {
-            setGlobalBannerProgress(100)
-            setTimeout(() => {
-              saveGlobalBannerUrl(status.imageUrl)
-              setGeneratingGlobalBanner(false)
-            }, 300)
+            finish(status.imageUrl)
           } else if (status.taskStatus === 'SUCCEEDED') {
-            setGlobalBannerProgress(100)
-            setTimeout(() => {
-              saveGlobalBannerUrl(status.imageUrl)
-              setGeneratingGlobalBanner(false)
-            }, 300)
+            finish(status.imageUrl)
           } else if (status.taskStatus === 'FAILED') {
+            clearInterval(progTimer)
             setGlobalBannerError(status.statusText || '生成失败')
             setGeneratingGlobalBanner(false)
           } else {
@@ -349,6 +359,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       }
       setTimeout(poll, 500)
     }).catch(err => {
+      clearInterval(progTimer)
       setGlobalBannerError(err.message || '网络错误')
       setGeneratingGlobalBanner(false)
     })
@@ -596,7 +607,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     fetch(`${API}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ config: { model: 'maiziai-chatgpt-image-2', prompt: currentViewAlbum.productName || '产品名称', size: '16:9', banner: true } }),
+      body: JSON.stringify({ config: { model: localStorage.getItem('defaultImageModel') || 'maiziai-chatgpt-image-2', prompt: currentViewAlbum.productName || '产品名称', size: '16:9', banner: true } }),
     }).then(r => r.json()).then(data => {
       if (data.taskId) {
         const poll = () => {
@@ -740,55 +751,65 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         )}
       </div>
       <div className="card" style={{ padding: globalBannerUrl ? 0 : 16, marginBottom: 12, position: 'relative' }}>
+        {globalBannerUrl && (
+          <div onClick={() => { setGlobalBannerUrl(null); setGlobalBannerError(null); setBannerAiMode(false) }}
+            style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.9)', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14, boxShadow: '0 2px 8px rgba(0,0,0,.1)' }}
+          ><EditOutlined /></div>
+        )}
         {!globalBannerUrl && (
           <div style={{ minHeight: 300, display: 'flex', flexDirection: 'column' }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>顶部氛围图</div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flex: 1, alignItems: 'center' }}>
-              <button
-                onClick={generateGlobalBanner}
-                disabled={generatingPrompt}
-                style={{
-                  padding: '8px 20px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
-                  background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
-                  color: '#fff', border: 'none', borderRadius: 8, cursor: generatingPrompt ? 'not-allowed' : 'pointer',
-                  opacity: generatingPrompt ? .5 : 1, transition: 'opacity .2s',
-                }}
-              >
-                {generatingPrompt ? 'AI智能生成中...' : 'AI智能生成'}
-              </button>
-              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingBanner} style={{
-                padding: '8px 20px', fontSize: 14, whiteSpace: 'nowrap',
-                background: uploadingBanner ? '#d9d9d9' : 'linear-gradient(90deg, #ff7db8, #8f7cff)',
-                color: '#fff', border: 'none', borderRadius: 8, cursor: uploadingBanner ? 'not-allowed' : 'pointer',
-                opacity: uploadingBanner ? .6 : 1, transition: 'opacity .2s',
-              }}>
-                {uploadingBanner ? '上传中...' : '上传图片'}
-              </button>
-            </div>
-            {generatingGlobalBanner && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 13, color: '#666', marginBottom: 6 }}>正在生成氛围图...</div>
-                <div style={{ width: '100%', height: 6, background: '#ddd', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ width: `${globalBannerProgress}%`, height: '100%', background: 'linear-gradient(90deg, #1677FF, #69B1FF)', borderRadius: 3, transition: 'width .1s linear' }} />
-                </div>
+            {!bannerAiMode ? (
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flex: 1, alignItems: 'center' }}>
+                <button onClick={() => setBannerAiMode(true)}
+                  style={{
+                    padding: '8px 20px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
+                    background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                    color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer',
+                  }}
+                >AI智能生成</button>
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploadingBanner} style={{
+                  padding: '8px 20px', fontSize: 14, whiteSpace: 'nowrap',
+                  background: uploadingBanner ? '#d9d9d9' : 'linear-gradient(90deg, #ff7db8, #8f7cff)',
+                  color: '#fff', border: 'none', borderRadius: 8, cursor: uploadingBanner ? 'not-allowed' : 'pointer',
+                  opacity: uploadingBanner ? .6 : 1,
+                }}>
+                  {uploadingBanner ? '上传中...' : '上传图片'}
+                </button>
+              </div>
+            ) : generatingGlobalBanner ? (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
+                <div className="loading-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#1677FF' }}>{globalBannerProgress}%</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', gap: 12, maxWidth: 400, margin: '0 auto', width: '100%' }}>
+                <select value={festival} onChange={e => { setFestival(e.target.value); setFestivalPrompt('') }}
+                  style={{ height: 38, padding: '0 12px', fontSize: 14, border: '1px solid #e8e8e8', borderRadius: 8, background: '#fff', cursor: 'pointer', outline: 'none' }}>
+                  <option value="">选择节日</option>
+                  {festivals.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+                {generatingPrompt && (
+                  <div style={{ fontSize: 13, color: '#666' }}>AI 生成提示词中...</div>
+                )}
+                {festivalPrompt && !generatingPrompt && (
+                  <div style={{ fontSize: 13, color: '#333', background: '#f9f9f9', padding: '10px 12px', borderRadius: 8, lineHeight: 1.6 }}>{festivalPrompt}</div>
+                )}
+                <button onClick={() => { if (festivalPrompt || festival) generateGlobalBanner() }}
+                  disabled={generatingPrompt || (!festivalPrompt && !festival)}
+                  style={{
+                    height: 38, fontSize: 14, fontWeight: 600,
+                    background: generatingPrompt || (!festivalPrompt && !festival) ? '#d9d9d9' : 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                    color: '#fff', border: 'none', borderRadius: 8, cursor: generatingPrompt || (!festivalPrompt && !festival) ? 'not-allowed' : 'pointer',
+                  }}
+                >确定</button>
               </div>
             )}
-            {globalBannerError && <div style={{ fontSize: 12, color: '#e44', marginBottom: 10 }}>{globalBannerError}</div>}
+            {globalBannerError && <div style={{ fontSize: 12, color: '#e44', marginBottom: 10, textAlign: 'center' }}>{globalBannerError}</div>}
           </div>
         )}
         {globalBannerUrl && (
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => { setGlobalBannerUrl(null); setGlobalBannerError(null) }}
-              style={{
-                position: 'absolute', top: -10, right: -10,
-                padding: '6px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
-                background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
-                color: '#fff', border: 'none', borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,.15)',
-                cursor: 'pointer',
-                zIndex: 1,
-              }}
-            >重新生成</button>
+          <div>
             <img src={globalBannerUrl} alt="" style={{ width: '100%', display: 'block', borderRadius: 8 }} />
           </div>
         )}

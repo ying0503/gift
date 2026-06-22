@@ -113,48 +113,6 @@ gift-album/
 
 ---
 
-## 核心功能
-
-### 1. 礼品图片生成工作台（Home）
-- 提示词编辑（支持多模板）
-- 节日选择触发 AI 自动文案生成
-- 参考图上传（hover 预览）
-- 白底图/场景图/详情图切换
-- 批量调用 AI 模型生成礼品宣传图
-- 进度轮询（模拟进度兜底 + API 真实进度覆盖）
-- 历史画册分页查看与删除
-
-### 2. 电子画册编辑器（DigitalAlbum — 核心）
-- 左栏：树形目录（分类/页面），支持增删改
-- AI 智能分类生成（一键生成 6-8 个节日礼品分类）
-- Banner 管理（AI 生成 / 本地上传 / 重新生成）
-- 画册挑选器（弹窗多选，按 createdAt 倒序）
-- 单品/组合布局（组合最多 12 件）
-- 产品参数编辑（规格/保质期/重量/温馨提示）
-- 产品名称编辑（点击直接编辑）
-- 组合 Banner 生成
-- 公开预览 + 二维码分享
-
-### 3. 公开预览（Preview）
-- URL 路径 `/preview/:userId/:albumId?/:catId?/:itemAlbumId?`
-- 左侧绿色分类导航 + 右侧内容展示
-- 无 token 公开访问（通过 userId 参数）
-- 产品参数展示
-
-### 4. AI 模型管理（ModelUse）
-- 选择图片/文案生成模型
-- 调节温度与 Max Tokens
-- 查看各模型成功率和速度
-
----
-
-## 模型生成进度
-
-- Agnes 模型（`agnes-image-2.1-flash`）和 ChatGPT 模型（`maiziai-chatgpt-image-2`）均通过 `/api/generate/batch-status` 轮询进度
-- 后端返回的 `res.progress`（0-100 数值）和 `res.statusText`（文字描述）会实时更新到 `generations` 状态中
-- 同时前端有模拟进度（`sim` 定时器）兜底，每 800ms 递增 1-2%，到 95% 停止
-- API 返回的 `res.progress` 会覆盖模拟进度，确保真实进度优先显示
-- 生成完成后（`res.status === 'SUCCEEDED'`）该条目从 `generations` 中移除并刷新画册列表
-- 模拟进度在 `useEffect` 中全局运行，独立于 `startBatchPolling`，确保条目创建后立即开始递增
-- `startBatchPolling` 中的 `poll` 只负责读取 API 返回的真实进度（`res.progress > 0` 才覆盖），避免后端返回 `progress: 0` 把模拟进度重置回 0%
-- Claude 模型（如 `claude-sonnet-4-image`）也走相同流程
+**规则红线：**
+没有明确指令不能部署到ECS
+没有明确制定不能push代码到github仓库

@@ -42,16 +42,18 @@ export default function DigitalAlbumList() {
   }
 
   if (loading) {
-    return <div style={{ textAlign: 'center', padding: 80, color: '#bbb', fontSize: 15 }}>加载中...</div>
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: '#94a3b8', fontSize: 14, gap: 10 }}>
+      <div className="loading-spinner" style={{ width: 20, height: 20, borderWidth: 2, margin: 0 }} />
+      加载中...
+    </div>
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <div style={{ fontSize: 18, fontWeight: 600, color: '#111', marginBottom: 24 }}>我的画册</div>
-        <div className="card-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 16px' }}>
+      <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 28, letterSpacing: 0.5 }}>我的画册</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
           <div
-            className="card"
-            style={{ padding: 12, cursor: 'pointer', overflow: 'hidden' }}
+            style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,.04)', transition: 'all .25s' }}
             onClick={async () => {
               const token = localStorage.getItem('token')
               if (!token) return
@@ -68,28 +70,39 @@ export default function DigitalAlbumList() {
                 alert('创建失败，请检查服务器是否重启')
               }
             }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0' }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,.04)'; e.currentTarget.style.borderColor = '#f1f5f9' }}
           >
-            <div style={{ width: '100%', aspectRatio: '1', borderRadius: 6, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, color: '#ddd' }}>+</div>
-            <div style={{ fontSize: 12, color: '#999', marginTop: 8, textAlign: 'center' }}>创建画册</div>
+            <div style={{ width: '100%', aspectRatio: '1', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#94a3b8', transition: 'all .25s' }} className="create-btn-icon">+</div>
+            </div>
+            <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #f8fafc' }}>
+              <div style={{ fontSize: 13, color: '#64748b', textAlign: 'center', fontWeight: 500 }}>创建画册</div>
+            </div>
           </div>
           {albums.map(album => (
             <div
               key={album.id}
-              className="card"
-              style={{ padding: 12, cursor: 'pointer', overflow: 'hidden', position: 'relative' }}
+              style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,.04)', transition: 'all .25s', position: 'relative' }}
               onClick={() => navigate(`/digital-album/${album.id}`)}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.querySelector('.del-btn').style.opacity = '1' }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,.04)'; e.currentTarget.style.borderColor = '#f1f5f9'; e.currentTarget.querySelector('.del-btn').style.opacity = '0' }}
             >
-              <div onClick={e => handleDelete(e, album)} style={{ position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,.4)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12, zIndex: 1 }}><DeleteOutlined /></div>
+              <div onClick={e => handleDelete(e, album)} className="del-btn" style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(15,23,42,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}><DeleteOutlined /></div>
               {album.bannerUrl ? (
-                <img src={album.bannerUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 6, objectFit: 'cover' }} />
+                <img src={album.bannerUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
               ) : (
-                <div style={{ width: '100%', aspectRatio: '1', borderRadius: 6, background: 'linear-gradient(135deg, #f0e6ff, #e6f0ff)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#8B5CF6' }}>
-                  <div style={{ fontSize: 28, marginBottom: 4 }}>📖</div>
-                  <div style={{ fontSize: 11, opacity: 0.6 }}>点击编辑</div>
+                <div style={{ width: '100%', aspectRatio: '1', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, marginBottom: 8 }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>点击编辑</div>
                 </div>
               )}
-              <div style={{ fontSize: 12, color: '#333', marginTop: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {album.bannerTitle || '未命名画册'}
+              <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #f8fafc' }}>
+                <div style={{ fontSize: 13, color: '#334155', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {album.bannerTitle || '未命名画册'}
+                </div>
               </div>
             </div>
           ))}
