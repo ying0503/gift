@@ -64,7 +64,7 @@ async function auth(req, res, next) {
 
 app.post('/api/register', async (req, res) => {
   try {
-    const { email: rawEmail, password } = req.body
+    const { email: rawEmail, password, vipType } = req.body
     const email = rawEmail?.toLowerCase().trim()
     if (!email || !password) return res.status(400).json({ error: 'Email and password are required' })
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email format' })
@@ -73,7 +73,7 @@ app.post('/api/register', async (req, res) => {
     if (existing) return res.status(409).json({ error: 'Email already registered' })
     const passwordHash = await hashPassword(password)
     const userId = uuid()
-    await db.createUser(email, userId, passwordHash)
+    await db.createUser(email, userId, passwordHash, vipType)
     const token = generateToken()
     await db.createSession(token, userId, email)
     res.json({ success: true, token, user: { id: userId, email } })
@@ -95,11 +95,33 @@ app.post('/api/login', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
-app.get('/api/me', auth, (req, res) => res.json({ user: { id: req.user.userId, email: req.user.email } }))
+app.get('/api/me', auth, (req, res) => {
+  const user = { id: req.user.userId, email: req.user.email }
+  // also return vipType
+  db.getUser(req.user.email).then(u => {
+    if (u && u.vip_type) user.vipType = u.vip_type
+    res.json({ user })
+  }).catch(() => res.json({ user }))
+})
 
 app.post('/api/logout', auth, async (req, res) => {
   await db.deleteSession(req.token)
   res.json({ success: true })
+})
+
+app.get('/api/users', auth, async (req, res) => {
+  try {
+    const users = await db.getAllUsers()
+    res.json({ users })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.patch('/api/users/:id/vip', auth, async (req, res) => {
+  try {
+    const { vipType } = req.body
+    await db.updateUserVip(req.params.id, vipType)
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 app.get('/api/ping', (req, res) => {

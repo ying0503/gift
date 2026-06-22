@@ -8,6 +8,7 @@ import DigitalAlbum from './pages/DigitalAlbum'
 import DigitalAlbumList from './pages/DigitalAlbumList'
 import ModelUse from './pages/ModelUse'
 import Resource from './pages/Resource'
+import VipInfo from './pages/VipInfo'
 import Preview from './pages/Preview'
 import LandingPage from './pages/LandingPage'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -146,6 +147,10 @@ function AppContent() {
                       width: 160, padding: '8px 0',
                     }}>
                       <div style={{ padding: '10px 16px', fontSize: 13, color: '#999', borderBottom: '1px solid #f0f0f0' }}>{user.email}</div>
+                      <div style={{ padding: '8px 16px 10px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#fff', fontWeight: 600, letterSpacing: 0.3 }}>金卡会员</span>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)', color: '#fff', fontWeight: 600, letterSpacing: 0.3 }}>钻石会员</span>
+                      </div>
                       <button style={{
                         display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none',
                         fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left',
@@ -186,6 +191,10 @@ function AppContent() {
                 <svg viewBox="0 0 1024 1024" width="22" height="22" fill="currentColor"><path d="M929.6 352.8L512 64 94.4 352.8 512 641.7l417.6-288.9M512 706.2L143.4 460.6l-49 51.4L512 800.9 929.6 512 880 459.5 512 706.2m0 159.1L143.4 619.7l-49 51.4L512 960l417.6-288.9-49.6-52.4-368 246.6m0 0"/></svg>
                 资源
               </button>
+              <button className={`sidebar-tab${location.pathname === '/vip-info' ? ' active' : ''}`} onClick={() => navigate('/vip-info')}>
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+                会员
+              </button>
             </div>
           </nav>
         )}
@@ -203,6 +212,7 @@ function AppContent() {
           <Route path="/model-use" element={<ErrorBoundary>{user ? <ModelUse /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/my-albums" element={<ErrorBoundary>{user ? <MyAlbums /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/resource" element={<ErrorBoundary>{user ? <Resource /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/vip-info" element={<ErrorBoundary>{user ? <VipInfo /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="*" element={<Navigate to="/workbench" replace />} />
         </Routes>
       </main>

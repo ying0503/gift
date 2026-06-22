@@ -113,18 +113,21 @@ export async function initSchema() {
     position INT NOT NULL,
     PRIMARY KEY (user_id, album_id)
   )`)
+  try {
+    await p.query(`ALTER TABLE users ADD COLUMN vip_type VARCHAR(20) DEFAULT NULL`)
+  } catch (e) {}
 }
 
 export async function getUser(email) {
   const p = await getPool()
-  const [rows] = await p.query('SELECT * FROM users WHERE email = ?', [email])
+  const [rows] = await p.query('SELECT email, user_id, password_hash, vip_type, created_at FROM users WHERE email = ?', [email])
   return rows[0] || null
 }
 
-export async function createUser(email, userId, passwordHash) {
+export async function createUser(email, userId, passwordHash, vipType) {
   const p = await getPool()
-  await p.query('INSERT INTO users (email, user_id, password_hash, created_at) VALUES (?, ?, ?, ?)',
-    [email, userId, passwordHash, Date.now()])
+  await p.query('INSERT INTO users (email, user_id, password_hash, vip_type, created_at) VALUES (?, ?, ?, ?, ?)',
+    [email, userId, passwordHash, vipType || null, Date.now()])
 }
 
 export async function getSession(token) {
@@ -304,4 +307,15 @@ export async function listDigitalAlbums(userId) {
 export async function deleteDigitalAlbum(id, userId) {
   const p = await getPool()
   await p.query('DELETE FROM digital_albums WHERE id = ? AND user_id = ?', [id, userId])
+}
+
+export async function getAllUsers() {
+  const p = await getPool()
+  const [rows] = await p.query('SELECT email, user_id, vip_type, created_at FROM users ORDER BY created_at DESC')
+  return rows
+}
+
+export async function updateUserVip(userId, vipType) {
+  const p = await getPool()
+  await p.query('UPDATE users SET vip_type = ? WHERE user_id = ?', [vipType || null, userId])
 }
