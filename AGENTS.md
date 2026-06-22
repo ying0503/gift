@@ -115,4 +115,6 @@ gift-album/
 
 **规则红线：**
 没有明确指令不能部署到ECS
-没有明确制定不能push代码到github仓库
+没有明确指令不能push代码到github仓库
+
+部署脚本：`bash deploy-ecs.sh`（需手动输入 YES 确认）

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Modal } from 'antd'
-import { CloseOutlined, DeleteOutlined, DownloadOutlined } from '@ant-design/icons'
+import { CloseOutlined, DownloadOutlined } from '@ant-design/icons'
 import { API } from '../AuthContext'
 
 export default function Home() {
@@ -344,7 +344,7 @@ export default function Home() {
     <>
       <div className="home-layout">
       <div className="mobile-only" style={{ width: '100%', marginTop: 16 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#333', marginBottom: 8 }}>我的礼品图</div>
+        <div style={{ fontSize: 24, fontWeight: 600, color: '#333', marginBottom: 16 }}>我的礼品图</div>
         {viewAlbum ? (
           <div className="card" style={{ padding: 16, marginBottom: 0 }}>
             <button onClick={() => setViewAlbum(null)} className="btn btn-outline" style={{ marginBottom: 12, fontSize: 13, padding: '4px 12px' }}>← 返回</button>
@@ -370,23 +370,23 @@ export default function Home() {
                 </div>
               ))}
               {[...albums].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
-                <div key={album.id} className="card" style={{ padding: 12, margin: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }} onClick={() => setViewAlbum(album)}>
-                  <div style={{ position: 'relative' }}>
-                    <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, objectFit: 'cover' }} />
+                  <div key={album.id} className="card album-card" style={{ padding: 0, margin: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }} onClick={() => setViewAlbum(album)}>
+                  <div style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden' }}>
+                    <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                     {album.imageUrls?.length > 1 && (
                       <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.length}张</div>
                     )}
-                    <div onClick={e => handleDelete(e, album.id)} style={{ position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,.4)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12 }}><DeleteOutlined /></div>
+                    <div onClick={e => handleDelete(e, album.id)} className="card-del-btn">×</div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
-                    <div style={{ color: '#999' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
+                  <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px' }}>
+                    <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                   </div>
 
                 </div>
               ))}
             </div>
             {albums.length > PAGE_SIZE && (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 32 }}>
                 <button className="btn btn-outline" disabled={albumPage === 0} onClick={() => setAlbumPage(p => p - 1)}>上一页</button>
                 <span style={{ fontSize: 13, color: '#666', alignSelf: 'center' }}>{albumPage + 1} / {Math.ceil(albums.length / PAGE_SIZE)}</span>
                 <button className="btn btn-outline" disabled={(albumPage + 1) * PAGE_SIZE >= albums.length} onClick={() => setAlbumPage(p => p + 1)}>下一页</button>
@@ -506,15 +506,15 @@ export default function Home() {
                 }}
                 onMouseEnter={e => { if (canGenerate && !generating) { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 8px 28px rgba(139,92,246,.4)' } }}
                 onMouseLeave={e => { if (canGenerate && !generating) { e.target.style.transform = 'none'; e.target.style.boxShadow = '0 4px 20px rgba(139,92,246,.3)' } }}
-              >生成画册</button>
+              >生成礼品图</button>
             </div>
           </div>
         </div>
         {/* My Albums */}
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#333', marginTop: 100, marginBottom: 8 }}>我的礼品图</div>
+        <div style={{ fontSize: 24, fontWeight: 600, color: '#333', marginTop: 100, marginBottom: 16 }}>我的礼品图</div>
         {albums.length === 0 && generations.length === 0 ? (
           <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>
-            <div>配置完成后点击「生成画册」</div>
+            <div>配置完成后点击「生成礼品图」</div>
           </div>
         ) : (
           <>
@@ -535,25 +535,26 @@ export default function Home() {
               {[...albums].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
                 <div
                   key={album.id}
-                  className="card"
-                  style={{ padding: 12, margin: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }}
+                  className="card album-card"
+                  style={{ padding: 0, margin: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }}
                   onClick={() => setViewAlbum(album)}
                 >
-                  <div style={{ position: 'relative' }}>
-                    <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', borderRadius: 4, objectFit: 'cover' }} />
+                  <div style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden' }}>
+                    <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                     {album.imageUrls?.length > 1 && (
                       <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.length}张</div>
                     )}
+                    <div onClick={e => handleDelete(e, album.id)} className="card-del-btn">×</div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#666', marginTop: 8, lineHeight: 1.6 }}>
-                    <div style={{ color: '#999' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
+                  <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px' }}>
+                    <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                   </div>
 
                 </div>
               ))}
             </div>
             {albums.length > PAGE_SIZE && (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 32 }}>
                 <button className="btn btn-outline" disabled={albumPage === 0} onClick={() => setAlbumPage(p => p - 1)}>上一页</button>
                 <span style={{ fontSize: 13, color: '#666', alignSelf: 'center' }}>{albumPage + 1} / {Math.ceil(albums.length / PAGE_SIZE)}</span>
                 <button className="btn btn-outline" disabled={(albumPage + 1) * PAGE_SIZE >= albums.length} onClick={() => setAlbumPage(p => p + 1)}>下一页</button>
