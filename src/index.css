@@ -45,6 +45,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  position: sticky;
+  top: 56px;
+  align-self: flex-start;
+  height: calc(100vh - 56px);
 }
 
 .app-main {
@@ -741,4 +745,8 @@ body {
 }
 .album-card:hover .card-del-btn {
   opacity: 1;
+}
+@keyframes scrollDown {
+  0%, 100% { transform: translateY(0); opacity: .6; }
+  50% { transform: translateY(6px); opacity: 1; }
 }

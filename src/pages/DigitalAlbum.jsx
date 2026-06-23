@@ -815,7 +815,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         )}
       </div>
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', minHeight: 'calc(100vh - 120px)' }}>
-      <div className="card" style={{ flex: '0 0 260px', padding: 0, marginBottom: 0, overflow: 'hidden', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', background: '#fff', borderRight: 'none' }}>
+      <div className="card" style={{ flex: '0 0 260px', padding: 0, marginBottom: 0, overflow: 'hidden', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', background: '#fff' }}>
         <div style={{ padding: '14px 16px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)' }}>目录</span>
           <button onClick={addCategory} style={{ background: 'none', border: 'none', color: '#1677FF', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' }} title="添加分类"><PlusOutlined /></button>

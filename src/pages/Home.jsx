@@ -378,8 +378,11 @@ export default function Home() {
                     )}
                     <div onClick={e => handleDelete(e, album.id)} className="card-del-btn">×</div>
                   </div>
-                  <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px' }}>
+                  <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
+                    {album.prompts && (
+                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setFestival(album.config?.festival || ''); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
+                    )}
                   </div>
 
                 </div>
@@ -400,14 +403,13 @@ export default function Home() {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="desktop-only">
         {/* Generate Panel -- Premium Neutral */}
-        <div style={{ marginBottom: 24, maxWidth: 820, marginLeft: 'auto', marginRight: 'auto', marginTop: 100, borderRadius: 16, background: '#ffffff', border: '1px solid #e8e6e4', boxShadow: '0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06)', overflow: 'hidden' }}>
-          <div style={{ padding: '22px 28px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 3, height: 16, borderRadius: 2, background: '#8B5CF6' }} />
-            <span style={{ fontSize: 15, fontWeight: 700, color: '#1c1c1e', letterSpacing: -0.2 }}>礼品图生成</span>
-            <span style={{ fontSize: 11, color: '#999', fontWeight: 500, letterSpacing: 0.5 }}>AI 智能设计</span>
+        <div style={{ marginBottom: 24, maxWidth: 820, marginLeft: 'auto', marginRight: 'auto', marginTop: 100, borderRadius: 12, background: '#fcfcfd', boxShadow: '0 0 0 1px rgba(139,92,246,.06), 0 2px 4px rgba(0,0,0,.02), 0 8px 24px -4px rgba(0,0,0,.04), 0 24px 48px -12px rgba(0,0,0,.08)', overflow: 'hidden', position: 'relative' }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(139,92,246,.25), #8B5CF6, rgba(139,92,246,.25), transparent)' }} />
+          <div style={{ padding: '32px 32px 0', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 3, height: 22, borderRadius: 2, background: 'linear-gradient(180deg, #8B5CF6, #A78BFA)' }} />
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#2a2a2e', letterSpacing: -0.1 }}>礼品图生成</span>
           </div>
-
-          <div style={{ padding: '18px 28px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ padding: '20px 32px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
             <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => { setUploadedRef({ url: fr.result, blob: f }); if (imageType === '白底图') { setPrompts(['生成白底图']) } else if (prompts.some(p => p.trim()) || festival) { generatePrompts(festival || '通用礼品', templateCountRef.current, fr.result, imageType) } }; fr.readAsDataURL(f) } e.target.value = '' }} />
 
             {previewUrl === uploadedRef?.url && (
@@ -546,8 +548,11 @@ export default function Home() {
                     )}
                     <div onClick={e => handleDelete(e, album.id)} className="card-del-btn">×</div>
                   </div>
-                  <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px' }}>
+                  <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
+                    {album.prompts && (
+                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setFestival(album.config?.festival || ''); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
+                    )}
                   </div>
 
                 </div>
@@ -576,6 +581,11 @@ export default function Home() {
           {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).map((url, i) => (
             <img key={i} src={url} alt="" style={{ width: '100%', display: 'block', maxHeight: '94vh', objectFit: 'contain', borderRadius: 4, marginBottom: i < (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length - 1 ? 5 : 0 }} />
           ))}
+          {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 && (
+            <div style={{ position: 'sticky', bottom: 0, textAlign: 'center', padding: '12px 0 8px', pointerEvents: 'none' }}>
+              <svg viewBox="0 0 24 24" width="24" height="24" style={{ animation: 'scrollDown 1.6s ease-in-out infinite', display: 'block', margin: '0 auto' }}><path d="M6 6l6 6 6-6M6 12l6 6 6-6" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+          )}
         </div>
         {(viewAlbum?.imageUrls?.length || (viewAlbum?.imageUrl ? 1 : 0)) <= 1 && (
           <a href={viewAlbum?.imageUrl || viewAlbum?.imageUrls?.[0] || '#'} download style={{ position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)', zIndex: 1001, width: 44, height: 44, borderRadius: '50%', background: '#fff', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, boxShadow: '0 2px 12px rgba(0,0,0,.2)', textDecoration: 'none', transition: 'all .2s' }} onClick={e => e.stopPropagation()}><DownloadOutlined /></a>
