@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthModal from '../components/AuthModal'
+import UserDropdown from '../components/UserDropdown'
 import { useAuth } from '../AuthContext'
 
 const styles = {
@@ -402,11 +403,10 @@ const showcaseItems = [
 
 export default function LandingPage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const [isMobile, setIsMobile] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
-  const [avatarOpen, setAvatarOpen] = useState(false)
   const ctaText = user ? '去创作' : '登录'
   const navBtnAction = () => user ? navigate('/workbench') : setAuthOpen(true)
 
@@ -511,54 +511,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                {user && (
-                  <div style={{ position: 'relative' }}
-                    onMouseEnter={() => setAvatarOpen(true)}
-                    onMouseLeave={() => setAvatarOpen(false)}
-                  >
-                    <img
-                      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23E8E0FF'/%3E%3Ccircle cx='50' cy='38' r='16' fill='%237B61FF'/%3E%3Cellipse cx='50' cy='72' rx='26' ry='22' fill='%237B61FF'/%3E%3C/svg%3E"
-                      alt="avatar"
-                      style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
-                    />
-                    {avatarOpen && (
-                      <div style={{
-                        position: 'absolute', top: '100%', right: 0, paddingTop: 12,
-                        zIndex: 1001,
-                      }}
-                        onMouseEnter={() => setAvatarOpen(true)}
-                        onMouseLeave={() => setAvatarOpen(false)}
-                      >
-                      <div style={{
-                        background: '#fff', borderRadius: 12,
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-                        width: 200, padding: '8px 0',
-                      }}>
-                        <div style={{ padding: '10px 16px', borderBottom: '1px solid #f0f0f0' }}>
-                          <div style={{ fontSize: 13, color: '#999', marginBottom: 2 }}>账号</div>
-                          <div style={{ fontSize: 14, color: '#111', fontWeight: 500 }}>{user.email}</div>
-                        </div>
-                        <button style={{
-                          display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none',
-                          fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left',
-                        }}
-                          onMouseEnter={e => e.target.style.background = '#f5f5f5'}
-                          onMouseLeave={e => e.target.style.background = 'none'}
-                          onClick={() => navigate('/workbench')}
-                        >账户设置</button>
-                        <button style={{
-                          display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none',
-                          fontSize: 14, color: '#ff4d4f', cursor: 'pointer', textAlign: 'left',
-                        }}
-                          onMouseEnter={e => e.target.style.background = '#fff2f0'}
-                          onMouseLeave={e => e.target.style.background = 'none'}
-                          onClick={() => { logout(); setAvatarOpen(false) }}
-                        >退出登录</button>
-                      </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                {user && <UserDropdown />}
                 <button style={styles.navCta} onClick={navBtnAction}
                   onMouseEnter={(e) => { e.target.style.opacity = '0.9' }}
                   onMouseLeave={(e) => { e.target.style.opacity = '1' }}

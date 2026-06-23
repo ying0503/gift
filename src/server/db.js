@@ -304,6 +304,12 @@ export async function listDigitalAlbums(userId) {
   return rows
 }
 
+export async function countUserAlbums(userId) {
+  const p = await getPool()
+  const [rows] = await p.query('SELECT COUNT(*) as cnt FROM albums a JOIN user_albums ua ON a.id = ua.album_id WHERE ua.user_id = ?', [userId])
+  return rows[0].cnt
+}
+
 export async function deleteDigitalAlbum(id, userId) {
   const p = await getPool()
   await p.query('DELETE FROM digital_albums WHERE id = ? AND user_id = ?', [id, userId])

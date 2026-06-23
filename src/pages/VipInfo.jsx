@@ -82,7 +82,6 @@ export default function VipInfo() {
               <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, color: '#666' }}>邮箱</th>
               <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, color: '#666' }}>会员类型</th>
               <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, color: '#666' }}>注册时间</th>
-              <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, color: '#666' }}>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -98,10 +97,6 @@ export default function VipInfo() {
                   </select>
                 </td>
                 <td style={{ padding: '10px 12px', fontSize: 13, color: '#888' }}>{new Date(u.createdAt).toLocaleString('zh-CN')}</td>
-                <td style={{ padding: '10px 12px' }}>
-                  <button onClick={() => handleVipChange(u.id, u.vipType === 'diamond' ? 'gold' : 'diamond')}
-                    style={{ padding: '4px 12px', border: '1px solid #8B5CF6', borderRadius: 6, background: 'none', color: '#8B5CF6', fontSize: 13, cursor: 'pointer' }}>切换</button>
-                </td>
               </tr>
             ))}
           </tbody>

@@ -76,7 +76,7 @@ app.post('/api/register', async (req, res) => {
     await db.createUser(email, userId, passwordHash, vipType)
     const token = generateToken()
     await db.createSession(token, userId, email)
-    res.json({ success: true, token, user: { id: userId, email } })
+    res.json({ success: true, token, user: { id: userId, email, vipType: vipType || null, generatedCount: 0 } })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -91,17 +91,17 @@ app.post('/api/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' })
     const token = generateToken()
     await db.createSession(token, user.user_id, email)
-    res.json({ success: true, token, user: { id: user.user_id, email: user.email } })
+    const count = await db.countUserAlbums(user.user_id)
+    res.json({ success: true, token, user: { id: user.user_id, email: user.email, vipType: user.vip_type || null, generatedCount: count } })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
-app.get('/api/me', auth, (req, res) => {
-  const user = { id: req.user.userId, email: req.user.email }
-  // also return vipType
-  db.getUser(req.user.email).then(u => {
-    if (u && u.vip_type) user.vipType = u.vip_type
-    res.json({ user })
-  }).catch(() => res.json({ user }))
+app.get('/api/me', auth, async (req, res) => {
+  try {
+    const u = await db.getUser(req.user.email)
+    const count = await db.countUserAlbums(req.user.userId)
+    res.json({ user: { id: req.user.userId, email: req.user.email, vipType: u?.vip_type || null, generatedCount: count } })
+  } catch (e) { res.json({ user: { id: req.user.userId, email: req.user.email } }) }
 })
 
 app.post('/api/logout', auth, async (req, res) => {
