@@ -58,6 +58,7 @@ export default function Home() {
   }
 
   const [templateCount, setTemplateCount] = useState(1)
+  const [imageSize, setImageSize] = useState('3:4')
   const [prompts, setPrompts] = useState([''])
   const [festival, setFestival] = useState('')
   const [imageType, setImageType] = useState('图类型')
@@ -204,7 +205,7 @@ export default function Home() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          config: { size: '3:4', model: getModel(), image_size, n: 1, festival: festival || undefined },
+          config: { size: imageSize, model: getModel(), image_size, n: 1, festival: festival || undefined },
           prompts: prefixed,
           images: sendImages.length ? sendImages : undefined,
         }),
@@ -381,7 +382,7 @@ export default function Home() {
                   <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                     {album.prompts && (
-                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setFestival(album.config?.festival || ''); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
+                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setFestival(album.config?.festival || ''); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
                     )}
                   </div>
 
@@ -493,6 +494,14 @@ export default function Home() {
                   <option value="国庆">国庆</option>
                   <option value="春节">春节</option>
                 </select>
+                <select value={imageSize} onChange={e => setImageSize(e.target.value)}
+                  style={{ height: 34, padding: '0 12px', fontSize: 13, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', cursor: 'pointer', outline: 'none', color: '#333' }}>
+                  <option value="3:4">3:4</option>
+                  <option value="1:1">1:1</option>
+                  <option value="16:9">16:9</option>
+                  <option value="9:16">9:16</option>
+                  <option value="4:3">4:3</option>
+                </select>
               </div>
               <button
                 disabled={!canGenerate || generating}
@@ -551,7 +560,7 @@ export default function Home() {
                   <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                     {album.prompts && (
-                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setFestival(album.config?.festival || ''); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
+                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setFestival(album.config?.festival || ''); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
                     )}
                   </div>
 
