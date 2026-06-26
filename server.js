@@ -615,6 +615,41 @@ app.post('/api/upload', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+app.get('/api/templates', auth, async (req, res) => {
+  try {
+    const templates = await db.listTemplates()
+    res.json({ templates })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/api/templates', auth, async (req, res) => {
+  try {
+    const id = await db.createTemplate(req.body)
+    res.json({ id })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.put('/api/templates/:id', auth, async (req, res) => {
+  try {
+    await db.updateTemplate(req.params.id, req.body)
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.delete('/api/templates/:id', auth, async (req, res) => {
+  try {
+    await db.deleteTemplate(req.params.id)
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.get('/api/templates/public', async (req, res) => {
+  try {
+    const all = await db.listTemplates()
+    res.json({ templates: all.filter(t => t.enabled) })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 app.use((req, res) => {
   const filePath = path.join(__dirname, 'dist', 'index.html')
   if (fs.existsSync(filePath)) res.sendFile(filePath)

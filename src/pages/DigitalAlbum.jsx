@@ -1293,8 +1293,9 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => {}}
         >
-          <div className="card" style={{ width: 380, padding: 24 }} onClick={e => e.stopPropagation()}>
+          <div className="card" style={{ width: 380, padding: 24, position: 'relative' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 16 }}>输入画册标题</div>
+            <span onClick={() => setTitleModalOpen(false)} style={{ position: 'absolute', top: 16, right: 16, cursor: 'pointer', fontSize: 16, color: 'rgba(0,0,0,.45)' }}>✕</span>
             <input
               autoFocus
               value={titleInput}
@@ -1304,6 +1305,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
               onKeyDown={e => { if (e.key === 'Enter' && titleInput.trim()) { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v }) }).catch(() => {}) } }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button className="btn btn-outline" onClick={() => setTitleModalOpen(false)}>取消</button>
               <button className="btn btn-primary" disabled={!titleInput.trim()} onClick={() => { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v }) }).catch(() => {}) }}>确定</button>
             </div>
           </div>

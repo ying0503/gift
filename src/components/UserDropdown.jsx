@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 
 export default function UserDropdown() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
   const badgeStyle = user?.vipType === 'gold'
@@ -48,6 +50,24 @@ export default function UserDropdown() {
                 </span>
               ) : null}
             </div>
+            <div style={{ borderTop: '1px solid #f0f0f0' }} />
+            <div style={{ padding: '8px 16px 4px', fontSize: 11, color: '#bbb', fontWeight: 500, letterSpacing: 0.5 }}>后台管理</div>
+            <button style={{
+              display: 'block', width: '100%', padding: '6px 16px', border: 'none', background: 'none',
+              fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left',
+            }}
+              onMouseEnter={e => e.target.style.background = '#f5f5f5'}
+              onMouseLeave={e => e.target.style.background = 'none'}
+              onClick={() => { navigate('/model-use'); setOpen(false) }}
+            >模型管理</button>
+            <button style={{
+              display: 'block', width: '100%', padding: '6px 16px', border: 'none', background: 'none',
+              fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left',
+            }}
+              onMouseEnter={e => e.target.style.background = '#f5f5f5'}
+              onMouseLeave={e => e.target.style.background = 'none'}
+              onClick={() => { navigate('/template-set'); setOpen(false) }}
+            >画册模板</button>
             <div style={{ borderTop: '1px solid #f0f0f0' }} />
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',

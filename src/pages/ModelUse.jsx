@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { API } from '../AuthContext'
+import AdminSidebar from '../components/AdminSidebar'
 
 const LS_TEMP = 'textTemperature'
 const LS_MAX_TOKENS = 'textMaxTokens'
@@ -124,6 +125,9 @@ export default function ModelUse() {
   }
 
   return (
+    <div style={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#f5f5f5' }}>
+      <AdminSidebar />
+      <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: '#333', marginBottom: 4 }}>AI 模型管理</h1>
@@ -251,6 +255,8 @@ export default function ModelUse() {
           <li>温度和 Token 数在"文案生成参数"中调节，控制生成结果的随机性和长度</li>
           <li>API 密钥在 <code style={{ background: '#fff2cc', padding: '1px 4px', borderRadius: 3 }}>.env</code> 文件中配置</li>
         </ul>
+      </div>
+      </div>
       </div>
     </div>
   )

@@ -107,6 +107,18 @@ export async function initSchema() {
       PRIMARY KEY (id, user_id)
     )`)
   }
+  await p.query(`CREATE TABLE IF NOT EXISTS templates (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    icon VARCHAR(10) DEFAULT '📄',
+    description VARCHAR(200) DEFAULT '',
+    categories JSON,
+    enabled TINYINT(1) DEFAULT 1,
+    cover VARCHAR(500) DEFAULT '',
+    sort_order INT DEFAULT 0,
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL
+  )`)
   await p.query(`CREATE TABLE IF NOT EXISTS user_albums (
     user_id VARCHAR(36) NOT NULL,
     album_id VARCHAR(36) NOT NULL,
@@ -115,6 +127,9 @@ export async function initSchema() {
   )`)
   try {
     await p.query(`ALTER TABLE users ADD COLUMN vip_type VARCHAR(20) DEFAULT NULL`)
+  } catch (e) {}
+  try {
+    await p.query(`ALTER TABLE templates ADD COLUMN cover VARCHAR(500) DEFAULT ''`)
   } catch (e) {}
 }
 
@@ -313,6 +328,65 @@ export async function countUserAlbums(userId) {
 export async function deleteDigitalAlbum(id, userId) {
   const p = await getPool()
   await p.query('DELETE FROM digital_albums WHERE id = ? AND user_id = ?', [id, userId])
+}
+
+export async function listTemplates() {
+  const p = await getPool()
+  const [rows] = await p.query('SELECT * FROM templates ORDER BY sort_order ASC, created_at ASC')
+  return rows.map(r => ({
+    id: r.id,
+    name: r.name,
+    icon: r.icon,
+    description: r.description,
+    cover: r.cover || '',
+    categories: typeof r.categories === 'string' ? JSON.parse(r.categories) : (r.categories || []),
+    enabled: !!r.enabled,
+    sortOrder: r.sort_order,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }))
+}
+
+export async function getTemplate(id) {
+  const p = await getPool()
+  const [rows] = await p.query('SELECT * FROM templates WHERE id = ?', [id])
+  if (!rows[0]) return null
+  const r = rows[0]
+  return {
+    id: r.id, name: r.name, icon: r.icon, description: r.description, cover: r.cover || '',
+    categories: typeof r.categories === 'string' ? JSON.parse(r.categories) : (r.categories || []),
+    enabled: !!r.enabled, sortOrder: r.sort_order, createdAt: r.created_at, updatedAt: r.updated_at,
+  }
+}
+
+export async function createTemplate(data) {
+  const p = await getPool()
+  const id = crypto.randomUUID()
+  const now = Date.now()
+  await p.query(
+    'INSERT INTO templates (id, name, icon, description, cover, categories, enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, data.name, data.icon || '📄', data.description || '', data.cover || '', JSON.stringify(data.categories || []), data.enabled !== false ? 1 : 0, data.sortOrder || 0, now, now]
+  )
+  return id
+}
+
+export async function updateTemplate(id, data) {
+  const p = await getPool()
+  const now = Date.now()
+  const sets = []; const vals = []
+  if (data.name !== undefined) { sets.push('name = ?'); vals.push(data.name) }
+  if (data.icon !== undefined) { sets.push('icon = ?'); vals.push(data.icon) }
+  if (data.description !== undefined) { sets.push('description = ?'); vals.push(data.description) }
+  if (data.cover !== undefined) { sets.push('cover = ?'); vals.push(data.cover) }
+  if (data.categories !== undefined) { sets.push('categories = ?'); vals.push(JSON.stringify(data.categories)) }
+  if (data.enabled !== undefined) { sets.push('enabled = ?'); vals.push(data.enabled ? 1 : 0) }
+  if (data.sortOrder !== undefined) { sets.push('sort_order = ?'); vals.push(data.sortOrder) }
+  if (sets.length) { sets.push('updated_at = ?'); vals.push(now); vals.push(id); await p.query(`UPDATE templates SET ${sets.join(', ')} WHERE id = ?`, vals) }
+}
+
+export async function deleteTemplate(id) {
+  const p = await getPool()
+  await p.query('DELETE FROM templates WHERE id = ?', [id])
 }
 
 export async function getAllUsers() {
