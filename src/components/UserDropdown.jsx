@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthContext'
 
 export default function UserDropdown() {
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
   const badgeStyle = user?.vipType === 'gold'
@@ -58,14 +56,6 @@ export default function UserDropdown() {
               <span>图片消耗</span>
               <span style={{ fontWeight: 600 }}>{user.generatedCount ?? 0}/2500</span>
             </div>
-            <button style={{
-              display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none',
-              fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left',
-            }}
-              onMouseEnter={e => e.target.style.background = '#f5f5f5'}
-              onMouseLeave={e => e.target.style.background = 'none'}
-              onClick={() => navigate('/workbench')}
-            >账户设置</button>
             <button style={{
               display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none',
               fontSize: 14, color: '#ff4d4f', cursor: 'pointer', textAlign: 'left',

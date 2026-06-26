@@ -92,6 +92,10 @@ export default function Preview() {
         for (const i of c.items) {
           const a = i.albums?.find(alb => alb.albumId === itemAlbumId)
           if (a) { setViewAlbum(a); return }
+          for (const combo of (i.albums || []).filter(alb => alb.type === '组合')) {
+            const ci = (combo.comboItems || []).find(item => item.albumId === itemAlbumId)
+            if (ci) { setViewAlbum({ ...ci, productName: ci.productName || allAlbums.find(x => x.albumId === ci.albumId)?.productName || '' }); return }
+          }
         }
       }
     }
@@ -111,6 +115,10 @@ export default function Preview() {
         for (const i of c.items) {
           const a = i.albums?.find(alb => alb.albumId === itemAlbumId)
           if (a) { setViewAlbum(a); return }
+          for (const combo of (i.albums || []).filter(alb => alb.type === '组合')) {
+            const ci = (combo.comboItems || []).find(item => item.albumId === itemAlbumId)
+            if (ci) { setViewAlbum({ ...ci, productName: ci.productName || allAlbums.find(x => x.albumId === ci.albumId)?.productName || '' }); return }
+          }
         }
       }
     } else {
@@ -121,7 +129,7 @@ export default function Preview() {
   function renderContent(m) {
     return (
       <div>
-        {bannerUrl && <div style={{ width: '100%', height: 200, background: '#fff', position: 'relative' }}><img src={bannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} /></div>}
+        {bannerUrl && <div style={{ width: '100%', aspectRatio: '16/9', background: '#fff', position: 'relative' }}><img src={bannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'fill' }} /></div>}
         <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', minHeight: 'calc(100vh - 60px)', background: '#fffdf1' }}>
           <div style={{ flex: '0 0 auto', width: 'max-content', background: '#fffdf1', border: 'none', borderRadius: '0 20px 20px 0', alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
             <div className="album-tree-list album-tree-list-preview">
@@ -152,16 +160,11 @@ export default function Preview() {
                 <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: m ? 8 : 10, alignItems: 'start' }}>
                   {(viewAlbum.comboItems || []).map(item => {
                     const itemUrl = albumMap[item.albumId]?.imageUrls?.[0] || albumMap[item.albumId]?.imageUrl || item.imageUrls?.[0] || item.imageUrl
-                    const liveParams = allAlbums.find(x => x.albumId === item.albumId)?.productParams || item.productParams || {}
+                    const liveName = allAlbums.find(x => x.albumId === item.albumId)?.productName || item.productName || ''
                     return (
-                      <div key={item.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #eee' }}>
+                      <div key={item.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #eee', cursor: 'pointer' }} onClick={() => { setViewAlbum({ ...item, productName: liveName }); navigate(`/preview/${userId}/${albumId}/${selectedCat}/${item.albumId}?combo=${viewAlbum.albumId}`) }}>
                         <img src={itemUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                        <div style={{ padding: '2px 6px 4px', fontSize: 11, color: '#999', lineHeight: 1.5 }}>
-                          <div>规格：{liveParams.spec || '-'}</div>
-                          <div>保质期：{liveParams.shelfLife || '-'}</div>
-                          <div>总重量：{liveParams.totalWeight || '-'}</div>
-                          <div style={{ color: '#FF4D4F', marginTop: 2 }}>温馨提示：{liveParams.note || '-'}</div>
-                        </div>
+                        <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{liveName || '产品名称'}</div>
                       </div>
                     )
                   })}

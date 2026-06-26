@@ -399,36 +399,48 @@ app.post('/api/generate/prompts', auth, async (req, res) => {
     textModel = modelVal || 'qwen3.5-flash'
     startTime = Date.now()
     if (!festival || !count) return res.status(400).json({ error: 'Missing festival or count' })
-    const modelConfig = {
+    const modelConfigMap = {
       'qwen3.5-flash': { key: process.env.QWEN_API_KEY, url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen3.5-flash', label: 'Qwen3.5' },
       'glm-4.6v-flashx': { key: process.env.GLM_API_KEY, url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', model: 'glm-4.6v-flashx', label: 'GLM' },
       'doubao-seed-2-0-mini-260428': { key: process.env.DOUBAO_API_KEY, url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-seed-2-0-mini-260428', label: 'Doubao' },
-    }[textModel]
-    if (!modelConfig) return res.status(400).json({ error: 'Unknown text model: ' + textModel })
-    if (!modelConfig.key) return res.status(500).json({ error: `${modelConfig.label}_API_KEY not configured` })
-    const { temperature = 0.8, maxTokens = 2000 } = req.body
+    }
     const content = refImage
-      ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请基于参考图片中的产品，为"${festival}"节日生成${count}个中文图像生成提示词，用于礼品礼盒宣传图。每句一个独立的提示词，直接输出，不需要编号。` }]
-      : [{ type: 'text', text: `请基于参考图片中的产品，为"${festival}"节日生成${count}个中文图像生成提示词，用于礼品礼盒宣传图。每句一个独立的提示词，直接输出，不需要编号。` }]
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 30000)
-    const apiRes = await fetch(modelConfig.url, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${modelConfig.key}` },
-      body: JSON.stringify({ model: modelConfig.model, messages: [{ role: 'system', content: '你是一个礼品营销AI图像提示词生成器。根据用户提供的参考图片和指定的节日，生成中文AI图像生成提示词。每个提示词用于文生图模型（如MaiziAI GPT-image-2），描述礼品展示场景。' }, { role: 'user', content }], max_tokens: maxTokens, temperature }),
-      signal: controller.signal,
-    })
-    clearTimeout(timeout)
-    const data = await apiRes.json()
-    if (!apiRes.ok) { modelLatencies.push({ model: textModel, ms: Date.now() - startTime, ts: Date.now(), error: true }); return res.status(500).json({ error: data.error?.message || `${modelConfig.label} API error` }) }
-    const text = data.choices?.[0]?.message?.content
-    if (!text) { modelLatencies.push({ model: textModel, ms: Date.now() - startTime, ts: Date.now(), error: true }); return res.status(500).json({ error: `No response from ${modelConfig.label}` }) }
-    const prompts = text.split('\n').filter(s => s.trim()).map(s => s.replace(/^\d+[\.\)、]\s*/, '').trim())
-    modelLatencies.push({ model: textModel, ms: Date.now() - startTime, ts: Date.now() })
-    res.json({ prompts: prompts.slice(0, count) })
+      ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]
+      : [{ type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]
+    const { temperature = 0.8, maxTokens = 2000 } = req.body
+    const models = ['qwen3.5-flash', 'glm-4.6v-flashx', 'doubao-seed-2-0-mini-260428']
+    const modelOrder = models.includes(textModel) ? [textModel, ...models.filter(m => m !== textModel)] : models
+    let lastError = null
+    for (const modelName of modelOrder) {
+      const cfg = modelConfigMap[modelName]
+      if (!cfg || !cfg.key) continue
+      try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 30000)
+        const apiRes = await fetch(cfg.url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` },
+          body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system', content: '你是一个礼品营销AI图像提示词生成器。根据用户提供的主题，生成中文AI图像生成提示词。每个提示词用于文生图模型，描述礼品展示场景。' }, { role: 'user', content }], max_tokens: maxTokens, temperature }),
+          signal: controller.signal,
+        })
+        clearTimeout(timeout)
+        const data = await apiRes.json()
+        if (!apiRes.ok) { lastError = data.error?.message || `${cfg.label} API error`; continue }
+        const text = data.choices?.[0]?.message?.content
+        if (!text) { lastError = `No response from ${cfg.label}`; continue }
+        const prompts = text.split('\n').filter(s => s.trim()).map(s => s.replace(/^\d+[\.\)、]\s*/, '').trim())
+        textModel = modelName
+        startTime = Date.now()
+        modelLatencies.push({ model: modelName, ms: Date.now() - startTime, ts: Date.now() })
+        return res.json({ prompts: prompts.slice(0, count) })
+      } catch (e) {
+        lastError = e.name === 'AbortError' ? `${cfg.label} timed out` : e.message
+      }
+    }
+    modelLatencies.push({ model: textModel, ms: Date.now() - startTime, ts: Date.now(), error: true })
+    res.status(500).json({ error: lastError || 'All models failed' })
   } catch (e) {
     const ms = Date.now() - startTime
     if (textModel) modelLatencies.push({ model: textModel, ms, ts: Date.now(), error: true })
-    if (e.name === 'AbortError') return res.status(500).json({ error: 'Request timed out' })
     res.status(500).json({ error: e.message })
   }
 })
@@ -436,39 +448,53 @@ app.post('/api/generate/prompts', auth, async (req, res) => {
 app.post('/api/generate/categories', auth, async (req, res) => {
   let textModel, startTime
   try {
-    const { model: modelVal } = req.body
+    const { festival, model: modelVal } = req.body
     textModel = modelVal || 'qwen3.5-flash'
     startTime = Date.now()
-    const modelConfig = {
+    const modelConfigMap = {
       'qwen3.5-flash': { key: process.env.QWEN_API_KEY, url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen3.5-flash', label: 'Qwen3.5' },
       'glm-4.6v-flashx': { key: process.env.GLM_API_KEY, url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', model: 'glm-4.6v-flashx', label: 'GLM' },
       'doubao-seed-2-0-mini-260428': { key: process.env.DOUBAO_API_KEY, url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-seed-2-0-mini-260428', label: 'Doubao' },
-    }[textModel]
-    if (!modelConfig) return res.status(400).json({ error: 'Unknown text model: ' + textModel })
-    if (!modelConfig.key) return res.status(500).json({ error: `${modelConfig.label}_API_KEY not configured` })
+    }
     const { temperature = 0.7, maxTokens = 500 } = req.body
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 30000)
-    const apiRes = await fetch(modelConfig.url, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${modelConfig.key}` },
-      body: JSON.stringify({
-        model: modelConfig.model,
-        messages: [
-          { role: 'system', content: '你是一个企业礼品策划专家。根据员工福利发放场景，生成节日礼品分类名称。' },
-          { role: 'user', content: '为企业员工福利礼品画册生成6-8个节日礼品分类名称，用于企业给员工发放礼品的节日。要求：简洁大气，每个2-4个字，直接输出，一行一个，不要编号。' },
-        ],
-        max_tokens: maxTokens, temperature,
-      }),
-      signal: controller.signal,
-    })
-    clearTimeout(timeout)
-    const data = await apiRes.json()
-    if (!apiRes.ok) { modelLatencies.push({ model: textModel, ms: Date.now() - startTime, ts: Date.now(), error: true }); return res.status(500).json({ error: data.error?.message || `${modelConfig.label} API error` }) }
-    const text = data.choices?.[0]?.message?.content
-    if (!text) { modelLatencies.push({ model: textModel, ms: Date.now() - startTime, ts: Date.now(), error: true }); return res.status(500).json({ error: `No response from ${modelConfig.label}` }) }
-    const names = text.split('\n').filter(s => s.trim()).map(s => s.replace(/^\d+[\.\)、]\s*/, '').trim()).filter(s => s.length >= 2)
-    modelLatencies.push({ model: textModel, ms: Date.now() - startTime, ts: Date.now() })
-    res.json({ names })
+    const theme = festival || '节日'
+    const models = ['qwen3.5-flash', 'glm-4.6v-flashx', 'doubao-seed-2-0-mini-260428']
+    const modelOrder = models.includes(textModel) ? [textModel, ...models.filter(m => m !== textModel)] : models
+    let lastError = null
+    for (const modelName of modelOrder) {
+      const cfg = modelConfigMap[modelName]
+      if (!cfg || !cfg.key) continue
+      try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 30000)
+        const apiRes = await fetch(cfg.url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` },
+          body: JSON.stringify({
+            model: cfg.model,
+            messages: [
+              { role: 'system', content: '你是礼品画册的分类编辑。根据画册标题，生成具体的礼品品类名称（如坚果礼盒、茶叶套装、水果篮、糕点礼盒、养生保健品、酒类礼品等），不要生成为"春节""中秋""端午"等节日名称。' },
+              { role: 'user', content: `画册标题"${theme}"，生成6个具体的礼品品类名称，每个3-8字，一行一个。` },
+            ],
+            max_tokens: maxTokens, temperature,
+          }),
+          signal: controller.signal,
+        })
+        clearTimeout(timeout)
+        const data = await apiRes.json()
+        if (!apiRes.ok) { lastError = data.error?.message || `${cfg.label} API error`; continue }
+        const text = data.choices?.[0]?.message?.content
+        if (!text) { lastError = `No response from ${cfg.label}`; continue }
+        const names = text.split('\n').filter(s => s.trim()).map(s => s.replace(/^\d+[\.\)、]\s*/, '').trim()).filter(s => s.length >= 2)
+        textModel = modelName
+        startTime = Date.now()
+        modelLatencies.push({ model: modelName, ms: Date.now() - startTime, ts: Date.now() })
+        return res.json({ names })
+      } catch (e) {
+        lastError = e.name === 'AbortError' ? `${cfg.label} timed out` : e.message
+      }
+    }
+    modelLatencies.push({ model: textModel, ms: Date.now() - startTime, ts: Date.now(), error: true })
+    res.status(500).json({ error: lastError || 'All models failed' })
   } catch (e) {
     const ms = Date.now() - startTime
     if (textModel) modelLatencies.push({ model: textModel, ms, ts: Date.now(), error: true })

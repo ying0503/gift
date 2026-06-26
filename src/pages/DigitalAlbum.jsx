@@ -40,6 +40,8 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   const [generatingGlobalBanner, setGeneratingGlobalBanner] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
   const [generatingCats, setGeneratingCats] = useState(false)
+  const [titleModalOpen, setTitleModalOpen] = useState(false)
+  const [titleInput, setTitleInput] = useState('')
   const fileInputRef = useRef(null)
   const categoriesRef = useRef([])
   useEffect(() => { categoriesRef.current = categories }, [categories])
@@ -69,10 +71,25 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   }, [])
 
   useEffect(() => {
-    if (loading || !urlCatId) return
-    if (categories.some(c => c.id === urlCatId)) {
-      setSelectedCat(urlCatId)
-      setExpandedCats(s => new Set(s).add(urlCatId))
+    if (loading) return
+    if (!bannerTitle) { setTitleModalOpen(true); setTitleInput('') }
+  }, [loading])
+
+  useEffect(() => {
+    if (loading) return
+    if (urlCatId) {
+      if (categories.some(c => c.id === urlCatId)) {
+        setSelectedCat(urlCatId)
+        setExpandedCats(s => new Set(s).add(urlCatId))
+      }
+      return
+    }
+    if (categories.length > 0 && !selectedCat) {
+      const first = categories[0]
+      setSelectedCat(first.id)
+      setExpandedCats(s => new Set(s).add(first.id))
+      const aid = urlAlbumId || albumIdRef.current
+      navigate(aid ? `/digital-album/${aid}/${first.id}` : `/digital-album/${first.id}`, { replace: true })
     }
   }, [loading])
 
@@ -160,19 +177,24 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   }
 
   useEffect(() => {
-    if (!festival) { setFestivalPrompt(''); return }
+    if (!bannerAiMode) return
+    if (festivalPrompt) return
     const token = localStorage.getItem('token')
     if (!token) return
     setGeneratingPrompt(true)
+    setFestivalPrompt('')
+    const text = bannerTitle || '节日礼品'
     fetch(`${API}/api/generate/prompts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ festival, count: 1 }),
+      body: JSON.stringify({ festival: text, count: 1 }),
     }).then(r => r.json()).then(data => {
       if (data.prompts?.length) setFestivalPrompt(data.prompts[0])
-      else setFestivalPrompt('')
-    }).catch(() => {}).finally(() => setGeneratingPrompt(false))
-  }, [festival])
+      else if (!data.prompts?.length && bannerTitle) setFestivalPrompt(`节日氛围浓厚的高品质banner图，以${bannerTitle}为主题，画面采用暖色调光影，点缀金色和红色元素，背景融入传统节日纹样与灯笼装饰，前景摆放精美礼品礼盒，整体构图大气喜庆，传递温馨团圆的节日祝福，细节丰富光影层次分明，适合作为品牌活动页顶部氛围展示。`)
+    }).catch(() => {
+      if (bannerTitle) setFestivalPrompt(`节日氛围浓厚的高品质banner图，以${bannerTitle}为主题，画面采用暖色调光影，点缀金色和红色元素，背景融入传统节日纹样与灯笼装饰，前景摆放精美礼品礼盒，整体构图大气喜庆，传递温馨团圆的节日祝福，细节丰富光影层次分明，适合作为品牌活动页顶部氛围展示。`)
+    }).finally(() => setGeneratingPrompt(false))
+  }, [bannerAiMode])
 
 const save = useCallback(async (cats, bannerUrl) => {
 const token = localStorage.getItem('token')
@@ -237,7 +259,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBann
       const res = await fetch(`${API}/api/generate/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ model: textModel, temperature, maxTokens }),
+        body: JSON.stringify({ festival: bannerTitle, model: textModel, temperature, maxTokens }),
       })
       const data = await res.json()
       if (data.names?.length) {
@@ -393,8 +415,14 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     const cat = categories.find(c => c.id === id)
     const total = cat?.items.reduce((sum, i) => sum + (i.albums || []).length, 0) || 0
     if (total > 0) { alert('该分类下还有画册，无法删除'); return }
-    save(categories.filter(c => c.id !== id))
-    if (selectedCat === id) { setSelectedCat(null); setSelectedItem(null); navigate('/digital-album') }
+    const remaining = categories.filter(c => c.id !== id)
+    save(remaining)
+    if (selectedCat === id) {
+      const idx = categories.findIndex(c => c.id === id)
+      const next = remaining[idx] || remaining[idx - 1] || null
+      if (next) { setSelectedCat(next.id); setSelectedItem(null); navigate(albumIdRef.current ? `/digital-album/${albumIdRef.current}/${next.id}` : `/digital-album/${next.id}`) }
+      else { setSelectedCat(null); setSelectedItem(null); navigate('/digital-album') }
+    }
   }, [categories, save, selectedCat, navigate])
 
   const addItem = useCallback((catId) => {
@@ -747,19 +775,21 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           />
         ) : (
           <>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', flex: 1 }}>{bannerTitle || '画册标题'}</span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', flex: 1 }}>{bannerTitle || '未命名画册'}</span>
             <span onClick={() => setEditingTitle(true)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 16, padding: 4 }}><EditOutlined /></span>
           </>
         )}
       </div>
-      <div className="card" style={{ padding: globalBannerUrl ? 0 : 16, marginBottom: 12, position: 'relative' }}>
-        {globalBannerUrl && (
-          <div onClick={() => { setGlobalBannerUrl(null); setGlobalBannerError(null); setBannerAiMode(false) }}
-            style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.9)', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14, boxShadow: '0 2px 8px rgba(0,0,0,.1)' }}
-          ><EditOutlined /></div>
-        )}
-        {!globalBannerUrl && (
-          <div style={{ minHeight: 300, display: 'flex', flexDirection: 'column' }}>
+      <div className="card" style={{ padding: 0, marginBottom: 12, position: 'relative', aspectRatio: '16/9' }}>
+        {globalBannerUrl ? (
+          <div style={{ width: '100%', height: '100%', borderRadius: 8, overflow: 'hidden' }}>
+            <div onClick={() => { setGlobalBannerUrl(null); setGlobalBannerError(null); setBannerAiMode(false) }}
+              style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.9)', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14, boxShadow: '0 2px 8px rgba(0,0,0,.1)' }}
+            ><EditOutlined /></div>
+            <img src={globalBannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'fill' }} />
+          </div>
+        ) : (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', padding: 16 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>顶部氛围图</div>
             {!bannerAiMode ? (
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flex: 1, alignItems: 'center' }}>
@@ -782,37 +812,41 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             ) : generatingGlobalBanner ? (
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
                 <div className="loading-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#1677FF' }}>{globalBannerProgress}%</div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#8B5CF6' }}>{globalBannerProgress}%</div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', gap: 12, maxWidth: 400, margin: '0 auto', width: '100%' }}>
-                <select value={festival} onChange={e => { setFestival(e.target.value); setFestivalPrompt('') }}
-                  style={{ height: 38, padding: '0 12px', fontSize: 14, border: '1px solid #e8e8e8', borderRadius: 8, background: '#fff', cursor: 'pointer', outline: 'none' }}>
-                  <option value="">选择节日</option>
-                  {festivals.map(f => <option key={f} value={f}>{f}</option>)}
-                </select>
-                {generatingPrompt && (
-                  <div style={{ fontSize: 13, color: '#666' }}>AI 生成提示词中...</div>
-                )}
-                {festivalPrompt && !generatingPrompt && (
-                  <div style={{ fontSize: 13, color: '#333', background: '#f9f9f9', padding: '10px 12px', borderRadius: 8, lineHeight: 1.6 }}>{festivalPrompt}</div>
-                )}
-                <button onClick={() => { if (festivalPrompt || festival) generateGlobalBanner() }}
-                  disabled={generatingPrompt || (!festivalPrompt && !festival)}
-                  style={{
-                    height: 38, fontSize: 14, fontWeight: 600,
-                    background: generatingPrompt || (!festivalPrompt && !festival) ? '#d9d9d9' : 'linear-gradient(135deg, #8B5CF6, #EC4899)',
-                    color: '#fff', border: 'none', borderRadius: 8, cursor: generatingPrompt || (!festivalPrompt && !festival) ? 'not-allowed' : 'pointer',
-                  }}
-                >确定</button>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ marginBottom: 20, background: '#fff', borderRadius: 10, padding: '12px 16px', fontSize: 14, lineHeight: 1.6, width: 500, whiteSpace: 'normal', wordBreak: 'break-word', boxShadow: '0 4px 20px rgba(0,0,0,.1)', border: '1px solid #e8e8e8', position: 'relative' }}>
+                    {generatingPrompt ? (
+                      <div style={{ padding: '4px 0' }}>
+                        <div style={{ height: 2, borderRadius: 1, background: 'linear-gradient(90deg, transparent, #8B5CF6, #EC4899, transparent)', backgroundSize: '200% 100%', animation: 'shimmer 3.5s ease-in-out infinite', marginBottom: 14 }} />
+                        <div style={{ textAlign: 'center', color: '#bbb', fontSize: 14 }}>文案智能策划中</div>
+                      </div>
+                    ) : festivalPrompt ? (
+                      <>
+                        <div style={{ color: '#333', animation: 'fadeIn .5s ease' }}>{festivalPrompt}</div>
+                        <div style={{ position: 'absolute', bottom: -9, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '9px solid transparent', borderRight: '9px solid transparent', borderTop: '9px solid #e8e8e8' }} />
+                        <div style={{ position: 'absolute', bottom: -7, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: '7px solid #fff' }} />
+                      </>
+                    ) : (
+                      <div style={{ color: '#999', fontSize: 13 }}>提示词生成失败，<span onClick={() => { setBannerAiMode(false); setTimeout(() => setBannerAiMode(true), 50) }} style={{ color: '#8B5CF6', cursor: 'pointer', textDecoration: 'underline' }}>点击重试</span></div>
+                    )}
+                  </div>
+                  {!generatingPrompt && festivalPrompt && (
+                    <button onClick={() => { if (festivalPrompt) generateGlobalBanner() }}
+                      disabled={!festivalPrompt}
+                      style={{
+                        height: 38, padding: '0 24px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap',
+                        background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                        color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', opacity: festivalPrompt ? 1 : 0.5, transition: 'opacity .2s',
+                      }}
+                    >生成氛围图</button>
+                  )}
+                </div>
               </div>
             )}
             {globalBannerError && <div style={{ fontSize: 12, color: '#e44', marginBottom: 10, textAlign: 'center' }}>{globalBannerError}</div>}
-          </div>
-        )}
-        {globalBannerUrl && (
-          <div>
-            <img src={globalBannerUrl} alt="" style={{ width: '100%', display: 'block', borderRadius: 8 }} />
           </div>
         )}
       </div>
@@ -825,16 +859,21 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         <div className="album-tree-list">
           {categories.length === 0 ? (
             <div className="album-tree-empty">
+              {generatingCats ? (
+                <div style={{ width: '100%', padding: '24px 16px' }}>
+                  <div style={{ height: 2, borderRadius: 1, background: 'linear-gradient(90deg, transparent, #8B5CF6, #EC4899, transparent)', backgroundSize: '200% 100%', animation: 'shimmer 3.5s ease-in-out infinite', marginBottom: 14 }} />
+                  <div style={{ textAlign: 'center', color: '#bbb', fontSize: 13 }}>AI智能目录生成中</div>
+                </div>
+              ) : (
               <button
                 onClick={smartGenerateCategories}
-                disabled={generatingCats}
                 style={{
                   padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  cursor: generatingCats ? 'not-allowed' : 'pointer',
-                  background: generatingCats ? '#d9d9d9' : 'linear-gradient(135deg, #8B5CF6, #EC4899)',
-                  color: generatingCats ? '#999' : '#fff', border: 'none', opacity: generatingCats ? .7 : 1, transition: 'all .2s',
+                  background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
+                  color: '#fff', border: 'none', cursor: 'pointer',
                 }}
-              >{generatingCats ? '生成中...' : 'AI智能目录'}</button>
+              >AI智能目录</button>
+              )}
             </div>
           ) : (
             categories.map(cat => (
@@ -1244,6 +1283,28 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: '16px 24px', borderTop: '1px solid #f0f0f0' }}>
               <button className="btn btn-outline" onClick={() => setComboPickerOpen(false)}>取消</button>
               <button className="btn btn-primary" disabled={comboPicked.size === 0} onClick={confirmComboPick}>添加 ({comboPicked.size})</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {titleModalOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => {}}
+        >
+          <div className="card" style={{ width: 380, padding: 24 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 16 }}>输入画册标题</div>
+            <input
+              autoFocus
+              value={titleInput}
+              onChange={e => setTitleInput(e.target.value)}
+              placeholder="请输入画册标题"
+              style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 15, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
+              onKeyDown={e => { if (e.key === 'Enter' && titleInput.trim()) { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v }) }).catch(() => {}) } }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button className="btn btn-primary" disabled={!titleInput.trim()} onClick={() => { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v }) }).catch(() => {}) }}>确定</button>
             </div>
           </div>
         </div>
