@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import { EditOutlined, CloseOutlined, CheckOutlined, ArrowLeftOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
+import { EditOutlined, CloseOutlined, CheckOutlined, ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons'
 import { API } from '../AuthContext'
 
 export default function DigitalAlbum({ setPreviewSave, setPreviewAlbumId }) {
@@ -25,15 +25,26 @@ export default function DigitalAlbum({ setPreviewSave, setPreviewAlbumId }) {
   const [comboPicked, setComboPicked] = useState(new Set())
   const [editingProductNameId, setEditingProductNameId] = useState(null)
   const [generatingBanner, setGeneratingBanner] = useState(false)
-  const [hoverBanner, setHoverBanner] = useState(false)
   const [bannerError, setBannerError] = useState(null)
+  const [comboBannerAiMode, setComboBannerAiMode] = useState(false)
+  const [comboBannerPrompt, setComboBannerPrompt] = useState('')
+  const [comboGeneratingPrompt, setComboGeneratingPrompt] = useState(false)
+  const [comboBannerProgress, setComboBannerProgress] = useState(0)
+  const [comboUploadingBanner, setComboUploadingBanner] = useState(false)
+  const comboFileInputRef = useRef(null)
   const [pickerPage, setPickerPage] = useState(0)
 const [globalBannerUrl, setGlobalBannerUrl] = useState(null)
 const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   const [globalBannerError, setGlobalBannerError] = useState(null)
   const [bannerAiMode, setBannerAiMode] = useState(false)
   const [bannerTitle, setBannerTitle] = useState('')
+  const [bannerSubtitle, setBannerSubtitle] = useState('')
+  const [titleBgFrom, setTitleBgFrom] = useState('')
+  const [titleBgTo, setTitleBgTo] = useState('')
+  const [menuBgFrom, setMenuBgFrom] = useState('')
+  const [menuBgTo, setMenuBgTo] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
+  const [editingSubtitle, setEditingSubtitle] = useState(false)
   const [festival, setFestival] = useState('')
   const [festivalPrompt, setFestivalPrompt] = useState('')
   const [generatingPrompt, setGeneratingPrompt] = useState(false)
@@ -65,6 +76,11 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
       }
       if (da.bannerUrl) setGlobalBannerUrl(da.bannerUrl)
       if (da.bannerTitle) setBannerTitle(da.bannerTitle)
+      if (da.bannerSubtitle) setBannerSubtitle(da.bannerSubtitle)
+      if (da.titleBgFrom !== undefined) setTitleBgFrom(da.titleBgFrom)
+      if (da.titleBgTo !== undefined) setTitleBgTo(da.titleBgTo)
+      if (da.menuBgFrom !== undefined) setMenuBgFrom(da.menuBgFrom)
+      if (da.menuBgTo !== undefined) setMenuBgTo(da.menuBgTo)
       if (al.albums) setAlbums(al.albums)
       setLoading(false)
     }).catch(() => setLoading(false))
@@ -196,6 +212,26 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
     }).finally(() => setGeneratingPrompt(false))
   }, [bannerAiMode])
 
+  useEffect(() => {
+    if (!comboBannerAiMode) return
+    if (comboBannerPrompt) return
+    const token = localStorage.getItem('token')
+    if (!token) return
+    setComboGeneratingPrompt(true)
+    setComboBannerPrompt('')
+    const text = currentViewAlbum?.productName || '产品展示'
+    fetch(`${API}/api/generate/prompts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ festival: text, count: 1 }),
+    }).then(r => r.json()).then(data => {
+      if (data.prompts?.length) setComboBannerPrompt(data.prompts[0])
+      else setComboBannerPrompt(`高品质产品展示banner图，以${text}为主题，画面精美大气，光影层次分明，背景融入氛围感元素，前景摆放精美产品，整体构图专业，细节丰富。`)
+    }).catch(() => {
+      setComboBannerPrompt(`高品质产品展示banner图，以${text}为主题，画面精美大气，光影层次分明，背景融入氛围感元素，前景摆放精美产品，整体构图专业，细节丰富。`)
+    }).finally(() => setComboGeneratingPrompt(false))
+  }, [comboBannerAiMode])
+
 const save = useCallback(async (cats, bannerUrl) => {
 const token = localStorage.getItem('token')
 if (!token) return
@@ -209,9 +245,14 @@ id: albumIdRef.current,
 categories: cats,
 bannerUrl: bannerUrl !== undefined ? bannerUrl : globalBannerUrl,
 bannerTitle,
+bannerSubtitle,
+titleBgFrom,
+titleBgTo,
+menuBgFrom,
+menuBgTo,
 }),
 })
-}, [globalBannerUrl, bannerTitle])
+}, [globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo])
 
 const saveForPreview = useCallback(async () => {
 const token = localStorage.getItem('token')
@@ -219,9 +260,9 @@ if (!token) return
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
 })
-}, [categories, globalBannerUrl, bannerTitle])
+}, [categories, globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo])
 
 useEffect(() => {
 if (setPreviewSave) setPreviewSave(saveForPreview)
@@ -234,7 +275,7 @@ setGlobalBannerUrl(url)
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: url, bannerTitle }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: url, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
 }).catch(() => {})
 }
 
@@ -244,7 +285,17 @@ if (!token) return
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+}).catch(() => {})
+}
+
+const saveSubtitle = () => {
+const token = localStorage.getItem('token')
+if (!token) return
+fetch(`${API}/api/digital-album`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
 }).catch(() => {})
 }
 
@@ -269,7 +320,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBann
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: globalBannerUrl, bannerTitle }),
+body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
 }).then(r => r.json()).then(d => { if (d.id && !albumIdRef.current) { albumIdRef.current = d.id; if (setPreviewAlbumId) setPreviewAlbumId(d.id) } })
         if (merged.length > 0 && newCats.length > 0) {
           const firstId = newCats[0].id
@@ -308,7 +359,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             fetch(`${API}/api/digital-album`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token2}` },
-              body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: data.url, bannerTitle }),
+              body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: data.url, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
             }).then(r => r.json()).then(d => { if (d.id && !albumIdRef.current) { albumIdRef.current = d.id; if (setPreviewAlbumId) setPreviewAlbumId(d.id) } }).catch(() => {})
           }
         } else {
@@ -317,6 +368,34 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       }).catch(() => alert('上传失败，请重试')).finally(() => setUploadingBanner(false))
     }
     reader.onerror = () => { alert('读取文件失败'); setUploadingBanner(false) }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const handleComboBannerUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { alert('请上传图片文件'); return }
+    if (file.size > 10 * 1024 * 1024) { alert('图片不能超过10MB'); return }
+    const token = localStorage.getItem('token')
+    if (!token) return
+    setComboUploadingBanner(true)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result
+      fetch(API + '/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ image: dataUrl }),
+      }).then(r => r.json()).then(data => {
+        if (data.url && albumLocation && currentViewAlbum) {
+          updateAlbumBanner(albumLocation.catId, albumLocation.itemId, currentViewAlbum.albumId, data.url)
+        } else {
+          alert(data.error || '上传失败')
+        }
+      }).catch(() => alert('上传失败，请重试')).finally(() => setComboUploadingBanner(false))
+    }
+    reader.onerror = () => { alert('读取文件失败'); setComboUploadingBanner(false) }
     reader.readAsDataURL(file)
     e.target.value = ''
   }
@@ -447,12 +526,12 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         fetch(`${API}/api/digital-album`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle }),
+          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
         }).catch(() => {})
       }
       return next
     })
-  }, [globalBannerUrl, bannerTitle])
+  }, [globalBannerUrl, bannerTitle, bannerSubtitle])
 
   const removeComboItem = useCallback((catId, itemId, albumId, itemAlbumId) => {
     setCategories(prev => {
@@ -468,12 +547,12 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         fetch(`${API}/api/digital-album`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle }),
+          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
         }).catch(() => {})
       }
       return next
     })
-  }, [globalBannerUrl, bannerTitle])
+  }, [globalBannerUrl, bannerTitle, bannerSubtitle])
 
   const updateAlbumBanner = useCallback((catId, itemId, albumId, bannerUrl) => {
     const newCats = categories.map(c => c.id === catId ? {
@@ -503,14 +582,14 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       fetch(`${API}/api/digital-album`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: albumIdRef.current, categories: newCats, bannerUrl: globalBannerUrl, bannerTitle }),
+        body: JSON.stringify({ id: albumIdRef.current, categories: newCats, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
       }).catch(() => {})
     }
     const cat = newCats.find(c => c.id === catId)
     const item = cat?.items.find(i => i.id === itemId)
     const updated = item?.albums.find(a => a.albumId === albumId)
     if (updated) setViewAlbum(updated)
-  }, [globalBannerUrl, bannerTitle])
+  }, [globalBannerUrl, bannerTitle, bannerSubtitle])
 
   const updateComboItemProductParams = useCallback((catId, itemId, comboAlbumId, itemAlbumId, field, value) => {
     const cats = categoriesRef.current
@@ -529,7 +608,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       fetch(`${API}/api/digital-album`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: albumIdRef.current, categories: newCats, bannerUrl: globalBannerUrl, bannerTitle }),
+        body: JSON.stringify({ id: albumIdRef.current, categories: newCats, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
       }).catch(() => {})
     }
     const cat = newCats.find(c => c.id === catId)
@@ -537,7 +616,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     const combo = item?.albums.find(a => a.albumId === comboAlbumId)
     const updated = combo?.comboItems?.find(item => item.albumId === itemAlbumId)
     if (updated) setViewAlbum({ ...updated, productName: combo?.productName })
-  }, [globalBannerUrl, bannerTitle])
+  }, [globalBannerUrl, bannerTitle, bannerSubtitle])
 
   const updateProductName = useCallback((catId, itemId, albumId, name) => {
     save(categories.map(c => c.id === catId ? {
@@ -562,10 +641,10 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       fetch(`${API}/api/digital-album`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id: albumIdRef.current, categories: newCats, bannerUrl: globalBannerUrl, bannerTitle }),
+        body: JSON.stringify({ id: albumIdRef.current, categories: newCats, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
       }).catch(() => {})
     }
-  }, [globalBannerUrl, bannerTitle])
+  }, [globalBannerUrl, bannerTitle, bannerSubtitle])
 
   const openPicker = useCallback((type) => {
     setPicked(new Set())
@@ -628,16 +707,32 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     return item?.albums.find(a => a.albumId === viewAlbum.albumId) || viewAlbum
   }, [categories, albumLocation, viewAlbum])
 
-  const generateBanner = useCallback(() => {
+  const generateBanner = useCallback((prompt) => {
     if (!albumLocation || !currentViewAlbum) return
+    setComboBannerProgress(1)
     setGeneratingBanner(true)
     setBannerError(null)
     const token = localStorage.getItem('token')
     if (!token) return
+    const promptText = prompt || currentViewAlbum.productName || '产品名称'
+    setTimeout(() => setComboBannerProgress(2), 200)
+    let prog = 2
+    const progTimer = setInterval(() => {
+      prog = Math.min(prog + Math.random() * 2, 95)
+      setComboBannerProgress(Math.round(prog))
+    }, 800)
+    const finish = (url) => {
+      clearInterval(progTimer)
+      setComboBannerProgress(100)
+      setTimeout(() => {
+        updateAlbumBanner(albumLocation.catId, albumLocation.itemId, currentViewAlbum.albumId, url)
+        setGeneratingBanner(false)
+      }, 300)
+    }
     fetch(`${API}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ config: { model: localStorage.getItem('defaultImageModel') || 'maiziai-chatgpt-image-2', prompt: currentViewAlbum.productName || '产品名称', size: '16:9', banner: true } }),
+      body: JSON.stringify({ config: { model: localStorage.getItem('defaultImageModel') || 'maiziai-chatgpt-image-2', prompt: promptText, size: '16:9', banner: true } }),
     }).then(r => r.json()).then(data => {
       if (data.taskId) {
         const poll = () => {
@@ -645,9 +740,9 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             headers: { Authorization: `Bearer ${token}` },
           }).then(r => r.json()).then(status => {
             if (status.imageUrl) {
-              updateAlbumBanner(albumLocation.catId, albumLocation.itemId, currentViewAlbum.albumId, status.imageUrl)
-              setGeneratingBanner(false)
+              finish(status.imageUrl)
             } else if (status.taskStatus === 'FAILED') {
+              clearInterval(progTimer)
               setBannerError(status.statusText || '生成失败')
               setGeneratingBanner(false)
             } else {
@@ -657,10 +752,12 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         }
         setTimeout(poll, 500)
       } else {
+        clearInterval(progTimer)
         setBannerError(data.error || '生成失败')
         setGeneratingBanner(false)
       }
     }).catch(err => {
+      clearInterval(progTimer)
       setBannerError(err.message || '网络错误')
       setGeneratingBanner(false)
     })
@@ -766,18 +863,34 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
   return (
     <div style={{ maxWidth: 920, margin: '0 auto' }}>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadBanner} style={{ display: 'none' }} />
-      <div className="card" style={{ padding: '12px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className="card" style={{ padding: '12px 16px', marginBottom: 12 }}>
         {editingTitle ? (
-          <input autoFocus value={bannerTitle} onChange={e => setBannerTitle(e.target.value)}
-            style={{ flex: 1, height: 34, padding: '0 10px', fontSize: 15, border: '1px solid #8B5CF6', borderRadius: 6, outline: 'none' }}
-            onKeyDown={e => { if (e.key === 'Enter') { setEditingTitle(false); saveTitle() } }}
-            onBlur={() => { setEditingTitle(false); saveTitle() }}
-          />
+          <div style={{ marginBottom: 8 }}>
+            <input autoFocus value={bannerTitle} onChange={e => setBannerTitle(e.target.value)}
+              style={{ width: '100%', height: 34, padding: '0 10px', fontSize: 15, border: '1px solid #8B5CF6', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
+              onKeyDown={e => { if (e.key === 'Enter') { setEditingTitle(false); saveTitle() } }}
+              onBlur={() => { setEditingTitle(false); saveTitle() }}
+            />
+          </div>
         ) : (
-          <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <span style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', flex: 1 }}>{bannerTitle || '未命名画册'}</span>
             <span onClick={() => setEditingTitle(true)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 16, padding: 4 }}><EditOutlined /></span>
-          </>
+          </div>
+        )}
+        {editingSubtitle ? (
+          <div>
+            <input autoFocus value={bannerSubtitle} onChange={e => setBannerSubtitle(e.target.value)}
+              style={{ width: '100%', height: 34, padding: '0 10px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
+              onKeyDown={e => { if (e.key === 'Enter') { setEditingSubtitle(false); saveSubtitle() } }}
+              onBlur={() => { setEditingSubtitle(false); saveSubtitle() }}
+            />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, color: 'rgba(0,0,0,.55)', flex: 1 }}>{bannerSubtitle || '添加副标题'}</span>
+            <span onClick={() => setEditingSubtitle(true)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 13, padding: 4 }}><EditOutlined /></span>
+          </div>
         )}
       </div>
       <div className="card" style={{ padding: 0, marginBottom: 12, position: 'relative', aspectRatio: '16/9' }}>
@@ -921,30 +1034,64 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
               <div style={{ fontSize: 18, fontWeight: 600, color: '#333' }}>{currentViewAlbum.productName || '组合名称'}</div>
               <div style={{ width: 60 }} />
             </div>
-            <div
-              style={{ height: 350, background: currentViewAlbum.bannerUrl ? `url(${currentViewAlbum.bannerUrl}) center/cover no-repeat` : '#f5f5f5', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, position: 'relative', overflow: 'hidden' }}
-              onMouseEnter={() => setHoverBanner(true)}
-              onMouseLeave={() => setHoverBanner(false)}
-            >
-              {currentViewAlbum.bannerUrl && (hoverBanner || generatingBanner) && (
-                <button
-                  onClick={generateBanner}
-                  style={{ position: 'absolute', top: 8, right: 8, width: 36, height: 36, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.45)', color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, animation: generatingBanner ? 'spin 1s linear infinite' : 'none' }}
-                  title="重新生成"
-                ><ReloadOutlined /></button>
+            <div style={{ height: 350, borderRadius: 8, marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
+              {currentViewAlbum.bannerUrl ? (
+                <div style={{ width: '100%', height: '100%', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
+                  <div onClick={() => { updateAlbumBanner(albumLocation?.catId, albumLocation?.itemId, currentViewAlbum.albumId, ''); setComboBannerAiMode(false); setComboBannerPrompt('') }}
+                    style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.9)', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14, boxShadow: '0 2px 8px rgba(0,0,0,.1)' }}
+                  ><EditOutlined /></div>
+                  <img src={currentViewAlbum.bannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
+                </div>
+              ) : (
+                <div style={{ width: '100%', height: '100%', background: '#f5f5f5', borderRadius: 8, display: 'flex', flexDirection: 'column', padding: 16 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>组合头图</div>
+                  {!comboBannerAiMode ? (
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flex: 1, alignItems: 'center' }}>
+                      <button onClick={() => { setComboBannerPrompt(''); setComboBannerAiMode(true) }}
+                        style={{ padding: '8px 20px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', background: 'linear-gradient(135deg, #8B5CF6, #EC4899)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}
+                      >AI智能生成</button>
+                      <button onClick={() => comboFileInputRef.current?.click()} disabled={comboUploadingBanner}
+                        style={{ padding: '8px 20px', fontSize: 14, whiteSpace: 'nowrap', background: comboUploadingBanner ? '#d9d9d9' : 'linear-gradient(90deg, #ff7db8, #8f7cff)', color: '#fff', border: 'none', borderRadius: 8, cursor: comboUploadingBanner ? 'not-allowed' : 'pointer', opacity: comboUploadingBanner ? .6 : 1 }}
+                      >{comboUploadingBanner ? '上传中...' : '上传图片'}</button>
+                    </div>
+                  ) : generatingBanner ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
+                      <div className="loading-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+                      <div style={{ fontSize: 28, fontWeight: 700, color: '#8B5CF6' }}>{comboBannerProgress}%</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{ marginBottom: 20, background: '#fff', borderRadius: 10, padding: '12px 16px', fontSize: 14, lineHeight: 1.6, width: 500, whiteSpace: 'normal', wordBreak: 'break-word', boxShadow: '0 4px 20px rgba(0,0,0,.1)', border: '1px solid #e8e8e8', position: 'relative' }}>
+                          {comboGeneratingPrompt ? (
+                            <div style={{ padding: '4px 0' }}>
+                              <div style={{ height: 2, borderRadius: 1, background: 'linear-gradient(90deg, transparent, #8B5CF6, #EC4899, transparent)', backgroundSize: '200% 100%', animation: 'shimmer 3.5s ease-in-out infinite', marginBottom: 14 }} />
+                              <div style={{ textAlign: 'center', color: '#bbb', fontSize: 14 }}>文案智能策划中</div>
+                            </div>
+                          ) : comboBannerPrompt ? (
+                            <>
+                              <div style={{ color: '#333', animation: 'fadeIn .5s ease' }}>{comboBannerPrompt}</div>
+                              <div style={{ position: 'absolute', bottom: -9, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '9px solid transparent', borderRight: '9px solid transparent', borderTop: '9px solid #e8e8e8' }} />
+                              <div style={{ position: 'absolute', bottom: -7, left: '50%', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderTop: '7px solid #fff' }} />
+                            </>
+                          ) : (
+                            <div style={{ color: '#999', fontSize: 13 }}>提示词生成失败，<span onClick={() => { setComboBannerAiMode(false); setTimeout(() => setComboBannerAiMode(true), 50) }} style={{ color: '#8B5CF6', cursor: 'pointer', textDecoration: 'underline' }}>点击重试</span></div>
+                          )}
+                        </div>
+                        {!comboGeneratingPrompt && comboBannerPrompt && (
+                          <button onClick={() => generateBanner(comboBannerPrompt)}
+                            disabled={!comboBannerPrompt}
+                            style={{ height: 38, padding: '0 24px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', background: 'linear-gradient(135deg, #8B5CF6, #EC4899)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', opacity: comboBannerPrompt ? 1 : 0.5, transition: 'opacity .2s' }}
+                          >生成氛围图</button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {bannerError && <div style={{ fontSize: 12, color: '#e44', marginBottom: 10, textAlign: 'center' }}>{bannerError}</div>}
+                </div>
               )}
-              {!currentViewAlbum.bannerUrl && (
-                generatingBanner ? (
-                  <div style={{ fontSize: 14, color: '#999' }}>正在生成Banner...</div>
-                ) : (
-                  <button
-                    onClick={generateBanner}
-                    style={{ padding: '10px 24px', fontSize: 14, background: '#1677FF', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-                  >生成Banner</button>
-                )
-              )}
+              <input type="file" accept="image/*" ref={comboFileInputRef} onChange={handleComboBannerUpload} style={{ display: 'none' }} />
             </div>
-            {bannerError && <div style={{ color: '#FF4D4F', fontSize: 13, marginBottom: 12 }}>{bannerError}</div>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, alignItems: 'start' }}>
               {(currentViewAlbum.comboItems || []).map(item => {
                 const itemUrl = albumMap[item.albumId]?.imageUrls?.[0] || albumMap[item.albumId]?.imageUrl || item.imageUrls?.[0] || item.imageUrl
@@ -1302,11 +1449,11 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
               onChange={e => setTitleInput(e.target.value)}
               placeholder="请输入画册标题"
               style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 15, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
-              onKeyDown={e => { if (e.key === 'Enter' && titleInput.trim()) { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v }) }).catch(() => {}) } }}
+              onKeyDown={e => { if (e.key === 'Enter' && titleInput.trim()) { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v, bannerSubtitle }) }).catch(() => {}) } }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
               <button className="btn btn-outline" onClick={() => setTitleModalOpen(false)}>取消</button>
-              <button className="btn btn-primary" disabled={!titleInput.trim()} onClick={() => { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v }) }).catch(() => {}) }}>确定</button>
+              <button className="btn btn-primary" disabled={!titleInput.trim()} onClick={() => { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v, bannerSubtitle }) }).catch(() => {}) }}>确定</button>
             </div>
           </div>
         </div>

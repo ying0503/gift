@@ -125,7 +125,7 @@ export default function ModelUse() {
   }
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#f5f5f5' }}>
+    <div style={{ display: 'flex', height: '100%', background: '#f5f5f5' }}>
       <AdminSidebar />
       <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
     <div style={{ maxWidth: 800, margin: '0 auto' }}>

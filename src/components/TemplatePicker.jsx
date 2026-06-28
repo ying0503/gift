@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { CloseOutlined } from '@ant-design/icons'
 import { API } from '../AuthContext'
 
 const uid = () => crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
@@ -61,7 +62,7 @@ export default function TemplatePicker({ visible, onClose }) {
       const res = await fetch(`${API}/api/digital-album`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ categories: tpl.categories, bannerTitle: tpl.name }),
+        body: JSON.stringify({ categories: tpl.categories, bannerTitle: tpl.name, bannerSubtitle: tpl.description || '', bannerUrl: tpl.banner || '', titleBgFrom: tpl.titleBgFrom || '', titleBgTo: tpl.titleBgTo || '', menuBgFrom: tpl.menuBgFrom || '', menuBgTo: tpl.menuBgTo || '' }),
       })
       const data = await res.json()
       if (data.id) window.location.href = `/digital-album/${data.id}`
@@ -74,24 +75,37 @@ export default function TemplatePicker({ visible, onClose }) {
   if (!visible) return null
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div className="card" style={{ width: 640, maxHeight: '80vh', padding: 24, overflow: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 20 }}>选择画册模板</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      <div className="card" style={{ width: 720, maxHeight: '80vh', padding: 24, overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)' }}>选择画册模板</div>
+          <span onClick={onClose} style={{ cursor: 'pointer', fontSize: 16, color: 'rgba(0,0,0,.45)' }}><CloseOutlined /></span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
           {templates.map(tpl => (
               <div key={tpl.id}
-                style={{ cursor: 'pointer', borderRadius: 10, border: '1px solid #f1f5f9', overflow: 'hidden', background: '#fff', transition: 'all .2s', position: 'relative' }}
+                style={{ cursor: 'pointer', borderRadius: 10, border: '1px solid #f1f5f9', overflow: 'hidden', background: '#fff', transition: 'all .2s', position: 'relative', aspectRatio: '1/1.7' }}
                 onClick={() => create(tpl)}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.1)'; e.currentTarget.style.borderColor = '#1677FF' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#f1f5f9' }}
               >
-                <div style={{ height: 100, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, overflow: 'hidden' }}>
-                  {tpl.cover ? <img src={tpl.cover} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (tpl.icon || '📄')}
+                {tpl.cover ? (
+                  <img src={tpl.cover} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', inset: 0 }} />
+                ) : (
+                  <div style={{ height: '50%', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>
+                    {tpl.icon || '📄'}
+                  </div>
+                )}
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  background: tpl.cover ? 'linear-gradient(transparent, rgba(0,0,0,.65))' : '#fff',
+                  padding: tpl.cover ? '28px 10px 10px' : '8px 10px 10px',
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: tpl.cover ? '#fff' : '#0f172a', marginBottom: 2 }}>{tpl.name}</div>
+                  <div style={{ fontSize: 11, color: tpl.cover ? 'rgba(255,255,255,.7)' : '#94a3b8', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    {tpl.description || tpl.desc || ''}
+                  </div>
                 </div>
-              <div style={{ padding: '10px 12px 12px' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>{tpl.name}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>{tpl.description || tpl.desc || ''}</div>
               </div>
-            </div>
           ))}
         </div>
       </div>

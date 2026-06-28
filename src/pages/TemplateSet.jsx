@@ -28,10 +28,11 @@ export default function TemplateSet() {
     if (!token) return
     try {
       if (tpl.id) {
-        await fetch(`${API}/api/templates/${tpl.id}`, {
+        const res = await fetch(`${API}/api/templates/${tpl.id}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(tpl),
         })
+        if (!res.ok) { const e = await res.json(); alert('保存失败: ' + (e.error || res.status)); return }
       } else {
         const res = await fetch(`${API}/api/templates`, {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -59,13 +60,13 @@ export default function TemplateSet() {
   }
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 48px)', background: '#f5f5f5' }}>
+    <div style={{ display: 'flex', height: '100%', background: '#f5f5f5', borderRadius: 8 }}>
       <AdminSidebar />
       <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(0,0,0,.88)' }}>画册模板</div>
           <button className="btn btn-primary" style={{ fontSize: 13, height: 34, padding: '0 16px', borderRadius: 8, border: 'none', cursor: 'pointer' }}
-            onClick={() => { setCreating(true); setEditing({ name: '', icon: '📄', description: '', cover: '', categories: [], enabled: true }) }}>
+            onClick={() => { setCreating(true); setEditing({ name: '', icon: '📄', description: '', cover: '', banner: '', categories: [], enabled: true, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' }) }}>
             <PlusOutlined /> 新增模板
           </button>
         </div>
@@ -126,7 +127,7 @@ function RightPanel({ data, isNew, onSave, onClose }) {
     <>
       <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'transparent' }} onClick={onClose} />
       <div style={{
-        position: 'fixed', top: 48, right: 0, bottom: 0, zIndex: 1000,
+        position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 1000,
         width: 400, background: '#fff', boxShadow: '-4px 0 24px rgba(0,0,0,.1)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
         animation: 'slideInRight .25s ease-out',
@@ -137,64 +138,133 @@ function RightPanel({ data, isNew, onSave, onClose }) {
         </div>
 
         <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', marginBottom: 6 }}>标题</div>
-            <input value={form.name} onChange={e => update('name', e.target.value)}
-              placeholder="模板名称"
-              style={{ width: '100%', height: 40, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }} />
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', marginBottom: 6 }}>副标题</div>
-            <input value={form.description} onChange={e => update('description', e.target.value)}
-              placeholder="模板描述"
-              style={{ width: '100%', height: 40, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }} />
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', marginBottom: 8 }}>示意图</div>
-            <div
-              onClick={() => document.getElementById('cover-upload')?.click()}
-              style={{
-                height: 200, background: '#f8fafc', borderRadius: 8, border: '1px solid #e8e8e8', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 60, position: 'relative', overflow: 'hidden',
-              }}
-            >
-              <input id="cover-upload" type="file" accept="image/*" style={{ display: 'none' }}
-                onChange={e => {
-                  const file = e.target.files?.[0]
-                  if (!file) return
-                  const reader = new FileReader()
-                  reader.onload = (ev) => {
-                    const base64 = ev.target?.result
-                    if (typeof base64 === 'string') {
-                      fetch(`${API}/api/upload`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-                        body: JSON.stringify({ image: base64 }),
-                      }).then(r => r.json()).then(data => { if (data.url) update('cover', data.url) }).catch(() => {})
-                    }
-                  }
-                  reader.readAsDataURL(file)
-                  e.target.value = ''
+          <div style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52, flexShrink: 0, paddingTop: 4 }}>示意图</span>
+            <div style={{ flex: 1 }}>
+              <div
+                onClick={() => document.getElementById('cover-upload')?.click()}
+                style={{
+                  height: 160, background: '#f8fafc', borderRadius: 8, border: '1px solid #e8e8e8', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden',
                 }}
-              />
-              {form.cover ? (
-                <img src={form.cover} alt="cover" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: '#c0c8d4' }}>
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                  <span style={{ fontSize: 13 }}>点击上传示意图</span>
+              >
+                <input id="cover-upload" type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = (ev) => {
+                      const base64 = ev.target?.result
+                      if (typeof base64 === 'string') {
+                        fetch(`${API}/api/upload`, {
+                          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                          body: JSON.stringify({ image: base64 }),
+                        }).then(r => r.json()).then(data => { if (data.url) update('cover', data.url) }).catch(() => {})
+                      }
+                    }
+                    reader.readAsDataURL(file)
+                    e.target.value = ''
+                  }}
+                />
+                {form.cover ? (
+                  <img src={form.cover} alt="cover" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#c0c8d4' }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                    <span style={{ fontSize: 12 }}>点击上传示意图</span>
+                  </div>
+                )}
+              </div>
+              {form.cover && (
+                <div style={{ marginTop: 4, textAlign: 'right' }}>
+                  <span onClick={() => update('cover', '')} style={{ fontSize: 12, color: '#ff4d4f', cursor: 'pointer' }}>移除图片</span>
                 </div>
               )}
             </div>
-            {form.cover && (
-              <div style={{ marginTop: 6, textAlign: 'right' }}>
-                <span onClick={() => update('cover', '')} style={{ fontSize: 12, color: '#ff4d4f', cursor: 'pointer' }}>移除图片</span>
-              </div>
-            )}
           </div>
-        </div>
 
+          <div style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52, flexShrink: 0, paddingTop: 4 }}>氛围图</span>
+            <div style={{ flex: 1 }}>
+              <div
+                onClick={() => document.getElementById('banner-upload')?.click()}
+                style={{
+                  height: 120, background: '#f8fafc', borderRadius: 8, border: '1px solid #e8e8e8', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden',
+                }}
+              >
+                <input id="banner-upload" type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = (ev) => {
+                      const base64 = ev.target?.result
+                      if (typeof base64 === 'string') {
+                        fetch(`${API}/api/upload`, {
+                          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+                          body: JSON.stringify({ image: base64 }),
+                        }).then(r => r.json()).then(data => { if (data.url) update('banner', data.url) }).catch(() => {})
+                      }
+                    }
+                    reader.readAsDataURL(file)
+                    e.target.value = ''
+                  }}
+                />
+                {form.banner ? (
+                  <img src={form.banner} alt="banner" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#c0c8d4' }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                    <span style={{ fontSize: 12 }}>点击上传氛围图</span>
+                  </div>
+                )}
+              </div>
+              {form.banner && (
+                <div style={{ marginTop: 4, textAlign: 'right' }}>
+                  <span onClick={() => update('banner', '')} style={{ fontSize: 12, color: '#ff4d4f', cursor: 'pointer' }}>移除图片</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52 }}>标题</span>
+            <input value={form.name} onChange={e => update('name', e.target.value)}
+              placeholder="模板名称"
+              style={{ flex: 1, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
+          </div>
+
+          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52 }}>副标题</span>
+            <input value={form.description} onChange={e => update('description', e.target.value)}
+              placeholder="模板描述"
+              style={{ flex: 1, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
+          </div>
+
+          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52, flexShrink: 0 }}>标题背景</span>
+            <input value={form.titleBgFrom || ''} onChange={e => update('titleBgFrom', e.target.value)}
+              placeholder="#F5C5F9"
+              style={{ width: 130, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
+            <span style={{ color: '#d9d9d9', fontSize: 16, fontWeight: 300, lineHeight: 1, flexShrink: 0 }}>—</span>
+            <input value={form.titleBgTo || ''} onChange={e => update('titleBgTo', e.target.value)}
+              placeholder="#FDF0FC"
+              style={{ width: 130, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
+          </div>
+
+          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52, flexShrink: 0 }}>菜单背景</span>
+            <input value={form.menuBgFrom || ''} onChange={e => update('menuBgFrom', e.target.value)}
+              placeholder="#EEE"
+              style={{ width: 130, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
+            <span style={{ color: '#d9d9d9', fontSize: 16, fontWeight: 300, lineHeight: 1, flexShrink: 0 }}>—</span>
+            <input value={form.menuBgTo || ''} onChange={e => update('menuBgTo', e.target.value)}
+              placeholder="#FFF"
+              style={{ width: 130, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
+          </div>
+
+        </div>
         <div style={{ padding: '16px 24px', borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'flex-end', gap: 8, flexShrink: 0 }}>
           <button className="btn btn-outline" onClick={onClose}>取消</button>
           <button className="btn btn-primary" disabled={!form.name.trim()} onClick={() => onSave({ ...form, enabled: true })}>保存</button>

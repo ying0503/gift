@@ -7,6 +7,12 @@ export default function Preview() {
   const { userId, albumId, catId: urlCatId, itemAlbumId } = useParams()
   const [categories, setCategories] = useState([])
   const [bannerUrl, setBannerUrl] = useState(null)
+  const [bannerTitle, setBannerTitle] = useState('')
+  const [bannerSubtitle, setBannerSubtitle] = useState('')
+  const [bgFrom, setBgFrom] = useState('')
+  const [bgTo, setBgTo] = useState('')
+  const [menuBgFrom, setMenuBgFrom] = useState('')
+  const [menuBgTo, setMenuBgTo] = useState('')
   const [selectedCat, setSelectedCat] = useState(null)
   
   const [viewAlbum, setViewAlbum] = useState(null)
@@ -69,9 +75,15 @@ export default function Preview() {
           if (!urlCatId) setSelectedCat(data.categories[0].id)
         }
         if (data.bannerUrl) setBannerUrl(data.bannerUrl)
+        if (data.bannerTitle) setBannerTitle(data.bannerTitle)
+        if (data.bannerSubtitle) setBannerSubtitle(data.bannerSubtitle)
+        setBgFrom(data.titleBgFrom || '')
+        setBgTo(data.titleBgTo || '')
+        setMenuBgFrom(data.menuBgFrom || '')
+        setMenuBgTo(data.menuBgTo || '')
+        setLoading(false)
       })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+      .catch(() => setLoading(false))
     if (token) {
       fetch(`${API}/api/albums`, { headers })
         .then(r => r.json())
@@ -127,11 +139,46 @@ export default function Preview() {
   }, [urlCatId, itemAlbumId, albumId, loading])
 
   function renderContent(m) {
+    const detailMode = !!itemAlbumId
     return (
       <div>
-        {bannerUrl && <div style={{ width: '100%', aspectRatio: '16/9', background: '#fff', position: 'relative' }}><img src={bannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'fill' }} /></div>}
-        <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', minHeight: 'calc(100vh - 60px)', background: '#fffdf1' }}>
-          <div style={{ flex: '0 0 auto', width: 'max-content', background: '#fffdf1', border: 'none', borderRadius: '0 20px 20px 0', alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
+        {!detailMode && bannerUrl && <div style={{ width: '100%', aspectRatio: '16/9', background: '#fff', position: 'relative' }}>
+          <img src={bannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'fill' }} />
+          {(bannerTitle || bannerSubtitle) && (
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0,
+              width: 400, height: 65,
+            }}>
+              <svg viewBox="0 0 700 140" preserveAspectRatio="none"
+                style={{ width: '100%', height: '100%', display: 'block' }}
+              >
+                <defs>
+                  <linearGradient id="tabG" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor={bgFrom || '#F5C5F9'} />
+                    <stop offset="100%" stopColor={bgTo || '#FDF0FC'} />
+                  </linearGradient>
+                  <filter id="tabS">
+                    <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="rgba(0,0,0,.08)" />
+                  </filter>
+                </defs>
+                <path
+                  d="M32 0 H220 Q250 0 270 20 L305 70 Q315 80 330 80 H700 V140 H0 V32 Q0 0 32 0 Z"
+                  fill="url(#tabG)" filter="url(#tabS)"
+                />
+              </svg>
+              <div style={{
+                position: 'absolute', left: 22, top: 8, bottom: 0, right: 0,
+                display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                overflow: 'hidden',
+              }}>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#8B5E83', letterSpacing: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerTitle}</div>
+                {bannerSubtitle && <div style={{ fontSize: 12, color: '#A882A0', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerSubtitle}</div>}
+              </div>
+            </div>
+          )}
+        </div>}
+        <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', minHeight: detailMode ? '100vh' : 'calc(100vh - 60px)', background: bgTo || '#fffdf1' }}>
+          {!detailMode && <div style={{ flex: '0 0 auto', width: 'max-content', background: bgTo || '#fffdf1', border: 'none', borderRadius: '0 20px 20px 0', alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
             <div className="album-tree-list album-tree-list-preview">
               {categories.length === 0 ? (
                 <div className="album-tree-empty">暂无内容</div>
@@ -141,18 +188,19 @@ export default function Preview() {
                     <div
                       onClick={() => { setSelectedCat(cat.id); navigate(`/preview/${userId}/${albumId}/${cat.id}`) }}
                       className={`album-tree-node album-tree-node-level1${selectedCat === cat.id ? ' active' : ''}${m ? ' album-tree-node-compact' : ''}`}
+                      style={selectedCat === cat.id && (menuBgFrom || menuBgTo) ? { background: `linear-gradient(135deg, ${menuBgFrom || '#fbe99c'}, ${menuBgTo || '#fbe99c'})` } : undefined}
                     >{cat.name}</div>
 
                   </div>
                 ))
               )}
             </div>
-          </div>
+          </div>}
 
           <div style={{ flex: 1, minWidth: 0, alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
             {viewAlbum?.type === '组合' ? (
-              <div style={{ background: '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
+              <div style={{ background: bgTo || '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
                 <div style={{ fontSize: m ? 15 : 18, fontWeight: 600, color: '#333', marginBottom: 12 }}>{viewAlbum.productName || '产品名称'}</div>
                 {viewAlbum.bannerUrl && (
                   <div style={{ height: m ? 'auto' : 350, aspectRatio: m ? '2/1' : undefined, background: `url(${viewAlbum.bannerUrl}) center/cover no-repeat`, borderRadius: 8, marginBottom: 16 }} />
@@ -171,13 +219,13 @@ export default function Preview() {
                 </div>
               </div>
             ) : viewAlbum ? (
-              <div style={{ background: '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
+              <div style={{ background: detailMode ? 'transparent' : bgTo || '#fffdf1', padding: detailMode ? 0 : m ? 12 : 16, marginBottom: 0, flex: 1 }}>
                 {(() => {
                   const urls = getImageUrls(viewAlbum)
                   return (
                     <>
-                      <img src={urls[0]} alt="" style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: 12 }} />
-                      <div style={{ marginTop: 16, borderTop: '1px solid #eee', paddingTop: 16, marginBottom: 16 }}>
+                      <img src={urls[0]} alt="" style={{ width: '100%', display: 'block', marginBottom: detailMode ? 0 : 12 }} />
+                      <div style={{ marginTop: detailMode ? 0 : 16, borderTop: detailMode ? 'none' : '1px solid #eee', paddingTop: detailMode ? 0 : 16, marginBottom: detailMode ? 0 : 16 }}>
                         <div style={{ fontSize: 15, color: '#666', marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>产品参数</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                           <span style={{ width: 56, color: '#888', flexShrink: 0 }}>规格</span>
@@ -197,14 +245,14 @@ export default function Preview() {
                         </div>
                       </div>
                       {urls.slice(1).map((url, i) => (
-                        <img key={i} src={url} alt="" style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: i < urls.length - 2 ? 12 : 0 }} />
+                        <img key={i} src={url} alt="" style={{ width: '100%', display: 'block', marginBottom: detailMode ? 0 : i < urls.length - 2 ? 12 : 0 }} />
                       ))}
                     </>
                   )
                 })()}
               </div>
             ) : selectedCat && currentCat ? (
-              <div style={{ background: '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
+              <div style={{ background: bgTo || '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
                 <div style={{ fontSize: m ? 13 : 16, fontWeight: 600, color: '#333', marginBottom: m ? 0 : 12, display: m ? 'none' : 'block' }}>{currentCat.name}</div>
                 {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a }))).length === 0 ? (
                   <div style={{ padding: 60, textAlign: 'center', color: 'rgba(0,0,0,.25)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>暂无数据</div>
@@ -221,7 +269,7 @@ export default function Preview() {
               </div>
 
             ) : !selectedCat && allAlbums.length > 0 ? (
-              <div style={{ background: '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
+              <div style={{ background: bgTo || '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
                 <div style={{ fontSize: m ? 13 : 16, fontWeight: 600, color: '#333', marginBottom: m ? 0 : 12, display: m ? 'none' : 'block' }}>所有画册</div>
                 <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(300px, 1fr))', gap: m ? 8 : 12 }}>
                   {allAlbums.map(a => (
@@ -236,7 +284,7 @@ export default function Preview() {
                 </div>
               </div>
             ) : (
-              <div style={{ background: '#fffdf1', borderRadius: 8, padding: 60, textAlign: 'center', color: 'rgba(0,0,0,.25)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ background: bgTo || '#fffdf1', borderRadius: 8, padding: 60, textAlign: 'center', color: 'rgba(0,0,0,.25)', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 暂无数据
               </div>
             )}
@@ -252,7 +300,7 @@ export default function Preview() {
   }
 
   return (
-    <div style={{ maxHeight: '100vh', overflowY: 'auto', background: '#fffdf1' }}>
+    <div style={{ maxHeight: '100vh', overflowY: 'auto', background: bgTo || '#fffdf1' }}>
       {renderContent(true)}
     </div>
   )
