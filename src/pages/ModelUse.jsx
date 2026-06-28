@@ -56,27 +56,24 @@ const MODELS = [
   },
 ]
 
+const IMAGE_MODEL_IDS = ['maiziai-chatgpt-image-2', 'agnes-image-2.1-flash', 'ithinkai-gpt-image-2']
+const TEXT_MODEL_IDS = ['qwen3.5-flash', 'glm-4.6v-flashx', 'doubao-seed-2-0-mini-260428']
+
+function getDefaultImageModel(saved) {
+  return IMAGE_MODEL_IDS.includes(saved) ? saved : 'maiziai-chatgpt-image-2'
+}
+function getDefaultTextModel(saved) {
+  return TEXT_MODEL_IDS.includes(saved) ? saved : 'qwen3.5-flash'
+}
+
 export default function ModelUse() {
   const [keyStatus, setKeyStatus] = useState(null)
-  const [defaultImageModel, setDefaultImageModel] = useState(() => {
-    const saved = localStorage.getItem('defaultImageModel')
-    const valid = ['maiziai-chatgpt-image-2', 'agnes-image-2.1-flash', 'ithinkai-gpt-image-2']
-    return valid.includes(saved) ? saved : 'maiziai-chatgpt-image-2'
-  })
-  const [textModel, setTextModel] = useState(() => {
-    const saved = localStorage.getItem('textGenerationModel')
-    const valid = ['qwen3.5-flash', 'glm-4.6v-flashx', 'doubao-seed-2-0-mini-260428']
-    return valid.includes(saved) ? saved : 'qwen3.5-flash'
-  })
-  const [temperature, setTemperature] = useState(() => {
-    const saved = localStorage.getItem(LS_TEMP)
-    return saved ? parseFloat(saved) : 0.8
-  })
-  const [maxTokens, setMaxTokens] = useState(() => {
-    const saved = localStorage.getItem(LS_MAX_TOKENS)
-    return saved ? parseInt(saved, 10) : 2000
-  })
+  const [defaultImageModel, setDefaultImageModel] = useState('maiziai-chatgpt-image-2')
+  const [textModel, setTextModel] = useState('qwen3.5-flash')
+  const [temperature, setTemperature] = useState(0.8)
+  const [maxTokens, setMaxTokens] = useState(2000)
   const [modelSpeeds, setModelSpeeds] = useState({})
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     const prev = document.title
@@ -102,26 +99,76 @@ export default function ModelUse() {
     return () => clearInterval(timer)
   }, [])
 
+  useEffect(() => {
+    fetch(`${API}/api/global-config`)
+      .then(r => r.json())
+      .then(cfg => {
+        const img = getDefaultImageModel(cfg.defaultImageModel)
+        const txt = getDefaultTextModel(cfg.textGenerationModel)
+        const temp = cfg.textTemperature ? parseFloat(cfg.textTemperature) : 0.8
+        const tokens = cfg.textMaxTokens ? parseInt(cfg.textMaxTokens, 10) : 2000
+        setDefaultImageModel(img)
+        setTextModel(txt)
+        setTemperature(temp)
+        setMaxTokens(tokens)
+        localStorage.setItem('defaultImageModel', img)
+        localStorage.setItem('textGenerationModel', txt)
+        localStorage.setItem(LS_TEMP, temp.toString())
+        localStorage.setItem(LS_MAX_TOKENS, tokens.toString())
+        setLoaded(true)
+      })
+      .catch(() => {
+        setDefaultImageModel(getDefaultImageModel(localStorage.getItem('defaultImageModel')))
+        setTextModel(getDefaultTextModel(localStorage.getItem('textGenerationModel')))
+        setTemperature(parseFloat(localStorage.getItem(LS_TEMP) || '0.8'))
+        setMaxTokens(parseInt(localStorage.getItem(LS_MAX_TOKENS) || '2000', 10))
+        setLoaded(true)
+      })
+  }, [])
+
+  const saveToApi = (data) => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    fetch(`${API}/api/global-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(data),
+    }).catch(() => {})
+  }
+
   const handleImageModelChange = (val) => {
     setDefaultImageModel(val)
     localStorage.setItem('defaultImageModel', val)
+    saveToApi({ defaultImageModel: val })
   }
 
   const handleTextModelChange = (val) => {
     setTextModel(val)
     localStorage.setItem('textGenerationModel', val)
+    saveToApi({ textGenerationModel: val })
   }
 
   const handleTemperatureChange = (e) => {
     const v = parseFloat(e.target.value)
     setTemperature(v)
     localStorage.setItem(LS_TEMP, v.toString())
+    saveToApi({ textTemperature: v.toString() })
   }
 
   const handleMaxTokensChange = (e) => {
     const v = parseInt(e.target.value, 10) || 2000
     setMaxTokens(v)
     localStorage.setItem(LS_MAX_TOKENS, v.toString())
+    saveToApi({ textMaxTokens: v.toString() })
+  }
+
+  if (!loaded) {
+    return (
+      <div style={{ display: 'flex', height: '100%', background: '#f5f5f5' }}>
+        <AdminSidebar />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>加载中...</div>
+      </div>
+    )
   }
 
   return (
@@ -137,7 +184,7 @@ export default function ModelUse() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: '#333', marginBottom: 12 }}>图片生成模型</div>
         <div style={{ display: 'flex', gap: 12 }}>
-          {MODELS.filter(m => m.id !== 'glm-4.6v-flashx' && m.id !== 'qwen3.5-flash' && m.id !== 'doubao-seed-2-0-mini-260428').map(m => (
+          {MODELS.filter(m => IMAGE_MODEL_IDS.includes(m.id)).map(m => (
             <div
               key={m.id}
               onClick={() => handleImageModelChange(m.id)}
@@ -179,7 +226,7 @@ export default function ModelUse() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: '#333', marginBottom: 12 }}>文案生成模型</div>
         <div style={{ display: 'flex', gap: 12 }}>
-          {MODELS.filter(m => m.id !== 'maiziai-chatgpt-image-2' && m.id !== 'ithinkai-gpt-image-2' && m.id !== 'agnes-image-2.1-flash').map(m => (
+          {MODELS.filter(m => TEXT_MODEL_IDS.includes(m.id)).map(m => (
             <div
               key={m.id}
               onClick={() => handleTextModelChange(m.id)}
@@ -254,6 +301,7 @@ export default function ModelUse() {
           <li>文案策划和智能目录可在 Qwen / GLM / Doubao 间切换</li>
           <li>温度和 Token 数在"文案生成参数"中调节，控制生成结果的随机性和长度</li>
           <li>API 密钥在 <code style={{ background: '#fff2cc', padding: '1px 4px', borderRadius: 3 }}>.env</code> 文件中配置</li>
+          <li>模型选择将同步到服务端，所有用户共享同一套配置</li>
         </ul>
       </div>
       </div>

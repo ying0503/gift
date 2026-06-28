@@ -156,7 +156,7 @@ function AppContent() {
             </div>
           </nav>
         )}
-        <main className="app-main">
+        <main className="app-main" style={['/model-use', '/template-set'].some(p => location.pathname.startsWith(p)) ? { padding: 0 } : undefined}>
         <Routes>
           <Route path="/workbench" element={<ErrorBoundary>{user ? <Home /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/digital-album" element={<ErrorBoundary>{user ? <DigitalAlbumList /> : <Navigate to="/" />}</ErrorBoundary>} />

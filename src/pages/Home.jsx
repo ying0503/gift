@@ -75,6 +75,18 @@ export default function Home() {
   const refInputRef = useRef()
   const PAGE_SIZE = 20
 
+  useEffect(() => {
+    fetch(`${API}/api/global-config`)
+      .then(r => r.json())
+      .then(cfg => {
+        if (cfg.defaultImageModel) localStorage.setItem('defaultImageModel', cfg.defaultImageModel)
+        if (cfg.textGenerationModel) localStorage.setItem('textGenerationModel', cfg.textGenerationModel)
+        if (cfg.textTemperature) localStorage.setItem('textTemperature', cfg.textTemperature)
+        if (cfg.textMaxTokens) localStorage.setItem('textMaxTokens', cfg.textMaxTokens)
+      })
+      .catch(() => {})
+  }, [])
+
   const PENDING_BATCHES_KEY = 'pendingBatches'
 
   function savePendingBatch(id, batchId, prompts) {

@@ -58,6 +58,18 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   useEffect(() => { categoriesRef.current = categories }, [categories])
   const festivals = ['春节', '元宵节', '端午节', '中秋节', '情人节', '圣诞节', '国庆节', '新年', '母亲节', '父亲节', '教师节', '七夕节', '万圣节', '感恩节']
 
+  useEffect(() => {
+    fetch(`${API}/api/global-config`)
+      .then(r => r.json())
+      .then(cfg => {
+        if (cfg.defaultImageModel) localStorage.setItem('defaultImageModel', cfg.defaultImageModel)
+        if (cfg.textGenerationModel) localStorage.setItem('textGenerationModel', cfg.textGenerationModel)
+        if (cfg.textTemperature) localStorage.setItem('textTemperature', cfg.textTemperature)
+        if (cfg.textMaxTokens) localStorage.setItem('textMaxTokens', cfg.textMaxTokens)
+      })
+      .catch(() => {})
+  }, [])
+
   const { albumId: urlAlbumId, catId: urlCatId, itemId: urlItemId, albumDtlId: urlAlbumDtlId } = useParams()
 
   useEffect(() => {

@@ -134,6 +134,13 @@ export async function initSchema() {
     position INT NOT NULL,
     PRIMARY KEY (user_id, album_id)
   )`)
+  await p.query(`CREATE TABLE IF NOT EXISTS global_config (
+    \`key\` VARCHAR(64) PRIMARY KEY,
+    \`value\` TEXT NOT NULL
+  )`)
+  try {
+    await p.query(`ALTER TABLE users ADD COLUMN is_admin TINYINT(1) DEFAULT 0`)
+  } catch (e) {}
   try {
     await p.query(`ALTER TABLE users ADD COLUMN vip_type VARCHAR(20) DEFAULT NULL`)
   } catch (e) {}
@@ -169,10 +176,27 @@ export async function initSchema() {
   } catch (e) {}
 }
 
+export async function bootstrapAdmin() {
+  const adminEmail = process.env.ADMIN_EMAIL
+  if (!adminEmail) return
+  const p = await getPool()
+  await p.query('UPDATE users SET is_admin = 1 WHERE email = ?', [adminEmail])
+}
+
 export async function getUser(email) {
   const p = await getPool()
-  const [rows] = await p.query('SELECT email, user_id, password_hash, vip_type, created_at FROM users WHERE email = ?', [email])
+  const [rows] = await p.query('SELECT email, user_id, password_hash, vip_type, is_admin, created_at FROM users WHERE email = ?', [email])
   return rows[0] || null
+}
+
+export async function setUserAdmin(email) {
+  const p = await getPool()
+  await p.query('UPDATE users SET is_admin = 1 WHERE email = ?', [email])
+}
+
+export async function setUserAdminById(userId) {
+  const p = await getPool()
+  await p.query('UPDATE users SET is_admin = 1 WHERE user_id = ?', [userId])
 }
 
 export async function createUser(email, userId, passwordHash, vipType) {
@@ -439,6 +463,21 @@ export async function updateTemplate(id, data) {
 export async function deleteTemplate(id) {
   const p = await getPool()
   await p.query('DELETE FROM templates WHERE id = ?', [id])
+}
+
+export async function getGlobalConfig() {
+  const p = await getPool()
+  const [rows] = await p.query('SELECT `key`, `value` FROM global_config')
+  const cfg = {}
+  for (const r of rows) cfg[r.key] = r.value
+  return cfg
+}
+
+export async function setGlobalConfig(data) {
+  const p = await getPool()
+  for (const [key, value] of Object.entries(data)) {
+    await p.query('INSERT INTO global_config (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)', [key, value])
+  }
 }
 
 export async function getAllUsers() {

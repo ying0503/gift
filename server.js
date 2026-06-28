@@ -76,7 +76,7 @@ app.post('/api/register', async (req, res) => {
     await db.createUser(email, userId, passwordHash, vipType)
     const token = generateToken()
     await db.createSession(token, userId, email)
-    res.json({ success: true, token, user: { id: userId, email, vipType: vipType || null, generatedCount: 0 } })
+    res.json({ success: true, token, user: { id: userId, email, vipType: vipType || null, isAdmin: false, generatedCount: 0 } })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -92,7 +92,7 @@ app.post('/api/login', async (req, res) => {
     const token = generateToken()
     await db.createSession(token, user.user_id, email)
     const count = await db.countUserAlbums(user.user_id)
-    res.json({ success: true, token, user: { id: user.user_id, email: user.email, vipType: user.vip_type || null, generatedCount: count } })
+    res.json({ success: true, token, user: { id: user.user_id, email: user.email, vipType: user.vip_type || null, isAdmin: user.is_admin === 1, generatedCount: count } })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -100,7 +100,7 @@ app.get('/api/me', auth, async (req, res) => {
   try {
     const u = await db.getUser(req.user.email)
     const count = await db.countUserAlbums(req.user.userId)
-    res.json({ user: { id: req.user.userId, email: req.user.email, vipType: u?.vip_type || null, generatedCount: count } })
+    res.json({ user: { id: req.user.userId, email: req.user.email, vipType: u?.vip_type || null, isAdmin: u?.is_admin === 1, generatedCount: count } })
   } catch (e) { res.json({ user: { id: req.user.userId, email: req.user.email } }) }
 })
 
@@ -120,6 +120,15 @@ app.patch('/api/users/:id/vip', auth, async (req, res) => {
   try {
     const { vipType } = req.body
     await db.updateUserVip(req.params.id, vipType)
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.patch('/api/users/:id/admin', auth, async (req, res) => {
+  try {
+    const u = await db.getUser(req.user.email)
+    if (!u?.is_admin) return res.status(403).json({ error: '仅管理员可操作' })
+    await db.setUserAdminById(req.params.id)
     res.json({ success: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -146,6 +155,29 @@ app.get('/api/model-stats', (req, res) => {
     }
   }
   res.json(result)
+})
+
+app.get('/api/global-config', async (req, res) => {
+  try {
+    const cfg = await db.getGlobalConfig()
+    res.json(cfg)
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
+app.post('/api/global-config', auth, async (req, res) => {
+  try {
+    const allowed = ['defaultImageModel', 'textGenerationModel', 'textTemperature', 'textMaxTokens']
+    const data = {}
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) data[key] = String(req.body[key])
+    }
+    await db.setGlobalConfig(data)
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
 })
 
 app.post('/api/generate', auth, async (req, res) => {
@@ -675,6 +707,7 @@ app.use((req, res) => {
 
 async function start() {
   try { await db.initSchema(); console.log('Database schema ready') } catch (e) { console.error('Database init failed:', e.message); process.exit(1) }
+  try { await db.bootstrapAdmin(); console.log('Admin bootstrap done') } catch (e) { console.error('Admin bootstrap failed:', e.message) }
   app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`))
 }
 start()
