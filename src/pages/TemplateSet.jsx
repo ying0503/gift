@@ -76,7 +76,7 @@ export default function TemplateSet() {
         ) : templates.length === 0 ? (
           <div style={{ textAlign: 'center', paddingTop: 60, color: '#94a3b8', fontSize: 14 }}>暂无模板，点击右上角新增</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16 }}>
             {templates.map(tpl => (
               <div key={tpl.id}
                 style={{ cursor: 'pointer', borderRadius: 10, border: '1px solid #e8e8e8', overflow: 'hidden', background: '#fff', transition: 'all .2s', position: 'relative', aspectRatio: '3/4' }}

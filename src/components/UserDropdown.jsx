@@ -38,7 +38,15 @@ export default function UserDropdown() {
           }}>
             <div style={{ padding: '10px 16px 8px', fontSize: 13, color: '#999' }}>
               <div>{user.email}</div>
-              {user?.vipType === 'gold' || user?.vipType === 'diamond' ? (
+              {user?.isAdmin ? (
+                <span style={{
+                  display: 'inline-block', marginTop: 6,
+                  fontSize: 11, padding: '2px 10px', borderRadius: 4,
+                  background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 40%, #B91C1C 100%)',
+                  color: '#fff', fontWeight: 600, letterSpacing: 0.3,
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25)',
+                }}>管理员</span>
+              ) : user?.vipType === 'gold' || user?.vipType === 'diamond' ? (
                 <span style={{
                   display: 'inline-block', marginTop: 6,
                   fontSize: 11, padding: '2px 10px', borderRadius: 4,
@@ -61,7 +69,7 @@ export default function UserDropdown() {
                   onMouseEnter={e => e.target.style.background = '#f5f5f5'}
                   onMouseLeave={e => e.target.style.background = 'none'}
                   onClick={() => { navigate('/model-use'); setOpen(false) }}
-                >模型管理</button>
+                >AI模型管理</button>
                 <button style={{
                   display: 'block', width: '100%', padding: '6px 16px', border: 'none', background: 'none',
                   fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left',

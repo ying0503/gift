@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 const navItems = [
   { path: '/template-set', icon: '📋', label: '画册模板' },
-  { path: '/model-use', icon: '⚙️', label: '模型管理' },
+  { path: '/model-use', icon: '⚙️', label: 'AI模型管理' },
 ]
 
 export default function AdminSidebar() {
