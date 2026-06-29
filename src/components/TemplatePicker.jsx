@@ -100,10 +100,7 @@ export default function TemplatePicker({ visible, onClose }) {
                   background: tpl.cover ? 'linear-gradient(transparent, rgba(0,0,0,.65))' : '#fff',
                   padding: tpl.cover ? '28px 10px 10px' : '8px 10px 10px',
                 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: tpl.cover ? '#fff' : '#0f172a', marginBottom: 2 }}>{tpl.name}</div>
-                  <div style={{ fontSize: 11, color: tpl.cover ? 'rgba(255,255,255,.7)' : '#94a3b8', lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {tpl.description || tpl.desc || ''}
-                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: tpl.cover ? '#fff' : '#0f172a' }}>{tpl.templateName || tpl.name}</div>
                 </div>
               </div>
           ))}

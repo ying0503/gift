@@ -66,7 +66,7 @@ export default function TemplateSet() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(0,0,0,.88)' }}>画册模板</div>
           <button className="btn btn-primary" style={{ fontSize: 13, height: 34, padding: '0 16px', borderRadius: 8, border: 'none', cursor: 'pointer' }}
-            onClick={() => { setCreating(true); setEditing({ name: '', icon: '📄', description: '', cover: '', banner: '', categories: [], enabled: true, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' }) }}>
+            onClick={() => { setCreating(true); setEditing({ name: '', templateName: '', icon: '📄', description: '', cover: '', banner: '', categories: [], enabled: true, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' }) }}>
             <PlusOutlined /> 新增模板
           </button>
         </div>
@@ -96,10 +96,9 @@ export default function TemplateSet() {
                   background: tpl.cover ? 'linear-gradient(transparent, rgba(0,0,0,.7))' : '#fff',
                   padding: tpl.cover ? '32px 14px 14px' : '10px 14px 12px',
                 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: tpl.cover ? '#fff' : '#0f172a', marginBottom: 2 }}>
-                    {tpl.name}
+                  <div style={{ fontSize: 14, fontWeight: 600, color: tpl.cover ? '#fff' : '#0f172a' }}>
+                    {tpl.templateName || tpl.name}
                   </div>
-                  <div style={{ fontSize: 12, color: tpl.cover ? 'rgba(255,255,255,.75)' : '#94a3b8', lineHeight: 1.4 }}>{tpl.description}</div>
                 </div>
                 <div style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,.4)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2 }}
                   onClick={e => { e.stopPropagation(); remove(tpl.id) }}>
@@ -138,6 +137,13 @@ function RightPanel({ data, isNew, onSave, onClose }) {
         </div>
 
         <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
+          <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 60 }}>模板名称</span>
+            <input value={form.templateName || ''} onChange={e => update('templateName', e.target.value)}
+              placeholder="模板名称"
+              style={{ flex: 1, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
+          </div>
+
           <div style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52, flexShrink: 0, paddingTop: 4 }}>示意图</span>
             <div style={{ flex: 1 }}>
@@ -229,16 +235,16 @@ function RightPanel({ data, isNew, onSave, onClose }) {
           </div>
 
           <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52 }}>标题</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 60 }}>画册标题</span>
             <input value={form.name} onChange={e => update('name', e.target.value)}
-              placeholder="模板名称"
+              placeholder="画册标题"
               style={{ flex: 1, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
           </div>
 
           <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52 }}>副标题</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 60 }}>画册描述</span>
             <input value={form.description} onChange={e => update('description', e.target.value)}
-              placeholder="模板描述"
+              placeholder="画册描述"
               style={{ flex: 1, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
           </div>
 

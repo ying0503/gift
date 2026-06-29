@@ -174,6 +174,9 @@ export async function initSchema() {
   try {
     await p.query(`ALTER TABLE templates ADD COLUMN menu_bg_to VARCHAR(20) DEFAULT ''`)
   } catch (e) {}
+  try {
+    await p.query(`ALTER TABLE templates ADD COLUMN template_name VARCHAR(100) DEFAULT ''`)
+  } catch (e) {}
 }
 
 export async function bootstrapAdmin() {
@@ -400,6 +403,7 @@ export async function listTemplates() {
   return rows.map(r => ({
     id: r.id,
     name: r.name,
+    templateName: r.template_name || '',
     icon: r.icon,
     description: r.description,
     cover: r.cover || '',
@@ -422,7 +426,7 @@ export async function getTemplate(id) {
   if (!rows[0]) return null
   const r = rows[0]
   return {
-    id: r.id, name: r.name, icon: r.icon, description: r.description, cover: r.cover || '', banner: r.banner || '',
+    id: r.id, name: r.name, templateName: r.template_name || '', icon: r.icon, description: r.description, cover: r.cover || '', banner: r.banner || '',
     titleBgFrom: r.title_bg_from || '', titleBgTo: r.title_bg_to || '',
     menuBgFrom: r.menu_bg_from || '', menuBgTo: r.menu_bg_to || '',
     categories: typeof r.categories === 'string' ? JSON.parse(r.categories) : (r.categories || []),
@@ -435,8 +439,8 @@ export async function createTemplate(data) {
   const id = crypto.randomUUID()
   const now = Date.now()
   await p.query(
-    'INSERT INTO templates (id, name, icon, description, cover, banner, title_bg_from, title_bg_to, menu_bg_from, menu_bg_to, categories, enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, data.name, data.icon || '📄', data.description || '', data.cover || '', data.banner || '', data.titleBgFrom || '', data.titleBgTo || '', data.menuBgFrom || '', data.menuBgTo || '', JSON.stringify(data.categories || []), data.enabled !== false ? 1 : 0, data.sortOrder || 0, now, now]
+    'INSERT INTO templates (id, name, icon, description, cover, banner, title_bg_from, title_bg_to, menu_bg_from, menu_bg_to, template_name, categories, enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, data.name, data.icon || '📄', data.description || '', data.cover || '', data.banner || '', data.titleBgFrom || '', data.titleBgTo || '', data.menuBgFrom || '', data.menuBgTo || '', data.templateName || '', JSON.stringify(data.categories || []), data.enabled !== false ? 1 : 0, data.sortOrder || 0, now, now]
   )
   return id
 }
@@ -457,6 +461,7 @@ export async function updateTemplate(id, data) {
   if (data.categories !== undefined) { sets.push('categories = ?'); vals.push(JSON.stringify(data.categories)) }
   if (data.enabled !== undefined) { sets.push('enabled = ?'); vals.push(data.enabled ? 1 : 0) }
   if (data.sortOrder !== undefined) { sets.push('sort_order = ?'); vals.push(data.sortOrder) }
+  if (data.templateName !== undefined) { sets.push('template_name = ?'); vals.push(data.templateName) }
   if (sets.length) { sets.push('updated_at = ?'); vals.push(now); vals.push(id); await p.query(`UPDATE templates SET ${sets.join(', ')} WHERE id = ?`, vals) }
 }
 

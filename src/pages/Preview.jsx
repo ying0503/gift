@@ -167,12 +167,12 @@ export default function Preview() {
                 />
               </svg>
               <div style={{
-                position: 'absolute', left: 22, top: 8, bottom: 0, right: 0,
+                position: 'absolute', left: 12, top: 8, bottom: 0, right: 0,
                 display: 'flex', flexDirection: 'column', justifyContent: 'center',
                 overflow: 'hidden',
               }}>
-                <div style={{ fontSize: 16, fontWeight: 600, color: '#8B5E83', letterSpacing: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerTitle}</div>
-                {bannerSubtitle && <div style={{ fontSize: 12, color: '#A882A0', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerSubtitle}</div>}
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#3E3E3E', letterSpacing: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerTitle}</div>
+                {bannerSubtitle && <div style={{ fontSize: 12, color: '#3E3E3E', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerSubtitle}</div>}
               </div>
             </div>
           )}
@@ -188,7 +188,7 @@ export default function Preview() {
                     <div
                       onClick={() => { setSelectedCat(cat.id); navigate(`/preview/${userId}/${albumId}/${cat.id}`) }}
                       className={`album-tree-node album-tree-node-level1${selectedCat === cat.id ? ' active' : ''}${m ? ' album-tree-node-compact' : ''}`}
-                      style={selectedCat === cat.id && (menuBgFrom || menuBgTo) ? { background: `linear-gradient(135deg, ${menuBgFrom || '#fbe99c'}, ${menuBgTo || '#fbe99c'})` } : undefined}
+                      style={selectedCat === cat.id && (menuBgFrom || menuBgTo) ? { background: `linear-gradient(180deg, ${menuBgFrom || '#fbe99c'}, ${menuBgTo || '#fbe99c'})` } : undefined}
                     >{cat.name}</div>
 
                   </div>
@@ -212,7 +212,7 @@ export default function Preview() {
                     return (
                       <div key={item.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #eee', cursor: 'pointer' }} onClick={() => { setViewAlbum({ ...item, productName: liveName }); navigate(`/preview/${userId}/${albumId}/${selectedCat}/${item.albumId}?combo=${viewAlbum.albumId}`) }}>
                         <img src={itemUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                        <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{liveName || '产品名称'}</div>
+                        <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{liveName || '产品名称'}</div>
                       </div>
                     )
                   })}
@@ -261,7 +261,7 @@ export default function Preview() {
                   {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a }))).map((a, i) => (
                     <div key={a.albumId + '-' + i} style={{ background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${albumId}/${selectedCat}/${a.albumId}`) }}>
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                      <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0' }}>{a.productName || '产品名称'}</div>
+                      <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>{a.productName || '产品名称'}</div>
                     </div>
                   ))}
                 </div>
@@ -277,7 +277,7 @@ export default function Preview() {
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>
                         <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{a._catName} / {a._itemName}</div>
-                        <div style={{ fontSize: 13, color: '#333', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.productName || '产品名称'}</div>
+                        <div style={{ fontSize: 13, color: '#333', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{a.productName || '产品名称'}</div>
                       </div>
                     </div>
                   ))}

@@ -1127,7 +1127,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                           style={{ width: '100%', fontSize: 14, padding: '4px 11px', border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box', transition: 'all .3s' }}
                         />
                       ) : (
-                        <div onClick={() => setEditingProductNameId(item.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div onClick={() => setEditingProductNameId(item.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
                           {displayName || '产品名称'}
                         </div>
                       )}
@@ -1186,7 +1186,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
-                      <div onClick={() => setEditingProductNameId(a.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div onClick={() => setEditingProductNameId(a.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
                         {a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
                       </div>
                     )}
@@ -1219,7 +1219,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                     onClick={e => { e.stopPropagation(); removeAlbum(selectedCat, selectedItem, a.albumId) }}
                     style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.4)', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
                   ><CloseOutlined /></button>
-                  <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }} onClick={e => e.stopPropagation()}>
                     {editingProductNameId === a.albumId ? (
                       <input
                         autoFocus
@@ -1230,7 +1230,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                         onClick={e => e.stopPropagation()}
                       />
                     ) : (
-                      <div onClick={() => setEditingProductNameId(a.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div onClick={() => setEditingProductNameId(a.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
                         {a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
                       </div>
                     )}
@@ -1275,7 +1275,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                           onClick={e => e.stopPropagation()}
                         />
                       ) : (
-                        <div onClick={() => setEditingProductNameId(a.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div onClick={() => setEditingProductNameId(a.albumId)} style={{ fontSize: 13, color: '#333', cursor: 'pointer', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
                           {a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
                         </div>
                       )}
@@ -1339,7 +1339,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                               {a.imageUrls?.length > 1 && (
                                 <div style={{ position: 'absolute', bottom: 4, right: 4, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8 }}>{a.imageUrls.length}张</div>
                               )}
-                              <div style={{ padding: '4px 8px', fontSize: 12, color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.productName || '产品名称'}</div>
+                              <div style={{ padding: '4px 8px', fontSize: 12, color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{a.productName || '产品名称'}</div>
                             </div>
                           )
                         })}
@@ -1416,7 +1416,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                               {a.imageUrls?.length > 1 && (
                                 <div style={{ position: 'absolute', bottom: 4, right: 4, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8 }}>{a.imageUrls.length}张</div>
                               )}
-                              <div style={{ padding: '4px 8px', fontSize: 12, color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.productName || '产品名称'}</div>
+                              <div style={{ padding: '4px 8px', fontSize: 12, color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{a.productName || '产品名称'}</div>
                             </div>
                           )
                         })}
