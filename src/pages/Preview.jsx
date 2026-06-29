@@ -120,7 +120,7 @@ export default function Preview() {
       if (!categories.some(c => c.id === urlCatId)) { navigate(`/preview/${userId}${albumId ? '/' + albumId : ''}`, { replace: true }); return }
       setSelectedCat(urlCatId)
     } else {
-      setSelectedCat(null); setViewAlbum(null)
+      setSelectedCat(categories[0]?.id || null); setViewAlbum(null)
     }
     if (itemAlbumId) {
       for (const c of categories) {
