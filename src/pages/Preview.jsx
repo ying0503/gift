@@ -147,7 +147,7 @@ export default function Preview() {
           {(bannerTitle || bannerSubtitle) && (
             <div style={{
               position: 'absolute', bottom: 0, left: 0,
-              width: 400, height: 65,
+              width: 500, height: 76,
             }}>
               <svg viewBox="0 0 700 140" preserveAspectRatio="none"
                 style={{ width: '100%', height: '100%', display: 'block' }}
@@ -162,17 +162,17 @@ export default function Preview() {
                   </filter>
                 </defs>
                 <path
-                  d="M32 0 H220 Q250 0 270 20 L305 70 Q315 80 330 80 H700 V140 H0 V32 Q0 0 32 0 Z"
+                  d="M32 0 H220 Q250 0 260 10 L290 66 Q300 80 330 80 H700 V140 H0 V32 Q0 0 32 0 Z"
                   fill="url(#tabG)" filter="url(#tabS)"
                 />
               </svg>
               <div style={{
-                position: 'absolute', left: 12, top: 8, bottom: 0, right: 0,
+                position: 'absolute', left: 12, top: 0, bottom: 0, right: 0,
                 display: 'flex', flexDirection: 'column', justifyContent: 'center',
                 overflow: 'hidden',
               }}>
-                <div style={{ fontSize: 16, fontWeight: 600, color: '#3E3E3E', letterSpacing: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerTitle}</div>
-                {bannerSubtitle && <div style={{ fontSize: 12, color: '#3E3E3E', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerSubtitle}</div>}
+                <div style={{ fontSize: 24, fontWeight: 400, color: '#3E3E3E', letterSpacing: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'DingTalk JinBuTi', marginTop: -2 }}>{bannerTitle}</div>
+                {bannerSubtitle && <div style={{ fontSize: 12, color: '#3E3E3E', marginTop: -2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerSubtitle}</div>}
               </div>
             </div>
           )}
