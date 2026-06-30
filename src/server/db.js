@@ -177,6 +177,23 @@ export async function initSchema() {
   try {
     await p.query(`ALTER TABLE templates ADD COLUMN template_name VARCHAR(100) DEFAULT ''`)
   } catch (e) {}
+  try {
+    await p.query(`CREATE TABLE IF NOT EXISTS gifts (
+      id VARCHAR(36) PRIMARY KEY,
+      user_id VARCHAR(36) NOT NULL,
+      name VARCHAR(200) DEFAULT '',
+      image_urls JSON,
+      spec VARCHAR(200) DEFAULT '',
+      price VARCHAR(50) DEFAULT '',
+      net_content VARCHAR(100) DEFAULT '',
+      shelf_life VARCHAR(100) DEFAULT '',
+      tips TEXT,
+      first_image_url TEXT,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    )`)
+    console.log('Gifts table ready')
+  } catch (e) { console.error('Failed to create gifts table:', e.message) }
 }
 
 export async function bootstrapAdmin() {
@@ -494,4 +511,66 @@ export async function getAllUsers() {
 export async function updateUserVip(userId, vipType) {
   const p = await getPool()
   await p.query('UPDATE users SET vip_type = ? WHERE user_id = ?', [vipType || null, userId])
+}
+
+export async function createGift(userId, data) {
+  const p = await getPool()
+  const id = crypto.randomUUID()
+  const now = Date.now()
+  const imageUrls = data.imageUrls ? JSON.stringify(data.imageUrls) : '[]'
+  const firstImageUrl = data.firstImageUrl || null
+  await p.query(
+    'INSERT INTO gifts (id, user_id, name, image_urls, spec, price, net_content, shelf_life, tips, first_image_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, userId, data.name || '', imageUrls, data.spec || '', data.price || '', data.netContent || '', data.shelfLife || '', data.tips || '', firstImageUrl, now, now]
+  )
+  return id
+}
+
+export async function updateGift(id, userId, data) {
+  const p = await getPool()
+  const now = Date.now()
+  const sets = []; const vals = []
+  if (data.name !== undefined) { sets.push('name = ?'); vals.push(data.name) }
+  if (data.imageUrls !== undefined) { sets.push('image_urls = ?'); vals.push(JSON.stringify(data.imageUrls)) }
+  if (data.firstImageUrl !== undefined) { sets.push('first_image_url = ?'); vals.push(data.firstImageUrl) }
+  if (data.spec !== undefined) { sets.push('spec = ?'); vals.push(data.spec) }
+  if (data.price !== undefined) { sets.push('price = ?'); vals.push(data.price) }
+  if (data.netContent !== undefined) { sets.push('net_content = ?'); vals.push(data.netContent) }
+  if (data.shelfLife !== undefined) { sets.push('shelf_life = ?'); vals.push(data.shelfLife) }
+  if (data.tips !== undefined) { sets.push('tips = ?'); vals.push(data.tips) }
+  if (sets.length) { sets.push('updated_at = ?'); vals.push(now); vals.push(id); vals.push(userId); await p.query(`UPDATE gifts SET ${sets.join(', ')} WHERE id = ? AND user_id = ?`, vals) }
+}
+
+export async function deleteGift(id, userId) {
+  const p = await getPool()
+  await p.query('DELETE FROM gifts WHERE id = ? AND user_id = ?', [id, userId])
+}
+
+export async function listGifts(userId) {
+  const p = await getPool()
+  const [rows] = await p.query('SELECT * FROM gifts WHERE user_id = ? ORDER BY updated_at DESC', [userId])
+  return rows.map(rowToGift)
+}
+
+export async function getGift(id, userId) {
+  const p = await getPool()
+  const [rows] = await p.query('SELECT * FROM gifts WHERE id = ? AND user_id = ?', [id, userId])
+  return rows[0] ? rowToGift(rows[0]) : null
+}
+
+function rowToGift(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    imageUrls: typeof row.image_urls === 'string' ? JSON.parse(row.image_urls) : (row.image_urls || []),
+    firstImageUrl: row.first_image_url,
+    spec: row.spec,
+    price: row.price,
+    netContent: row.net_content,
+    shelfLife: row.shelf_life,
+    tips: row.tips,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
 }

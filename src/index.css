@@ -509,7 +509,7 @@ body {
 .album-tree-list-preview .album-tree-node-level1 {
   width: 88px;
   padding: 7px 13px;
-  background: #eee;
+  background: transparent;
   border-color: transparent;
   color: #3E3E3E;
   font-size: 14px;

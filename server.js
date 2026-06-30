@@ -699,6 +699,44 @@ app.get('/api/templates/public', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+app.get('/api/gifts', auth, async (req, res) => {
+  try {
+    const gifts = await db.listGifts(req.user.userId)
+    res.json({ gifts })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.get('/api/gifts/:id', auth, async (req, res) => {
+  try {
+    const gift = await db.getGift(req.params.id, req.user.userId)
+    if (!gift) return res.status(404).json({ error: 'Gift not found' })
+    res.json({ gift })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/api/gifts', auth, async (req, res) => {
+  try {
+    const id = await db.createGift(req.user.userId, req.body)
+    const gift = await db.getGift(id, req.user.userId)
+    res.json({ gift })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.put('/api/gifts/:id', auth, async (req, res) => {
+  try {
+    await db.updateGift(req.params.id, req.user.userId, req.body)
+    const gift = await db.getGift(req.params.id, req.user.userId)
+    res.json({ gift })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.delete('/api/gifts/:id', auth, async (req, res) => {
+  try {
+    await db.deleteGift(req.params.id, req.user.userId)
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 app.use((req, res) => {
   const filePath = path.join(__dirname, 'dist', 'index.html')
   if (fs.existsSync(filePath)) res.sendFile(filePath)
