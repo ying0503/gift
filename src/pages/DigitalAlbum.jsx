@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { EditOutlined, CloseOutlined, CheckOutlined, ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons'
+import TemplatePicker from '../components/TemplatePicker'
 import { API } from '../AuthContext'
 
 export default function DigitalAlbum({ setPreviewSave, setPreviewAlbumId }) {
@@ -51,6 +52,7 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   const [generatingGlobalBanner, setGeneratingGlobalBanner] = useState(false)
   const [uploadingBanner, setUploadingBanner] = useState(false)
   const [generatingCats, setGeneratingCats] = useState(false)
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
   const [titleModalOpen, setTitleModalOpen] = useState(false)
   const [titleInput, setTitleInput] = useState('')
   const fileInputRef = useRef(null)
@@ -874,6 +876,9 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
 
   return (
     <div style={{ maxWidth: 920, margin: '0 auto' }}>
+      <div style={{ position: 'fixed', right: 24, top: 80, zIndex: 100 }}>
+        <button onClick={() => setTemplatePickerOpen(true)} style={{ fontSize: 12, padding: '3px 10px', border: '1px solid #d9d9d9', borderRadius: 4, background: '#fff', cursor: 'pointer', color: '#666', whiteSpace: 'nowrap' }}>更改画册模板</button>
+      </div>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadBanner} style={{ display: 'none' }} />
       <div className="card" style={{ padding: '12px 16px', marginBottom: 12 }}>
         {editingTitle ? (
@@ -1470,6 +1475,8 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           </div>
         </div>
       )}
+
+      <TemplatePicker visible={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} currentTitle={bannerTitle} albumId={urlAlbumId} currentCategories={categories} />
 
     </div>
     </div>

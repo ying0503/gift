@@ -2,46 +2,9 @@ import { useState, useEffect } from 'react'
 import { CloseOutlined } from '@ant-design/icons'
 import { API } from '../AuthContext'
 
-const uid = () => crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
+const fallbackTemplates = []
 
-const fallbackTemplates = [
-  { id: 'duanwu', icon: '🎋', name: '端午安康', description: '粽子、艾草、茶叶等端午主题礼品', categories: [
-    { id: uid(), name: '粽子礼盒', items: [{ id: uid(), name: '经典款', albums: [] }, { id: uid(), name: '豪华款', albums: [] }] },
-    { id: uid(), name: '艾草香包', items: [{ id: uid(), name: '精品香包', albums: [] }] },
-    { id: uid(), name: '茶叶礼盒', items: [{ id: uid(), name: '精选茶叶', albums: [] }] },
-    { id: uid(), name: '糕点礼盒', items: [{ id: uid(), name: '传统糕点', albums: [] }] },
-    { id: uid(), name: '养生保健', items: [{ id: uid(), name: '健康礼盒', albums: [] }] },
-  ]},
-  { id: 'zhongqiu', icon: '🌙', name: '中秋礼遇', description: '月饼、大闸蟹、茶叶等中秋主题礼品', categories: [
-    { id: uid(), name: '月饼礼盒', items: [{ id: uid(), name: '经典款', albums: [] }, { id: uid(), name: '冰皮款', albums: [] }] },
-    { id: uid(), name: '大闸蟹礼盒', items: [{ id: uid(), name: '阳澄湖大闸蟹', albums: [] }] },
-    { id: uid(), name: '茶叶礼盒', items: [{ id: uid(), name: '精选茶叶', albums: [] }] },
-    { id: uid(), name: '水果礼盒', items: [{ id: uid(), name: '时令鲜果', albums: [] }] },
-    { id: uid(), name: '坚果礼盒', items: [{ id: uid(), name: '每日坚果', albums: [] }] },
-  ]},
-  { id: 'chunjie', icon: '🧨', name: '新春贺岁', description: '坚果、糕点、酒类等春节年货礼品', categories: [
-    { id: uid(), name: '坚果礼盒', items: [{ id: uid(), name: '经典款', albums: [] }, { id: uid(), name: '豪华款', albums: [] }] },
-    { id: uid(), name: '糕点礼盒', items: [{ id: uid(), name: '传统糕点', albums: [] }] },
-    { id: uid(), name: '酒类礼盒', items: [{ id: uid(), name: '精选酒品', albums: [] }] },
-    { id: uid(), name: '保健品礼盒', items: [{ id: uid(), name: '滋补养生', albums: [] }] },
-    { id: uid(), name: '零食大礼包', items: [{ id: uid(), name: '零食组合', albums: [] }] },
-  ]},
-  { id: 'business', icon: '🤝', name: '商务伴手礼', description: '高端茶礼、定制礼品等商务馈赠', categories: [
-    { id: uid(), name: '高端茶礼', items: [{ id: uid(), name: '精选茶品', albums: [] }] },
-    { id: uid(), name: '商务酒类', items: [{ id: uid(), name: '精品酒水', albums: [] }] },
-    { id: uid(), name: '定制文具', items: [{ id: uid(), name: '商务套装', albums: [] }] },
-    { id: uid(), name: '品牌礼品', items: [{ id: uid(), name: '定制礼品', albums: [] }] },
-  ]},
-  { id: 'wedding', icon: '💍', name: '婚庆回礼', description: '喜糖礼盒、伴手礼等婚宴回赠礼品', categories: [
-    { id: uid(), name: '喜糖礼盒', items: [{ id: uid(), name: '经典喜糖', albums: [] }] },
-    { id: uid(), name: '伴手礼盒', items: [{ id: uid(), name: '精装伴手礼', albums: [] }] },
-    { id: uid(), name: '定制纪念品', items: [{ id: uid(), name: '纪念好物', albums: [] }] },
-    { id: uid(), name: '感谢卡套装', items: [{ id: uid(), name: '感恩心意', albums: [] }] },
-  ]},
-  { id: 'blank', icon: '📄', name: '空白画册', description: '从零开始创建画册', categories: [] },
-]
-
-export default function TemplatePicker({ visible, onClose }) {
+export default function TemplatePicker({ visible, onClose, currentTitle, albumId, currentCategories }) {
   const [templates, setTemplates] = useState(fallbackTemplates)
 
   useEffect(() => {
@@ -55,7 +18,29 @@ export default function TemplatePicker({ visible, onClose }) {
   }, [visible])
 
   const create = async (tpl) => {
-    onClose()
+    if (albumId) {
+      const token = localStorage.getItem('token')
+      if (token && albumId) {
+        await fetch(`${API}/api/digital-album`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            id: albumId,
+            categories: currentCategories,
+            bannerUrl: tpl.banner || '',
+            bannerTitle: tpl.name || '',
+            bannerSubtitle: tpl.description || '',
+            titleBgFrom: tpl.titleBgFrom || '',
+            titleBgTo: tpl.titleBgTo || '',
+            menuBgFrom: tpl.menuBgFrom || '',
+            menuBgTo: tpl.menuBgTo || '',
+          }),
+        })
+      }
+      onClose()
+      window.location.reload()
+      return
+    }
     const token = localStorage.getItem('token')
     if (!token) return
     try {
@@ -81,13 +66,21 @@ export default function TemplatePicker({ visible, onClose }) {
           <span onClick={onClose} style={{ cursor: 'pointer', fontSize: 16, color: 'rgba(0,0,0,.45)' }}><CloseOutlined /></span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-          {templates.map(tpl => (
+          {templates.map(tpl => {
+            const isCurrent = !!(currentTitle && (tpl.name === currentTitle || tpl.templateName === currentTitle))
+            return (
               <div key={tpl.id}
-                style={{ cursor: 'pointer', borderRadius: 10, border: '1px solid #f1f5f9', overflow: 'hidden', background: '#fff', transition: 'all .2s', position: 'relative', aspectRatio: '1/1.7' }}
                 onClick={() => create(tpl)}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.1)'; e.currentTarget.style.borderColor = '#1677FF' }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#f1f5f9' }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,.12)'; if (!isCurrent) e.currentTarget.style.borderColor = '#1677FF' }}
+                onMouseLeave={e => { if (!isCurrent) { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#f1f5f9' } }}
+                style={{
+                  cursor: 'pointer', borderRadius: 10, overflow: 'hidden',
+                  border: isCurrent ? '2px solid #1677FF' : '1px solid #f1f5f9',
+                  background: '#fff', transition: 'all .2s',
+                  position: 'relative', aspectRatio: '1/1.7',
+                }}
               >
+                {isCurrent && <div style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, background: '#1677FF', color: '#fff', borderRadius: 4, fontSize: 10, fontWeight: 500, padding: '1px 6px', lineHeight: '18px' }}>当前</div>}
                 {tpl.cover ? (
                   <img src={tpl.cover} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', inset: 0 }} />
                 ) : (
@@ -103,7 +96,8 @@ export default function TemplatePicker({ visible, onClose }) {
                   <div style={{ fontSize: 12, fontWeight: 600, color: tpl.cover ? '#fff' : '#0f172a' }}>{tpl.templateName || tpl.name}</div>
                 </div>
               </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>

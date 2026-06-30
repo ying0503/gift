@@ -28,6 +28,7 @@ function AppContent() {
   const [currentTime, setCurrentTime] = useState(() => new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }))
   const previewSaveRef = useRef(null)
   const previewAlbumIdRef = useRef(null)
+  const [previewTitle, setPreviewTitle] = useState('AI智能预览')
   const [showQR, setShowQR] = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState('')
 
@@ -160,12 +161,12 @@ function AppContent() {
         <Routes>
           <Route path="/workbench" element={<ErrorBoundary>{user ? <Home /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/digital-album" element={<ErrorBoundary>{user ? <DigitalAlbumList /> : <Navigate to="/" />}</ErrorBoundary>} />
-          <Route path="/digital-album/new" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
-          <Route path="/digital-album/:albumId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
-          <Route path="/digital-album/:albumId/detail/:albumDtlId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
-          <Route path="/digital-album/:albumId/:catId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
-          <Route path="/digital-album/:albumId/:catId/:itemId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
-          <Route path="/digital-album/:albumId/:catId/:itemId/:albumDtlId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/new" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} setPreviewTitle={setPreviewTitle} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/:albumId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} setPreviewTitle={setPreviewTitle} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/:albumId/detail/:albumDtlId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} setPreviewTitle={setPreviewTitle} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/:albumId/:catId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} setPreviewTitle={setPreviewTitle} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/:albumId/:catId/:itemId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} setPreviewTitle={setPreviewTitle} /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/digital-album/:albumId/:catId/:itemId/:albumDtlId" element={<ErrorBoundary key="da">{user ? <DigitalAlbum setPreviewSave={cb => previewSaveRef.current = cb} setPreviewAlbumId={id => previewAlbumIdRef.current = id} setPreviewTitle={setPreviewTitle} /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/generate" element={<ErrorBoundary>{user ? <Generate /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/model-use" element={<ErrorBoundary>{user ? (user.isAdmin ? <ModelUse /> : <Navigate to="/workbench" replace />) : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/my-albums" element={<ErrorBoundary>{user ? <MyAlbums /> : <Navigate to="/" />}</ErrorBoundary>} />
@@ -185,6 +186,7 @@ function AppContent() {
         user={user}
         albumIdRef={previewAlbumIdRef}
         currentTime={currentTime}
+        pageTitle={previewTitle}
       />
       <QRModal visible={showQR} qrDataUrl={qrDataUrl} onClose={() => { setShowQR(false); setQrDataUrl('') }} />
     </div>

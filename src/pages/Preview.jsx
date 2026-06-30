@@ -27,6 +27,10 @@ export default function Preview() {
     return () => s.remove()
   }, [])
 
+  useEffect(() => {
+    document.title = bannerTitle || '礼企汇 - AI礼品画册'
+  }, [bannerTitle])
+
   const albumMap = useMemo(() => {
     const m = {}
     for (const a of albums) m[a.id] = a
@@ -146,7 +150,7 @@ export default function Preview() {
           <img src={bannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'fill' }} />
           {(bannerTitle || bannerSubtitle) && (
             <div style={{
-              position: 'absolute', bottom: 0, left: 0,
+              position: 'absolute', bottom: -30, left: 0,
               width: 500, height: 76,
             }}>
               <svg viewBox="0 0 700 140" preserveAspectRatio="none"
@@ -162,7 +166,7 @@ export default function Preview() {
                   </filter>
                 </defs>
                 <path
-                  d="M32 0 H220 Q250 0 260 10 L290 66 Q300 80 330 80 H700 V140 H0 V32 Q0 0 32 0 Z"
+                  d="M28 0 H251 Q259 0 265 12 L296 68 Q304 80 310 80 H700 V140 H8 Q8 140 0 132 V28 Q0 0 28 0 Z"
                   fill="url(#tabG)" filter="url(#tabS)"
                 />
               </svg>
@@ -177,7 +181,7 @@ export default function Preview() {
             </div>
           )}
         </div>}
-        <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', minHeight: detailMode ? '100vh' : 'calc(100vh - 60px)', background: bgTo || '#fffdf1' }}>
+        <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', minHeight: detailMode ? '100vh' : 'calc(100vh - 60px)', background: bgTo || '#fffdf1', paddingTop: !detailMode && bannerUrl ? 30 : 0 }}>
           {!detailMode && <div style={{ flex: '0 0 auto', width: 'max-content', background: bgTo || '#fffdf1', border: 'none', borderRadius: '0 20px 20px 0', alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
             <div className="album-tree-list album-tree-list-preview">
               {categories.length === 0 ? (

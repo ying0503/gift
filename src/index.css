@@ -511,9 +511,10 @@ body {
   padding: 7px 13px;
   background: #eee;
   border-color: transparent;
-  color: #6b5b12;
+  color: #3E3E3E;
   font-size: 14px;
   border-radius: 0 15px 15px 0;
+  text-align: center;
 }
 .album-tree-list-preview .album-tree-node-level1.active {
   background: #fbe99c;

@@ -45,7 +45,7 @@ function SvgMenu() {
   )
 }
 
-export default function PreviewModal({ visible, onClose, anim, loading, previewKey, user, albumIdRef, currentTime }) {
+export default function PreviewModal({ visible, onClose, anim, loading, previewKey, user, albumIdRef, currentTime, pageTitle }) {
   if (!visible) return null;
 
   const overlayAnim = anim === 'out' ? 'fadeOut .35s cubic-bezier(.4,0,.2,1) forwards' : 'fadeIn .4s cubic-bezier(.22,1,.36,1)'
@@ -68,7 +68,7 @@ export default function PreviewModal({ visible, onClose, anim, loading, previewK
               <div style={s.navBar}>
                 <SvgClose onClick={onClose} style={{ cursor: 'pointer' }} />
                 <div style={s.titleWrap}>
-                  <div style={s.title}>AI智能预览</div>
+                  <div style={s.title}>{pageTitle}</div>
                   <div style={s.subtitle}>liqihui.com</div>
                 </div>
                 <SvgMenu />
