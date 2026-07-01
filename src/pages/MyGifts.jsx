@@ -88,7 +88,7 @@ export default function MyGifts() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 22 }}>
         <div
           style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s' }}
-          onClick={openImagePicker}
+          onClick={() => navigate('/gift-editor/new')}
           onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.16), 0 16px 48px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0' }}
           onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)'; e.currentTarget.style.borderColor = '#f1f5f9' }}
         >
@@ -121,11 +121,7 @@ export default function MyGifts() {
               <div style={{ fontSize: 13, color: '#334155', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {gift.name || '未命名礼品'}
               </div>
-              {gift.price && (
-                <div style={{ fontSize: 12, color: '#f97316', fontWeight: 600, marginTop: 4 }}>
-                  ¥{gift.price}
-                </div>
-              )}
+
             </div>
           </div>
         ))}
