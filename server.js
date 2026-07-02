@@ -564,12 +564,13 @@ app.get('/api/digital-album', auth, async (req, res) => {
       categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
       bannerUrl: data.banner_url,
       bannerTitle: data.banner_title,
+      albumTitle: data.album_title,
       bannerSubtitle: data.banner_subtitle,
       titleBgFrom: data.title_bg_from || '',
       titleBgTo: data.title_bg_to || '',
       menuBgFrom: data.menu_bg_from || '',
       menuBgTo: data.menu_bg_to || '',
-    } : { categories: [], bannerUrl: null, bannerTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' })
+    } : { categories: [], bannerUrl: null, bannerTitle: null, albumTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -577,7 +578,7 @@ app.post('/api/digital-album', auth, async (req, res) => {
   try {
     const body = req.body
     if (!body || !Array.isArray(body.categories)) return res.status(400).json({ error: 'Invalid data' })
-    const result = await db.saveDigitalAlbum(req.user.userId, { categories: body.categories, bannerUrl: body.bannerUrl, bannerTitle: body.bannerTitle, bannerSubtitle: body.bannerSubtitle, titleBgFrom: body.titleBgFrom, titleBgTo: body.titleBgTo, menuBgFrom: body.menuBgFrom, menuBgTo: body.menuBgTo }, body.id)
+    const result = await db.saveDigitalAlbum(req.user.userId, { categories: body.categories, bannerUrl: body.bannerUrl, bannerTitle: body.bannerTitle, albumTitle: body.albumTitle, bannerSubtitle: body.bannerSubtitle, titleBgFrom: body.titleBgFrom, titleBgTo: body.titleBgTo, menuBgFrom: body.menuBgFrom, menuBgTo: body.menuBgTo }, body.id)
     res.json({ success: true, id: result.id })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -593,6 +594,7 @@ app.get('/api/album', async (req, res) => {
         categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
         bannerUrl: data.banner_url,
         bannerTitle: data.banner_title,
+        albumTitle: data.album_title,
         bannerSubtitle: data.banner_subtitle,
         titleBgFrom: data.title_bg_from || '',
         titleBgTo: data.title_bg_to || '',
@@ -602,12 +604,13 @@ app.get('/api/album', async (req, res) => {
     }
     if (userId) {
       const row = await db.getDigitalAlbum(null, userId)
-      if (!row) return res.json({ categories: [], bannerUrl: null, bannerTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' })
+      if (!row) return res.json({ categories: [], bannerUrl: null, bannerTitle: null, albumTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' })
       return res.json({
         id: row.id,
         categories: typeof row.categories === 'string' ? JSON.parse(row.categories) : row.categories,
         bannerUrl: row.banner_url,
         bannerTitle: row.banner_title,
+        albumTitle: row.album_title,
         bannerSubtitle: row.banner_subtitle,
         titleBgFrom: row.title_bg_from || '',
         titleBgTo: row.title_bg_to || '',
@@ -615,7 +618,7 @@ app.get('/api/album', async (req, res) => {
         menuBgTo: row.menu_bg_to || '',
       })
     }
-    res.json({ categories: [], bannerUrl: null, bannerTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' })
+    res.json({ categories: [], bannerUrl: null, bannerTitle: null, albumTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -627,6 +630,7 @@ app.get('/api/album/list', auth, async (req, res) => {
       categories: typeof r.categories === 'string' ? JSON.parse(r.categories) : r.categories,
       bannerUrl: r.banner_url,
       bannerTitle: r.banner_title,
+      albumTitle: r.album_title,
       bannerSubtitle: r.banner_subtitle,
       titleBgFrom: r.title_bg_from || '',
       titleBgTo: r.title_bg_to || '',

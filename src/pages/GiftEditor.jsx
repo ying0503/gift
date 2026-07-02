@@ -53,7 +53,6 @@ export default function GiftEditor() {
     }
   }, [id, isNew])
 
-  // Redirect if no auth
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) navigate('/')
@@ -162,72 +161,146 @@ export default function GiftEditor() {
     </div>
   }
 
-  return (
-    <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 16px' }}>
-      <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 28, letterSpacing: 0.5 }}>
-        {isNew ? '新建礼品' : '编辑礼品'}
-      </div>
+  const inputStyle = {
+    flex: 1,
+    padding: '9px 12px',
+    border: '1px solid #d9d9d9',
+    borderRadius: 8,
+    fontSize: 14,
+    outline: 'none',
+    transition: 'border-color .2s, box-shadow .2s',
+    boxSizing: 'border-box',
+  }
 
-      <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
-        <div style={{ flexShrink: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 8 }}>礼品图</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '160px 160px', gap: 8 }}>
-            {imageUrls.map((url, i) => (
-              <div key={i} style={{ position: 'relative', width: 160, height: 160 }}>
-                <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, border: '1px solid #e6e6e6' }} />
-                <div
-                  onClick={() => Modal.confirm({
-                    title: '删除图片',
-                    content: '确定要删除这张图片吗？',
-                    okText: '删除',
-                    okType: 'danger',
-                    cancelText: '取消',
-                    onOk: () => setImageUrls(urls => urls.filter((_, j) => j !== i)),
-                  })}
-                  style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}
-                >✕</div>
-              </div>
-            ))}
-            <div style={{ width: 160, height: 160, borderRadius: 8, border: '1px dashed #d9d9d9', background: '#fafafa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-              <button onClick={openAlbumPicker} style={{ padding: '6px 14px', fontSize: 12, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap' }}>选择礼品图</button>
-              <button onClick={uploadImage} style={{ padding: '6px 14px', fontSize: 12, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap' }}>上传图片</button>
-            </div>
-          </div>
+  return (
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '16px 16px 64px' }}>
+      <div style={{
+        background: '#fff',
+        borderRadius: 16,
+        boxShadow: '0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04)',
+        padding: 24,
+      }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 20, letterSpacing: 0.5 }}>
+          {isNew ? '新建礼品' : '编辑礼品'}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>礼品名称</div>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="请输入礼品名称" style={{ width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9', borderRadius: 6, fontSize: 14, outline: 'none' }} />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>礼品规格</div>
-            <textarea value={spec} onChange={e => setSpec(e.target.value)} placeholder="如：礼盒装 500g" rows={4} style={{ width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9', borderRadius: 6, fontSize: 14, outline: 'none', resize: 'vertical' }} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24, marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>销售价（元）</div>
-              <input value={price} onChange={e => setPrice(e.target.value)} placeholder="请输入销售价" style={{ width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9', borderRadius: 6, fontSize: 14, outline: 'none' }} />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap', marginTop: 4 }}>礼品图</div>
+            <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {imageUrls.map((url, i) => (
+                <div key={i} style={{ position: 'relative', width: 120, height: 120 }}>
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10, border: '1px solid #f0f0f0' }} />
+                  <div
+                    onClick={() => Modal.confirm({
+                      title: '删除图片',
+                      content: '确定要删除这张图片吗？',
+                      okText: '删除',
+                      okType: 'danger',
+                      cancelText: '取消',
+                      onOk: () => setImageUrls(urls => urls.filter((_, j) => j !== i)),
+                    })}
+                    style={{ position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}
+                  >✕</div>
+                </div>
+              ))}
+              <div style={{ width: 120, height: 120, borderRadius: 10, border: '1px dashed #d9d9d9', background: '#fafafa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'border-color .2s, background .2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#f0f5ff' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#d9d9d9'; e.currentTarget.style.background = '#fafafa' }}
+              >
+                <button onClick={openAlbumPicker} style={{ padding: '4px 10px', fontSize: 11, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap' }}>选择礼品图</button>
+                <button onClick={uploadImage} style={{ padding: '4px 10px', fontSize: 11, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap' }}>上传图片</button>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>净含量</div>
-              <input value={netContent} onChange={e => setNetContent(e.target.value)} placeholder="如：500g" style={{ width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9', borderRadius: 6, fontSize: 14, outline: 'none' }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>保质期</div>
-              <input value={shelfLife} onChange={e => setShelfLife(e.target.value)} placeholder="如：12个月" style={{ width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9', borderRadius: 6, fontSize: 14, outline: 'none' }} />
-            </div>
           </div>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>温馨提示</div>
-            <input value={tips} onChange={e => setTips(e.target.value)} placeholder="如：请置于阴凉干燥处" style={{ width: '100%', padding: '8px 12px', border: '1px solid #d9d9d9', borderRadius: 6, fontSize: 14, outline: 'none' }} />
-          </div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ padding: '10px 32px', fontSize: 15 }}>
-              {saving ? '保存中...' : '保存'}
-            </button>
-            <button className="btn btn-outline" onClick={() => navigate('/my-gifts')} style={{ padding: '10px 32px', fontSize: 15 }}>
-              返回
-            </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>礼品名称</div>
+              <input
+                value={name} onChange={e => setName(e.target.value)}
+                placeholder="请输入礼品名称"
+                style={{ ...inputStyle }}
+                onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
+                onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
+              />
+            </div>
+            <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap', marginTop: 4 }}>礼品规格</div>
+              <textarea
+                value={spec} onChange={e => setSpec(e.target.value)}
+                placeholder="如：礼盒装 500g" rows={4}
+                style={{ ...inputStyle, resize: 'vertical' }}
+                onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
+                onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
+              />
+            </div>
+            <div style={{ marginBottom: 20, display: 'flex', gap: 16 }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>销售价</div>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    value={price} onChange={e => setPrice(e.target.value)}
+                    placeholder="请输入"
+                    style={{ width: '100%', padding: '9px 12px', border: '1px solid #d9d9d9', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', transition: 'border-color .2s, box-shadow .2s' }}
+                    onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
+                    onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
+                  />
+                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#94a3b8', pointerEvents: 'none' }}>（元）</span>
+                </div>
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>净含量</div>
+                <div style={{ flex: 1 }}>
+                  <input
+                    value={netContent} onChange={e => setNetContent(e.target.value)}
+                    placeholder="请输入"
+                    style={{ width: '100%', padding: '9px 12px', border: '1px solid #d9d9d9', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', transition: 'border-color .2s, box-shadow .2s' }}
+                    onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
+                    onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
+                  />
+                </div>
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>保质期</div>
+                <div style={{ flex: 1 }}>
+                  <input
+                    value={shelfLife} onChange={e => setShelfLife(e.target.value)}
+                    placeholder="请输入"
+                    style={{ width: '100%', padding: '9px 12px', border: '1px solid #d9d9d9', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', transition: 'border-color .2s, box-shadow .2s' }}
+                    onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
+                    onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div style={{ marginBottom: 32, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>温馨提示</div>
+              <input
+                value={tips} onChange={e => setTips(e.target.value)}
+                placeholder="如：请置于阴凉干燥处"
+                style={{ ...inputStyle }}
+                onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
+                onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 12, paddingTop: 24, borderTop: '1px solid #f1f5f9' }}>
+              <div style={{ width: 80 }} />
+              <button
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={saving}
+                style={{ padding: '10px 36px', fontSize: 15, fontWeight: 600, borderRadius: 8, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? .6 : 1 }}
+              >
+                {saving ? '保存中...' : '保存'}
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => navigate('/my-gifts')}
+                style={{ padding: '10px 36px', fontSize: 15, borderRadius: 8, cursor: 'pointer' }}
+              >
+                返回
+              </button>
+            </div>
           </div>
         </div>
       </div>

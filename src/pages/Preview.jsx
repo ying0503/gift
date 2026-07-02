@@ -8,6 +8,7 @@ export default function Preview() {
   const [categories, setCategories] = useState([])
   const [bannerUrl, setBannerUrl] = useState(null)
   const [bannerTitle, setBannerTitle] = useState('')
+  const [albumTitle, setAlbumTitle] = useState('')
   const [bannerSubtitle, setBannerSubtitle] = useState('')
   const [bgFrom, setBgFrom] = useState('')
   const [bgTo, setBgTo] = useState('')
@@ -28,8 +29,8 @@ export default function Preview() {
   }, [])
 
   useEffect(() => {
-    document.title = bannerTitle || '礼企汇 - AI礼品画册'
-  }, [bannerTitle])
+    document.title = albumTitle || bannerTitle || '礼企汇 - AI礼品画册'
+  }, [albumTitle, bannerTitle])
 
   const albumMap = useMemo(() => {
     const m = {}
@@ -80,6 +81,7 @@ export default function Preview() {
         }
         if (data.bannerUrl) setBannerUrl(data.bannerUrl)
         if (data.bannerTitle) setBannerTitle(data.bannerTitle)
+        if (data.albumTitle) setAlbumTitle(data.albumTitle)
         if (data.bannerSubtitle) setBannerSubtitle(data.bannerSubtitle)
         setBgFrom(data.titleBgFrom || '')
         setBgTo(data.titleBgTo || '')

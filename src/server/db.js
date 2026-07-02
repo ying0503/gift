@@ -169,6 +169,9 @@ export async function initSchema() {
     await p.query(`ALTER TABLE digital_albums ADD COLUMN menu_bg_to VARCHAR(20) DEFAULT ''`)
   } catch (e) {}
   try {
+    await p.query(`ALTER TABLE digital_albums ADD COLUMN album_title TEXT`)
+  } catch (e) {}
+  try {
     await p.query(`ALTER TABLE templates ADD COLUMN menu_bg_from VARCHAR(20) DEFAULT ''`)
   } catch (e) {}
   try {
@@ -381,13 +384,14 @@ export async function saveDigitalAlbum(userId, data, id) {
   const bannerUrl = data.bannerUrl || null
   const bannerTitle = data.bannerTitle || null
   const bannerSubtitle = data.bannerSubtitle || null
+  const albumTitle = data.albumTitle || null
   const titleBgFrom = data.titleBgFrom ?? null
   const titleBgTo = data.titleBgTo ?? null
   const menuBgFrom = data.menuBgFrom ?? null
   const menuBgTo = data.menuBgTo ?? null
-  const sql = 'INSERT INTO digital_albums (id, user_id, categories, banner_url, banner_title, banner_subtitle, title_bg_from, title_bg_to, menu_bg_from, menu_bg_to, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), banner_title = VALUES(banner_title), banner_subtitle = VALUES(banner_subtitle), title_bg_from = VALUES(title_bg_from), title_bg_to = VALUES(title_bg_to), menu_bg_from = VALUES(menu_bg_from), menu_bg_to = VALUES(menu_bg_to), updated_at = VALUES(updated_at)'
+  const sql = 'INSERT INTO digital_albums (id, user_id, categories, banner_url, banner_title, album_title, banner_subtitle, title_bg_from, title_bg_to, menu_bg_from, menu_bg_to, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), banner_title = VALUES(banner_title), album_title = VALUES(album_title), banner_subtitle = VALUES(banner_subtitle), title_bg_from = VALUES(title_bg_from), title_bg_to = VALUES(title_bg_to), menu_bg_from = VALUES(menu_bg_from), menu_bg_to = VALUES(menu_bg_to), updated_at = VALUES(updated_at)'
   try {
-    await p.query(sql, [albumId, userId, categories, bannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, now, now])
+    await p.query(sql, [albumId, userId, categories, bannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, now, now])
   } catch (e) {
     const [colInfo] = await p.query('SHOW COLUMNS FROM digital_albums')
     const colNames = colInfo.map(c => c.Field).join(', ')

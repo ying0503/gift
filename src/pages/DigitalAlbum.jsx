@@ -4,7 +4,7 @@ import { EditOutlined, CloseOutlined, CheckOutlined, ArrowLeftOutlined, PlusOutl
 import TemplatePicker from '../components/TemplatePicker'
 import { API } from '../AuthContext'
 
-export default function DigitalAlbum({ setPreviewSave, setPreviewAlbumId }) {
+export default function DigitalAlbum({ setPreviewSave, setPreviewAlbumId, setPreviewTitle }) {
   const navigate = useNavigate()
   const location = useLocation()
   const albumIdRef = useRef(null)
@@ -52,6 +52,8 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   const [uploadingBanner, setUploadingBanner] = useState(false)
   const [generatingCats, setGeneratingCats] = useState(false)
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
+  const [albumTitle, setAlbumTitle] = useState('')
+  const [editingAlbumTitle, setEditingAlbumTitle] = useState(false)
   const [titleModalOpen, setTitleModalOpen] = useState(false)
   const [titleInput, setTitleInput] = useState('')
   const fileInputRef = useRef(null)
@@ -90,6 +92,7 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
       }
       if (da.bannerUrl) setGlobalBannerUrl(da.bannerUrl)
       if (da.bannerTitle) setBannerTitle(da.bannerTitle)
+      if (da.albumTitle) setAlbumTitle(da.albumTitle)
       if (da.bannerSubtitle) setBannerSubtitle(da.bannerSubtitle)
       if (da.titleBgFrom !== undefined) setTitleBgFrom(da.titleBgFrom)
       if (da.titleBgTo !== undefined) setTitleBgTo(da.titleBgTo)
@@ -292,6 +295,7 @@ id: albumIdRef.current,
 categories: cats,
 bannerUrl: bannerUrl !== undefined ? bannerUrl : globalBannerUrl,
 bannerTitle,
+albumTitle,
 bannerSubtitle,
 titleBgFrom,
 titleBgTo,
@@ -299,7 +303,7 @@ menuBgFrom,
 menuBgTo,
 }),
 })
-}, [globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo])
+}, [globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo])
 
 const saveForPreview = useCallback(async () => {
 const token = localStorage.getItem('token')
@@ -307,13 +311,17 @@ if (!token) return
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
 })
-}, [categories, globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo])
+}, [categories, globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo])
 
 useEffect(() => {
 if (setPreviewSave) setPreviewSave(saveForPreview)
 }, [setPreviewSave, saveForPreview])
+
+useEffect(() => { document.title = albumTitle || '礼企汇' }, [albumTitle])
+
+useEffect(() => { if (setPreviewTitle) setPreviewTitle(albumTitle || '画册标题') }, [albumTitle, setPreviewTitle])
 
 const saveGlobalBannerUrl = (url) => {
 const token = localStorage.getItem('token')
@@ -322,7 +330,7 @@ setGlobalBannerUrl(url)
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: url, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: url, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
 }).catch(() => {})
 }
 
@@ -332,7 +340,7 @@ if (!token) return
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
 }).catch(() => {})
 }
 
@@ -342,7 +350,17 @@ if (!token) return
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+}).catch(() => {})
+}
+
+const saveAlbumTitle = () => {
+const token = localStorage.getItem('token')
+if (!token) return
+fetch(`${API}/api/digital-album`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
 }).catch(() => {})
 }
 
@@ -367,7 +385,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBann
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
 }).then(r => r.json()).then(d => { if (d.id && !albumIdRef.current) { albumIdRef.current = d.id; if (setPreviewAlbumId) setPreviewAlbumId(d.id) } })
         if (merged.length > 0 && newCats.length > 0) {
           const firstId = newCats[0].id
@@ -406,7 +424,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             fetch(`${API}/api/digital-album`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token2}` },
-              body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: data.url, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+              body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: data.url, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
             }).then(r => r.json()).then(d => { if (d.id && !albumIdRef.current) { albumIdRef.current = d.id; if (setPreviewAlbumId) setPreviewAlbumId(d.id) } }).catch(() => {})
           }
         } else {
@@ -573,12 +591,12 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         fetch(`${API}/api/digital-album`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
         }).catch(() => {})
       }
       return next
     })
-  }, [globalBannerUrl, bannerTitle, bannerSubtitle])
+  }, [globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle])
 
   const removeComboItem = useCallback((catId, itemId, albumId, itemAlbumId) => {
     setCategories(prev => {
@@ -594,12 +612,12 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         fetch(`${API}/api/digital-album`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
         }).catch(() => {})
       }
       return next
     })
-  }, [globalBannerUrl, bannerTitle, bannerSubtitle])
+  }, [globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle])
 
   const updateAlbumBanner = useCallback((catId, itemId, albumId, bannerUrl) => {
     const newCats = categories.map(c => c.id === catId ? {
@@ -803,8 +821,27 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       </div>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUploadBanner} style={{ display: 'none' }} />
       <div className="card" style={{ padding: '12px 16px', marginBottom: 12 }}>
+        {editingAlbumTitle ? (
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 4 }}>画册标题</div>
+            <input autoFocus value={albumTitle} onChange={e => setAlbumTitle(e.target.value)}
+              style={{ width: '100%', height: 34, padding: '0 10px', fontSize: 15, border: '1px solid #8B5CF6', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
+              onKeyDown={e => { if (e.key === 'Enter') { setEditingAlbumTitle(false); saveAlbumTitle() } }}
+              onBlur={() => { setEditingAlbumTitle(false); saveAlbumTitle() }}
+            />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 2 }}>画册标题</div>
+              <span style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)' }}>{albumTitle || '未命名画册'}</span>
+            </div>
+            <span onClick={() => setEditingAlbumTitle(true)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 16, padding: 4 }}><EditOutlined /></span>
+          </div>
+        )}
         {editingTitle ? (
           <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 4 }}>画册主题</div>
             <input autoFocus value={bannerTitle} onChange={e => setBannerTitle(e.target.value)}
               style={{ width: '100%', height: 34, padding: '0 10px', fontSize: 15, border: '1px solid #8B5CF6', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
               onKeyDown={e => { if (e.key === 'Enter') { setEditingTitle(false); saveTitle() } }}
@@ -813,12 +850,16 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', flex: 1 }}>{bannerTitle || '未命名画册'}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 2 }}>画册主题</div>
+              <span style={{ fontSize: 14, color: 'rgba(0,0,0,.65)' }}>{bannerTitle || '未设置主题'}</span>
+            </div>
             <span onClick={() => setEditingTitle(true)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 16, padding: 4 }}><EditOutlined /></span>
           </div>
         )}
         {editingSubtitle ? (
           <div>
+            <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 4 }}>描述</div>
             <input autoFocus value={bannerSubtitle} onChange={e => setBannerSubtitle(e.target.value)}
               style={{ width: '100%', height: 34, padding: '0 10px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
               onKeyDown={e => { if (e.key === 'Enter') { setEditingSubtitle(false); saveSubtitle() } }}
@@ -827,7 +868,10 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 13, color: 'rgba(0,0,0,.55)', flex: 1 }}>{bannerSubtitle || '添加副标题'}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 2 }}>描述</div>
+              <span style={{ fontSize: 13, color: 'rgba(0,0,0,.55)' }}>{bannerSubtitle || '添加描述'}</span>
+            </div>
             <span onClick={() => setEditingSubtitle(true)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 13, padding: 4 }}><EditOutlined /></span>
           </div>
         )}
@@ -1381,25 +1425,25 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           onClick={() => {}}
         >
           <div className="card" style={{ width: 380, padding: 24, position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 16 }}>输入画册标题</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 16 }}>输入画册主题</div>
             <span onClick={() => setTitleModalOpen(false)} style={{ position: 'absolute', top: 16, right: 16, cursor: 'pointer', fontSize: 16, color: 'rgba(0,0,0,.45)' }}>✕</span>
             <input
               autoFocus
               value={titleInput}
               onChange={e => setTitleInput(e.target.value)}
-              placeholder="请输入画册标题"
+              placeholder="请输入画册主题"
               style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 15, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
-              onKeyDown={e => { if (e.key === 'Enter' && titleInput.trim()) { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v, bannerSubtitle }) }).catch(() => {}) } }}
+              onKeyDown={e => { if (e.key === 'Enter' && titleInput.trim()) { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v, albumTitle, bannerSubtitle }) }).catch(() => {}) } }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
               <button className="btn btn-outline" onClick={() => setTitleModalOpen(false)}>取消</button>
-              <button className="btn btn-primary" disabled={!titleInput.trim()} onClick={() => { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v, bannerSubtitle }) }).catch(() => {}) }}>确定</button>
+              <button className="btn btn-primary" disabled={!titleInput.trim()} onClick={() => { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v, albumTitle, bannerSubtitle }) }).catch(() => {}) }}>确定</button>
             </div>
           </div>
         </div>
       )}
 
-      <TemplatePicker visible={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} currentTitle={bannerTitle} albumId={urlAlbumId} currentCategories={categories} />
+      <TemplatePicker visible={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} currentTitle={bannerTitle} currentAlbumTitle={albumTitle} albumId={urlAlbumId} currentCategories={categories} />
 
     </div>
     </div>

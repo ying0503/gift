@@ -30,7 +30,7 @@ function AppContent() {
   const [currentTime, setCurrentTime] = useState(() => new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }))
   const previewSaveRef = useRef(null)
   const previewAlbumIdRef = useRef(null)
-  const [previewTitle, setPreviewTitle] = useState('AI智能预览')
+  const [previewTitle, setPreviewTitle] = useState('画册标题')
   const [showQR, setShowQR] = useState(false)
   const [qrDataUrl, setQrDataUrl] = useState('')
 

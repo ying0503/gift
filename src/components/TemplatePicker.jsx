@@ -4,7 +4,7 @@ import { API } from '../AuthContext'
 
 const fallbackTemplates = []
 
-export default function TemplatePicker({ visible, onClose, currentTitle, albumId, currentCategories }) {
+export default function TemplatePicker({ visible, onClose, currentTitle, albumId, currentCategories, currentAlbumTitle }) {
   const [templates, setTemplates] = useState(fallbackTemplates)
 
   useEffect(() => {
@@ -29,6 +29,7 @@ export default function TemplatePicker({ visible, onClose, currentTitle, albumId
             categories: currentCategories,
             bannerUrl: tpl.banner || '',
             bannerTitle: tpl.name || '',
+            albumTitle: currentAlbumTitle || '',
             bannerSubtitle: tpl.description || '',
             titleBgFrom: tpl.titleBgFrom || '',
             titleBgTo: tpl.titleBgTo || '',
@@ -47,7 +48,7 @@ export default function TemplatePicker({ visible, onClose, currentTitle, albumId
       const res = await fetch(`${API}/api/digital-album`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ categories: tpl.categories, bannerTitle: tpl.name, bannerSubtitle: tpl.description || '', bannerUrl: tpl.banner || '', titleBgFrom: tpl.titleBgFrom || '', titleBgTo: tpl.titleBgTo || '', menuBgFrom: tpl.menuBgFrom || '', menuBgTo: tpl.menuBgTo || '' }),
+        body: JSON.stringify({ categories: tpl.categories, bannerTitle: tpl.name, albumTitle: currentAlbumTitle || '', bannerSubtitle: tpl.description || '', bannerUrl: tpl.banner || '', titleBgFrom: tpl.titleBgFrom || '', titleBgTo: tpl.titleBgTo || '', menuBgFrom: tpl.menuBgFrom || '', menuBgTo: tpl.menuBgTo || '' }),
       })
       const data = await res.json()
       if (data.id) window.location.href = `/digital-album/${data.id}`

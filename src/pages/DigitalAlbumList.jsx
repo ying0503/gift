@@ -87,7 +87,7 @@ export default function DigitalAlbumList() {
               )}
               <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #f8fafc' }}>
                 <div style={{ fontSize: 13, color: '#334155', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {album.bannerTitle || '未命名画册'}
+                  {album.albumTitle || album.bannerTitle || '未命名画册'}
                 </div>
               </div>
             </div>
