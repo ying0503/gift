@@ -1,4 +1,7 @@
-import { Modal, Checkbox } from 'antd'
+import { useState, useEffect } from 'react'
+import { Modal, Pagination } from 'antd'
+
+const PAGE_SIZE = 20
 
 export default function AlbumPickerModal({
   visible,
@@ -8,6 +11,16 @@ export default function AlbumPickerModal({
   pickerSelected,
   setPickerSelected,
 }) {
+  const [page, setPage] = useState(1)
+
+  useEffect(() => {
+    if (visible) setPage(1)
+  }, [visible])
+
+  const total = albumImages.length
+  const start = (page - 1) * PAGE_SIZE
+  const pageItems = albumImages.slice(start, start + PAGE_SIZE)
+
   return (
     <Modal
       title="选择礼品图"
@@ -17,20 +30,20 @@ export default function AlbumPickerModal({
       okText="确定"
       width={720}
     >
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 12, maxHeight: 460, overflow: 'auto' }}>
-        {albumImages.map((a, i) => {
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, maxHeight: 460, overflow: 'auto', minHeight: 300 }}>
+        {pageItems.map((a, i) => {
           const urls = a.imageUrls && a.imageUrls.length ? a.imageUrls : [a.imageUrl]
+          const idx = start + i
           return urls.map((url, j) => {
-            const key = `${i}_${j}`
-            const selected = pickerSelected.has(i)
+            const selected = pickerSelected.has(idx)
             return (
               <div
-                key={key}
+                key={`${idx}_${j}`}
                 style={{ cursor: 'pointer', borderRadius: 6, overflow: 'hidden', border: selected ? '2px solid #1677FF' : '1px solid #e6e6e6', transition: 'all .2s', position: 'relative' }}
                 onClick={() => setPickerSelected(prev => { 
                   const n = new Set(prev); 
-                  if (n.has(i)) n.delete(i); 
-                  else n.add(i); 
+                  if (n.has(idx)) n.delete(idx); 
+                  else n.add(idx); 
                   return n;
                 })}
               >
@@ -50,6 +63,18 @@ export default function AlbumPickerModal({
           </div>
         )}
       </div>
+      {total > PAGE_SIZE && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+          <Pagination
+            current={page}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onChange={setPage}
+            size="small"
+            showSizeChanger={false}
+          />
+        </div>
+      )}
     </Modal>
   )
 }

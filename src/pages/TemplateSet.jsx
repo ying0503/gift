@@ -235,9 +235,9 @@ function RightPanel({ data, isNew, onSave, onClose }) {
           </div>
 
           <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 60 }}>画册标题</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 60 }}>画册主题</span>
             <input value={form.name} onChange={e => update('name', e.target.value)}
-              placeholder="画册标题"
+              placeholder="画册主题"
               style={{ flex: 1, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
           </div>
 

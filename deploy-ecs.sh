@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-ECS_IP="121.40.124.187"
+ECS_IP="60.205.225.131"
 SSH_USER="root"
 
 echo "=== 部署 Gift Album 到 ECS ==="

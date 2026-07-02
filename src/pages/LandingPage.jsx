@@ -609,7 +609,6 @@ export default function LandingPage() {
           borderRadius: isMobile ? 16 : 32,
         }}>
           <video
-            src="https://coohom-biz-sg-s3.coohom.com/ins/static/homepage/video/compressoed.webm"
             style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }}
             controls
             muted
