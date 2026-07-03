@@ -427,7 +427,7 @@ app.get('/api/generate/batch-status', auth, async (req, res) => {
 app.post('/api/generate/prompts', auth, async (req, res) => {
   let textModel, startTime
   try {
-    const { festival, count, refImage, model: modelVal, mode } = req.body
+    const { festival, count, refImage, model: modelVal, mode, productInfo } = req.body
     const isAnalyze = mode === 'analyze'
     textModel = modelVal || 'qwen3.5-flash'
     startTime = Date.now()
@@ -444,12 +444,16 @@ app.post('/api/generate/prompts', auth, async (req, res) => {
     const { temperature = isAnalyze ? 0.7 : 0.8, maxTokens = isAnalyze ? 1000 : 2000 } = req.body
     const systemPrompt = isAnalyze
       ? '你是一个产品信息智能提取助手。请仔细分析用户提供的产品图片，按以下格式提取信息并返回纯文本（不包含markdown标记）：\n\n品牌名称识别：\n- 中文品牌名：\n- 英文品牌名：\n- 设计风格：\n\n产品类型判断：\n- 产品类别：\n- 产品名称：\n- 产品规格：\n\n详细描述：\n'
-      : '你是一个礼品营销AI图像提示词生成器。根据用户提供的主题，生成中文AI图像生成提示词。每个提示词用于文生图模型，描述礼品展示场景。'
+      : productInfo
+        ? '你是一个礼品营销AI图像提示词生成器。根据产品信息生成4个中文AI图像生成提示词，分别用于：主视觉图、产品卖点展示、品质工艺展示、适用场景展示。每个提示词用于文生图模型，描述礼品展示场景。'
+        : '你是一个礼品营销AI图像提示词生成器。根据用户提供的主题，生成中文AI图像生成提示词。每个提示词用于文生图模型，描述礼品展示场景。'
     const userContent = isAnalyze
       ? (refImage ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: '请分析这张产品图片，提取所有可见的产品信息。' }] : '请分析产品图片，提取产品信息。')
-      : (refImage
-        ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]
-        : [{ type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }])
+      : (productInfo
+        ? [{ type: 'text', text: `基于以下产品信息，生成${count}个中文图像描述提示词，用于该产品的礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述礼品展示场景、色彩光影、构图元素。直接输出，不需要编号。\n\n产品信息：\n${productInfo}` }]
+        : (refImage
+          ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]
+          : [{ type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]))
     const models = ['qwen3.5-flash', 'glm-4.6v-flashx', 'doubao-seed-2-0-mini-260428']
     const modelOrder = models.includes(textModel) ? [textModel, ...models.filter(m => m !== textModel)] : models
     let lastError = null

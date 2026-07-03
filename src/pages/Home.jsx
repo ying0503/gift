@@ -24,7 +24,7 @@ export default function Home() {
   const getTemperature = () => parseFloat(localStorage.getItem('textTemperature') || '0.8')
   const getMaxTokens = () => parseInt(localStorage.getItem('textMaxTokens') || '2000', 10)
 
-  async function generatePrompts(fest, count, refImageUrl, imgType) {
+  async function generatePrompts(fest, count, refImageUrl, imgType, productInfo) {
     if (!fest) { setPrompts(Array.from({ length: count }, () => '')); return }
     const token = localStorage.getItem('token')
     if (!token) return
@@ -41,7 +41,7 @@ export default function Home() {
       const res = await fetch(`${API}/api/generate/prompts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ festival: fest, count, refImage: refImageUrl, model: getTextModel(), temperature: getTemperature(), maxTokens: getMaxTokens(), imageType: imgType }),
+        body: JSON.stringify({ festival: fest, count, refImage: refImageUrl, model: getTextModel(), temperature: getTemperature(), maxTokens: getMaxTokens(), imageType: imgType, productInfo }),
       })
       const data = await res.json()
       if (genId !== promptGenId.current) return
@@ -166,7 +166,7 @@ export default function Home() {
 
   useEffect(() => {
     if (imageType !== '图类型' && imageType !== '白底图') {
-      const c = imageType === '详情图' ? 3 : 1
+      const c = imageType === '详情图' ? 5 : 1
       generatePrompts('通用礼品', c, undefined, imageType)
     }
   }, [])
@@ -516,7 +516,7 @@ export default function Home() {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select value={imageType} onChange={e => { const v = e.target.value; setImageType(v); const c = v === '详情图' ? 3 : 1; setTemplateCount(c); templateCountRef.current = c;
+                <select value={imageType} onChange={e => { const v = e.target.value; setImageType(v); const c = v === '详情图' ? 5 : 1; setTemplateCount(c); templateCountRef.current = c;
                   if (v === '详情图') {
                     const p = Array.from({ length: c }, () => '')
                     p[0] = '生成白底图'
@@ -661,7 +661,7 @@ export default function Home() {
           <div style={{ fontSize: 13, color: '#555', lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 360, overflowY: 'auto', marginBottom: 20 }}>{analysisText}</div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <button onClick={() => { setShowAnalysisModal(false); setAnalysisText(null) }} style={{ height: 36, padding: '0 20px', fontSize: 13, border: '1px solid #e0dedc', borderRadius: 8, background: '#fff', color: '#666', cursor: 'pointer' }}>取消</button>
-            <button onClick={() => { setShowAnalysisModal(false); generatePrompts('通用礼品', templateCountRef.current, uploadedRef?.url, '详情图') }} style={{ height: 36, padding: '0 24px', fontSize: 13, border: 'none', borderRadius: 8, background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>确定</button>
+            <button onClick={() => { setShowAnalysisModal(false); const info = analysisText; setAnalysisText(null); generatePrompts('通用礼品', templateCountRef.current, uploadedRef?.url, '详情图', info) }} style={{ height: 36, padding: '0 24px', fontSize: 13, border: 'none', borderRadius: 8, background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>确定</button>
           </div>
         </div>
       </div>
