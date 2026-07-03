@@ -38,23 +38,30 @@ export default function Home() {
       setPrompts(Array.from({ length: count }, () => ''))
     }
     try {
+      const apiCount = imgType === '详情图' ? count - 1 : count
       const res = await fetch(`${API}/api/generate/prompts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ festival: fest, count, refImage: refImageUrl, model: getTextModel(), temperature: getTemperature(), maxTokens: getMaxTokens(), imageType: imgType, productInfo }),
+        body: JSON.stringify({ festival: fest, count: apiCount, refImage: refImageUrl, model: getTextModel(), temperature: getTemperature(), maxTokens: getMaxTokens(), imageType: imgType, productInfo }),
       })
       const data = await res.json()
       if (genId !== promptGenId.current) return
       if (data.prompts) {
-        const result = data.prompts.slice(0, count)
-        if (imgType === '详情图' && result.length > 0) result[0] = '生成白底图'
-        setPrompts(result)
+        if (imgType === '详情图') {
+          const result = ['生成白底图', ...data.prompts.slice(0, count - 1)]
+          setPrompts(result)
+        } else {
+          setPrompts(data.prompts.slice(0, count))
+        }
       }
     } catch {
       if (genId !== promptGenId.current) return
-      const empty = Array.from({ length: count }, () => '')
-      if (imgType === '详情图' && empty.length > 0) empty[0] = '生成白底图'
-      setPrompts(empty)
+      if (imgType === '详情图') {
+        const empty = ['生成白底图', ...Array.from({ length: count - 1 }, () => '')]
+        setPrompts(empty)
+      } else {
+        setPrompts(Array.from({ length: count }, () => ''))
+      }
     } finally {
       if (genId === promptGenId.current) setGeneratingPrompts(false)
     }
