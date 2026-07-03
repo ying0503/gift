@@ -7,6 +7,9 @@ export default function Home() {
   const [image_size] = useState('1K')
   const [generating, setGenerating] = useState(false)
   const [generatingPrompts, setGeneratingPrompts] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analysisText, setAnalysisText] = useState(null)
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false)
   const promptGenId = useRef(0)
   const templateCountRef = useRef(1)
 
@@ -57,10 +60,34 @@ export default function Home() {
     }
   }
 
+  async function analyzeImage(imageUrl) {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    setAnalyzing(true)
+    setAnalysisText(null)
+    try {
+      const res = await fetch(`${API}/api/generate/prompts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ mode: 'analyze', refImage: imageUrl, model: getTextModel(), temperature: getTemperature(), maxTokens: getMaxTokens() }),
+      })
+      const data = await res.json()
+      if (data.analysis) {
+        setAnalysisText(data.analysis)
+        setShowAnalysisModal(true)
+      } else {
+        console.error('分析失败:', data.error || res.statusText)
+      }
+    } catch (e) {
+      console.error('analyzeImage error:', e)
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
   const [templateCount, setTemplateCount] = useState(1)
   const [imageSize, setImageSize] = useState('3:4')
   const [prompts, setPrompts] = useState([''])
-  const [festival, setFestival] = useState('')
   const [imageType, setImageType] = useState('图类型')
 
   const [generations, setGenerations] = useState([])
@@ -140,7 +167,7 @@ export default function Home() {
   useEffect(() => {
     if (imageType !== '图类型' && imageType !== '白底图') {
       const c = imageType === '详情图' ? 3 : 1
-      generatePrompts(festival || '通用礼品', c, undefined, imageType)
+      generatePrompts('通用礼品', c, undefined, imageType)
     }
   }, [])
 
@@ -217,7 +244,7 @@ export default function Home() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          config: { size: imageSize, model: getModel(), image_size, n: 1, festival: festival || undefined },
+          config: { size: imageSize, model: getModel(), image_size, n: 1, festival: '通用礼品' },
           prompts: prefixed,
           images: sendImages.length ? sendImages : undefined,
         }),
@@ -394,7 +421,7 @@ export default function Home() {
                   <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                     {album.prompts && (
-                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setFestival(album.config?.festival || ''); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
+                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
                     )}
                   </div>
 
@@ -423,7 +450,7 @@ export default function Home() {
             <span style={{ fontSize: 15, fontWeight: 600, color: '#2a2a2e', letterSpacing: -0.1 }}>礼品图生成</span>
           </div>
           <div style={{ padding: '20px 32px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => { setUploadedRef({ url: fr.result, blob: f }); if (imageType === '白底图') { setPrompts(['生成白底图']) } else if (prompts.some(p => p.trim()) || festival) { generatePrompts(festival || '通用礼品', templateCountRef.current, fr.result, imageType) } }; fr.readAsDataURL(f) } e.target.value = '' }} />
+            <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => { setUploadedRef({ url: fr.result, blob: f }); if (imageType === '白底图') { setPrompts(['生成白底图']) } else if (prompts.some(p => p.trim())) { generatePrompts('通用礼品', templateCountRef.current, fr.result, imageType) } }; fr.readAsDataURL(f) } e.target.value = '' }} />
 
             {previewUrl === uploadedRef?.url && (
               <div style={{ position: 'fixed', zIndex: 1000, left: previewPos.left, top: previewPos.top, background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.15)', padding: 6, pointerEvents: 'none', border: '1px solid #e8e6e4' }}>
@@ -450,6 +477,12 @@ export default function Home() {
                 >
                   <span style={{ fontSize: 20, lineHeight: 1 }}>+</span>
                   <span style={{ letterSpacing: 0 }}>参考图</span>
+                </div>
+              )}
+              {analyzing && (
+                <div style={{ alignSelf: 'center', fontSize: 13, color: '#8B5CF6', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 16, height: 16, border: '2px solid #e0dedc', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+                  AI 分析产品信息中...
                 </div>
               )}
 
@@ -483,7 +516,19 @@ export default function Home() {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select value={imageType} onChange={e => { const v = e.target.value; setImageType(v); const c = v === '详情图' ? 3 : 1; setTemplateCount(c); templateCountRef.current = c; if (v === '图类型') { setPrompts(Array.from({ length: c }, (_, i) => prompts[i] || '')) } else if (v === '白底图') { setPrompts([`生成${v}`]) } else { generatePrompts(festival || '通用礼品', c, uploadedRef?.url, v) } }}
+                <select value={imageType} onChange={e => { const v = e.target.value; setImageType(v); const c = v === '详情图' ? 3 : 1; setTemplateCount(c); templateCountRef.current = c;
+                  if (v === '详情图') {
+                    const p = Array.from({ length: c }, () => '')
+                    p[0] = '生成白底图'
+                    setPrompts(p)
+                    if (uploadedRef?.url) {
+                      analyzeImage(uploadedRef.url)
+                    } else {
+                      generatePrompts('通用礼品', c, undefined, v)
+                    }
+                  } else if (v === '图类型') { setPrompts(Array.from({ length: c }, (_, i) => prompts[i] || ''))
+                  } else if (v === '白底图') { setPrompts([`生成${v}`])
+                  } else { generatePrompts('通用礼品', c, uploadedRef?.url, v) } }}
                   style={{ height: 34, padding: '0 12px', fontSize: 13, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', cursor: 'pointer', outline: 'none', color: '#333', transition: 'border-color .25s, box-shadow .25s' }}
                   onFocus={e => { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,.1)' }}
                   onBlur={e => { e.target.style.borderColor = '#e0dedc'; e.target.style.boxShadow = 'none' }}>
@@ -495,16 +540,6 @@ export default function Home() {
                 <select value={templateCount} disabled
                   style={{ height: 34, padding: '0 12px', fontSize: 13, border: '1px solid #e8e6e4', borderRadius: 8, background: '#f5f5f2', cursor: 'not-allowed', outline: 'none', color: '#aaa' }}>
                   {[1,2,3,4,5].map(v => <option key={v} value={v}>{v}张</option>)}
-                </select>
-                <select value={festival} disabled={imageType === '白底图'} onChange={e => { const v = e.target.value; setFestival(v); if (imageType !== '图类型' && imageType !== '白底图') generatePrompts(v, templateCountRef.current, uploadedRef?.url, imageType) }}
-                  style={{ height: 34, padding: '0 12px 0 28px', fontSize: 13, border: `1px solid ${imageType === '白底图' ? '#e8e6e4' : '#e0dedc'}`, borderRadius: 8, background: imageType === '白底图' ? '#f5f5f2' : '#fafaf8', cursor: imageType === '白底图' ? 'not-allowed' : 'pointer', outline: 'none', color: imageType === '白底图' ? '#aaa' : '#333', transition: 'border-color .25s, box-shadow .25s', backgroundImage: 'radial-gradient(circle at 14px 50%, #8B5CF6 3px, transparent 3px)', backgroundRepeat: 'no-repeat' }}
-                  onFocus={e => { if (imageType !== '白底图') { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,.1)' } }}
-                  onBlur={e => { if (imageType !== '白底图') { e.target.style.borderColor = '#e0dedc'; e.target.style.boxShadow = 'none' } }}>
-                  <option value="">节日</option>
-                  <option value="端午">端午</option>
-                  <option value="中秋">中秋</option>
-                  <option value="国庆">国庆</option>
-                  <option value="春节">春节</option>
                 </select>
                 <select value={imageSize} onChange={e => setImageSize(e.target.value)}
                   style={{ height: 34, padding: '0 12px', fontSize: 13, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', cursor: 'pointer', outline: 'none', color: '#333' }}>
@@ -573,7 +608,7 @@ export default function Home() {
                   <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                     {album.prompts && (
-                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setFestival(album.config?.festival || ''); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
+                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
                     )}
                   </div>
 
@@ -617,6 +652,18 @@ export default function Home() {
           className="preview-close-btn"
           style={{ position: 'fixed', top: 24, right: 24, zIndex: 1001, width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,.55)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 17, transition: 'all .25s', border: '1px solid rgba(255,255,255,.15)' }}
         />
+      </div>
+    )}
+    {showAnalysisModal && analysisText && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px) saturate(1.2)' }} onClick={() => setShowAnalysisModal(false)}>
+        <div className="preview-enter" style={{ position: 'relative', background: '#fff', padding: 24, borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,.35)', maxWidth: 520, width: '90%' }} onClick={e => e.stopPropagation()}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 16 }}>产品信息识别</div>
+          <div style={{ fontSize: 13, color: '#555', lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 360, overflowY: 'auto', marginBottom: 20 }}>{analysisText}</div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <button onClick={() => { setShowAnalysisModal(false); setAnalysisText(null) }} style={{ height: 36, padding: '0 20px', fontSize: 13, border: '1px solid #e0dedc', borderRadius: 8, background: '#fff', color: '#666', cursor: 'pointer' }}>取消</button>
+            <button onClick={() => { setShowAnalysisModal(false); generatePrompts('通用礼品', templateCountRef.current, uploadedRef?.url, '详情图') }} style={{ height: 36, padding: '0 24px', fontSize: 13, border: 'none', borderRadius: 8, background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>确定</button>
+          </div>
+        </div>
       </div>
     )}
     </>

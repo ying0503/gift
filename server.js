@@ -427,19 +427,29 @@ app.get('/api/generate/batch-status', auth, async (req, res) => {
 app.post('/api/generate/prompts', auth, async (req, res) => {
   let textModel, startTime
   try {
-    const { festival, count, refImage, model: modelVal } = req.body
+    const { festival, count, refImage, model: modelVal, mode } = req.body
+    const isAnalyze = mode === 'analyze'
     textModel = modelVal || 'qwen3.5-flash'
     startTime = Date.now()
-    if (!festival || !count) return res.status(400).json({ error: 'Missing festival or count' })
+    if (isAnalyze) {
+      if (!refImage) return res.status(400).json({ error: 'Missing refImage for analysis' })
+    } else {
+      if (!festival || !count) return res.status(400).json({ error: 'Missing festival or count' })
+    }
     const modelConfigMap = {
       'qwen3.5-flash': { key: process.env.QWEN_API_KEY, url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen3.5-flash', label: 'Qwen3.5' },
       'glm-4.6v-flashx': { key: process.env.GLM_API_KEY, url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', model: 'glm-4.6v-flashx', label: 'GLM' },
       'doubao-seed-2-0-mini-260428': { key: process.env.DOUBAO_API_KEY, url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-seed-2-0-mini-260428', label: 'Doubao' },
     }
-    const content = refImage
-      ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]
-      : [{ type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]
-    const { temperature = 0.8, maxTokens = 2000 } = req.body
+    const { temperature = isAnalyze ? 0.7 : 0.8, maxTokens = isAnalyze ? 1000 : 2000 } = req.body
+    const systemPrompt = isAnalyze
+      ? '你是一个产品信息智能提取助手。请仔细分析用户提供的产品图片，按以下格式提取信息并返回纯文本（不包含markdown标记）：\n\n品牌名称识别：\n- 中文品牌名：\n- 英文品牌名：\n- 设计风格：\n\n产品类型判断：\n- 产品类别：\n- 产品名称：\n- 产品规格：\n\n详细描述：\n'
+      : '你是一个礼品营销AI图像提示词生成器。根据用户提供的主题，生成中文AI图像生成提示词。每个提示词用于文生图模型，描述礼品展示场景。'
+    const userContent = isAnalyze
+      ? (refImage ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: '请分析这张产品图片，提取所有可见的产品信息。' }] : '请分析产品图片，提取产品信息。')
+      : (refImage
+        ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]
+        : [{ type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }])
     const models = ['qwen3.5-flash', 'glm-4.6v-flashx', 'doubao-seed-2-0-mini-260428']
     const modelOrder = models.includes(textModel) ? [textModel, ...models.filter(m => m !== textModel)] : models
     let lastError = null
@@ -451,7 +461,7 @@ app.post('/api/generate/prompts', auth, async (req, res) => {
         const timeout = setTimeout(() => controller.abort(), 30000)
         const apiRes = await fetch(cfg.url, {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.key}` },
-          body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system', content: '你是一个礼品营销AI图像提示词生成器。根据用户提供的主题，生成中文AI图像生成提示词。每个提示词用于文生图模型，描述礼品展示场景。' }, { role: 'user', content }], max_tokens: maxTokens, temperature }),
+          body: JSON.stringify({ model: cfg.model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }], max_tokens: maxTokens, temperature }),
           signal: controller.signal,
         })
         clearTimeout(timeout)
@@ -459,6 +469,10 @@ app.post('/api/generate/prompts', auth, async (req, res) => {
         if (!apiRes.ok) { lastError = data.error?.message || `${cfg.label} API error`; continue }
         const text = data.choices?.[0]?.message?.content
         if (!text) { lastError = `No response from ${cfg.label}`; continue }
+        textModel = modelName
+        startTime = Date.now()
+        modelLatencies.push({ model: modelName, ms: Date.now() - startTime, ts: Date.now() })
+        if (isAnalyze) return res.json({ analysis: text })
         const prompts = text.split('\n').filter(s => s.trim()).map(s => s.replace(/^\d+[\.\)、]\s*/, '').trim())
         textModel = modelName
         startTime = Date.now()
