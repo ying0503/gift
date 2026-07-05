@@ -194,6 +194,7 @@ app.post('/api/generate', auth, async (req, res) => {
     if (isMaiziai) {
       const maiziaiKey = process.env.MAIZIAI_API_KEY
       if (!maiziaiKey) return res.status(500).json({ error: 'MAIZIAI_API_KEY not configured' })
+      
       const apiRes = await fetch('https://www.maizitech.xyz/v1/images/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${maiziaiKey}` },
@@ -215,6 +216,7 @@ app.post('/api/generate', auth, async (req, res) => {
       const agnesSizeMap = { 'auto': '1024x1024', '1:1': '1024x1024', '16:9': '1024x768', '9:16': '768x1024', '4:3': '1024x768', '3:4': '768x1024' }
       const apiSize = agnesSizeMap[config.size] || config.size || '1024x1024'
       if (hasImages) {
+        
         const body = { model: 'agnes-image-2.0-flash', prompt, size: apiSize, n: 1, tags: ['img2img'], extra_body: { image: images.slice(0, 1), response_format: 'url' } }
         const apiRes = await fetch('https://apihub.agnes-ai.com/v1/images/generations', {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agnesKey}` }, body: JSON.stringify(body),
@@ -232,6 +234,7 @@ app.post('/api/generate', auth, async (req, res) => {
         modelLatencies.push({ model: imgModel, ms: Date.now() - imgStart, ts: Date.now() })
         return res.json({ taskId })
       }
+      
       const body = { model: 'agnes-image-2.1-flash', prompt, size: apiSize, n: 1 }
       const apiRes = await fetch('https://apihub.agnes-ai.com/v1/images/generations', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${agnesKey}` }, body: JSON.stringify(body),
@@ -253,6 +256,7 @@ app.post('/api/generate', auth, async (req, res) => {
     if (config.model === 'ithinkai-gpt-image-2') {
       const ithinkaiKey = process.env.ITHINKAI_API_KEY
       if (!ithinkaiKey) return res.status(500).json({ error: 'ITHINKAI_API_KEY not configured' })
+      
       const body = { model: 'gpt-image-2', prompt, size: config.size || 'auto', response_format: 'url' }
       if (hasImages) body.image = images
       const apiRes = await fetch('https://token.ithinkai.cn/v1/images/generations', {
@@ -290,6 +294,7 @@ app.post('/api/generate/batch', auth, async (req, res) => {
       if (!key) return res.status(500).json({ error: `${modelKey} not configured` })
       const imageUrls = []
       for (const prompt of prompts) {
+        
         const apiRes = await fetch(apiUrl, {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify(apiBodyFn(prompt)),
         })
@@ -325,6 +330,7 @@ app.post('/api/generate/batch', auth, async (req, res) => {
     if (!maiziaiKey) return res.status(500).json({ error: 'MAIZIAI_API_KEY not configured' })
     const taskIds = []
     for (const prompt of prompts) {
+      
       const apiRes = await fetch('https://www.maizitech.xyz/v1/images/generations', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${maiziaiKey}` },
         body: JSON.stringify({ model: 'gpt-image-2', prompt, size: config.size === 'auto' ? undefined : config.size, image_size: config.image_size || '1K', images: hasImages ? images : undefined, n: 1 }),
@@ -392,34 +398,37 @@ app.get('/api/generate/batch-status', auth, async (req, res) => {
     const maiziaiKey = process.env.MAIZIAI_API_KEY
     if (!maiziaiKey) return res.json({ status: 'PENDING', progress: 0, statusText: '等待生成...' })
 
-    const imageUrls = []; let allDone = true; let failed = false
+    const imageUrls = []; let allDone = true; let anySuccess = false
     for (const taskId of batch.taskIds) {
       const task = await db.getTask(taskId)
-      if (!task) { allDone = false; continue }
-      if (task.status === 'SUCCEEDED') { if (task.imageUrl) imageUrls.push(task.imageUrl); continue }
-      if (task.status === 'FAILED') { failed = true; continue }
+      if (!task) { allDone = false; imageUrls.push(null); continue }
+      if (task.status === 'SUCCEEDED') { imageUrls.push(task.imageUrl || null); if (task.imageUrl) anySuccess = true; continue }
+      if (task.status === 'FAILED') { imageUrls.push(null); continue }
       const mRes = await fetch(`https://www.maizitech.xyz/v1/tasks/${task.maiziaiTaskId}`, { headers: { Authorization: `Bearer ${maiziaiKey}` } })
-      if (!mRes.ok) { allDone = false; continue }
+      if (!mRes.ok) { allDone = false; imageUrls.push(null); continue }
       const mData = await mRes.json()
       if (mData.status === 'completed') {
         const url = mData.result_urls?.[0]; const imageUrl = url ? (url.startsWith('http') ? url : `https://www.maizitech.xyz${url}`) : null
-        if (imageUrl) { const ossUrl = await uploadToOSS(imageUrl); imageUrls.push(ossUrl); await db.updateTask(taskId, { status: 'SUCCEEDED', imageUrl: ossUrl }) } else { allDone = false }
-      } else if (mData.status === 'failed') { failed = true; await db.updateTask(taskId, { status: 'FAILED', statusText: mData.error_msg || '生成失败' }) }
-      else { allDone = false }
+        if (imageUrl) { const ossUrl = await uploadToOSS(imageUrl); imageUrls.push(ossUrl); anySuccess = true; await db.updateTask(taskId, { status: 'SUCCEEDED', imageUrl: ossUrl }) } else { imageUrls.push(null); allDone = false }
+      } else if (mData.status === 'failed') { imageUrls.push(null); await db.updateTask(taskId, { status: 'FAILED', statusText: mData.error_msg || '生成失败' }) }
+      else { imageUrls.push(null); allDone = false }
     }
-    if (failed) return res.json({ status: 'FAILED', progress: -1, statusText: '部分生成失败' })
+    if (allDone) {
+      if (anySuccess) {
+        const firstValid = imageUrls.find(u => u !== null)
+        const albumId = uuid().slice(0, 8)
+        await db.createAlbum({ id: albumId, userId: batch.userId, batchId, imageUrls, imageUrl: firstValid, config: batch.config, prompts: batch.prompts, prompt: batch.prompts[0], productCount: 0, createdAt: batch.createdAt })
+        await db.addUserAlbum(batch.userId, albumId)
+        await db.updateBatch(batchId, { done: true })
+        return res.json({ status: 'SUCCEEDED', progress: 100, statusText: '生成完成', imageUrl: firstValid, imageUrls })
+      }
+      return res.json({ status: 'FAILED', progress: -1, statusText: '全部生成失败' })
+    }
     if (batch.done) {
       const albums = await db.getUserAlbumsWithBatch(req.user.userId)
       for (const a of albums) { if (a.batchId === batchId) return res.json({ status: 'SUCCEEDED', progress: 100, statusText: '生成完成', imageUrl: a.imageUrl, imageUrls: a.imageUrls }) }
     }
-    if (allDone && imageUrls.length === batch.taskIds.length) {
-      const albumId = uuid().slice(0, 8)
-      await db.createAlbum({ id: albumId, userId: batch.userId, batchId, imageUrls, imageUrl: imageUrls[0], config: batch.config, prompts: batch.prompts, prompt: batch.prompts[0], productCount: 0, createdAt: batch.createdAt })
-      await db.addUserAlbum(batch.userId, albumId)
-      await db.updateBatch(batchId, { done: true })
-      return res.json({ status: 'SUCCEEDED', progress: 100, statusText: '生成完成', imageUrl: imageUrls[0], imageUrls })
-    }
-    const doneCount = imageUrls.length
+    const doneCount = imageUrls.filter(u => u !== null).length
     res.json({ status: 'PENDING', progress: Math.round(doneCount / batch.taskIds.length * 90), statusText: `生成中 ${doneCount}/${batch.taskIds.length}...` })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -445,12 +454,12 @@ app.post('/api/generate/prompts', auth, async (req, res) => {
     const systemPrompt = isAnalyze
       ? '你是一个产品信息智能提取助手。请仔细分析用户提供的产品图片，按以下格式提取信息并返回纯文本（不包含markdown标记）：\n\n品牌名称识别：\n- 中文品牌名：\n- 英文品牌名：\n- 设计风格：\n\n产品类型判断：\n- 产品类别：\n- 产品名称：\n- 产品规格：\n\n详细描述：\n'
       : productInfo
-        ? '你是一个礼品营销AI图像提示词生成器。根据产品信息生成4个提示词，每个提示词对应一个独立主题，按以下顺序输出，每个提示词至少50字：\n\n1. 主视觉图：产品主视觉展示，突出品牌和产品整体形象\n2. 产品卖点：突出产品核心卖点和差异化优势\n3. 品质工艺：展示产品品质、材质、工艺细节\n4. 适用场景：展示产品使用场景和送礼场合\n\n直接输出4个提示词，不要编号，不要主题名称。'
+        ? '你是一个礼品营销AI图像提示词生成器。根据产品信息和产品名称，生成4个提示词，每个提示词按以下格式输出：\n主标题（居中大字）：{标题}；副标题（产品主图右侧或者左侧）：{围绕主题的一句话或几个特点描述}；其他参考：{图像生成提示词，至少50字}\n\n4个主题和标题要求：\n1. 主视觉图：标题用产品信息中的"产品名称"，不加任何修饰；副标题（产品主图右侧或者左侧）和其他参考侧重综合展示产品整体形象\n2. 产品卖点：标题用5-8字适合送礼的文案\n3. 品质工艺：标题用5-8字适合送礼的文案\n4. 适用场景：标题用5-8字适合送礼的文案\n\n直接输出4行，不要编号。标题不要包含"主视觉""卖点""品质""场景"等主题类别词。'
         : '你是一个礼品营销AI图像提示词生成器。根据用户提供的主题，生成中文AI图像生成提示词。每个提示词用于文生图模型，描述礼品展示场景。'
     const userContent = isAnalyze
       ? (refImage ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: '请分析这张产品图片，提取所有可见的产品信息。' }] : '请分析产品图片，提取产品信息。')
       : (productInfo
-        ? [{ type: 'text', text: `基于以下产品信息，严格按照上述4个主题顺序生成4个图像描述提示词。\n\n产品信息：\n${productInfo}` }]
+        ? [{ type: 'text', text: `基于以下产品信息，输出4个提示词。第1个主视觉图的标题必须用产品信息中的"产品名称"，且副标题（产品主图右侧或者左侧）和其他参考都要综合展示产品整体形象，避免过多细节堆砌；其他3个标题用5-8字适合送礼的文案。\n\n产品信息：\n${productInfo}` }]
         : (refImage
           ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]
           : [{ type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]))
@@ -565,7 +574,7 @@ app.get('/api/albums', auth, async (req, res) => {
     const albums = await db.getUserAlbumsWithBatch(req.user.userId)
     res.json({ albums: albums.map(a => {
       if (a.imageUrl?.startsWith('https://www.maizitech.xyzhttps://')) a.imageUrl = a.imageUrl.replace('https://www.maizitech.xyz', '')
-      if (a.imageUrls) a.imageUrls = a.imageUrls.map(u => u.startsWith('https://www.maizitech.xyzhttps://') ? u.replace('https://www.maizitech.xyz', '') : u)
+      if (a.imageUrls) a.imageUrls = a.imageUrls.map(u => u && u.startsWith('https://www.maizitech.xyzhttps://') ? u.replace('https://www.maizitech.xyz', '') : u)
       return a
     }) })
   } catch (e) { res.status(500).json({ error: e.message }) }

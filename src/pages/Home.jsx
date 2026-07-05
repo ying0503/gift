@@ -56,8 +56,8 @@ export default function Home() {
       }
     } catch {
       if (genId !== promptGenId.current) return
-      if (imgType === '详情图') {
-        const empty = ['生成白底图', ...Array.from({ length: count - 1 }, () => '')]
+if (imgType === '详情图') {
+          const empty = ['生成白底图', ...Array.from({ length: count - 1 }, () => '')]
         setPrompts(empty)
       } else {
         setPrompts(Array.from({ length: count }, () => ''))
@@ -396,7 +396,11 @@ export default function Home() {
           <div className="card" style={{ padding: 16, marginBottom: 0 }}>
             <button onClick={() => setViewAlbum(null)} className="btn btn-outline" style={{ marginBottom: 12, fontSize: 13, padding: '4px 12px' }}>← 返回</button>
             {(viewAlbum.imageUrls || [viewAlbum.imageUrl]).map((url, i) => (
-              <img key={i} src={url} alt="" style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: i < (viewAlbum.imageUrls || [viewAlbum.imageUrl]).length - 1 ? 12 : 0 }} />
+              url ? (
+                <img key={i} src={url} alt="" style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: i < (viewAlbum.imageUrls || [viewAlbum.imageUrl]).length - 1 ? 12 : 0 }} />
+              ) : (
+                <div key={i} style={{ width: '100%', aspectRatio: 1, background: '#f5f5f5', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 14, marginBottom: 12 }}>生成失败</div>
+              )
             ))}
           </div>
         ) : albums.length === 0 && generations.length === 0 ? (
@@ -420,15 +424,15 @@ export default function Home() {
                   <div key={album.id} className="card album-card" style={{ padding: 0, margin: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }} onClick={() => setViewAlbum(album)}>
                   <div style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden' }}>
                     <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                    {album.imageUrls?.length > 1 && (
-                      <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.length}张</div>
+                    {album.imageUrls && album.imageUrls.filter(u => u).length > 1 && (
+                      <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.filter(u => u).length}张</div>
                     )}
                     <div onClick={e => handleDelete(e, album.id)} className="card-del-btn">×</div>
                   </div>
                   <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                     {album.prompts && (
-                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
+                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setImageType(album.prompts[0].includes('白底图') ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
                     )}
                   </div>
 
@@ -607,15 +611,15 @@ export default function Home() {
                 >
                   <div style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden' }}>
                     <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                    {album.imageUrls?.length > 1 && (
-                      <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.length}张</div>
+                    {album.imageUrls && album.imageUrls.filter(u => u).length > 1 && (
+                      <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.filter(u => u).length}张</div>
                     )}
                     <div onClick={e => handleDelete(e, album.id)} className="card-del-btn">×</div>
                   </div>
                   <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                     <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                     {album.prompts && (
-                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setImageType(album.prompts[0] === '生成白底图' ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
+                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setImageType(album.prompts[0].includes('白底图') ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
                     )}
                   </div>
 
@@ -637,13 +641,17 @@ export default function Home() {
     {viewAlbum && (
       <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px) saturate(1.2)' }} onClick={() => setViewAlbum(null)}>
         <div className="preview-enter" style={{ position: 'relative', background: '#fff', padding: 6, borderRadius: 8, boxShadow: '0 8px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.12)', maxWidth: '96%', maxHeight: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? '94%' : 'none', overflowY: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? 'auto' : 'visible', overflowX: 'visible' }} onClick={e => e.stopPropagation()}>
-          {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 && (
+          {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).filter(u => u).length > 1 && (
             <div style={{ position: 'sticky', top: 0, zIndex: 2, textAlign: 'center', padding: '10px 6px 8px', fontSize: 12, color: '#999', letterSpacing: 1, background: 'rgba(255,255,255,.85)', margin: '-6px -6px 6px', borderRadius: '8px 8px 0 0' }}>
-              共 {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length} 张
+              共 {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).filter(u => u).length} 张
             </div>
           )}
           {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).map((url, i) => (
-            <img key={i} src={url} alt="" style={{ width: '100%', display: 'block', maxHeight: '94vh', objectFit: 'contain', borderRadius: 4, marginBottom: i < (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length - 1 ? 5 : 0 }} />
+            url ? (
+              <img key={i} src={url} alt="" style={{ width: '100%', display: 'block', maxHeight: '94vh', objectFit: 'contain', borderRadius: 4, marginBottom: i < (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length - 1 ? 5 : 0 }} />
+            ) : (
+              <div key={i} style={{ width: '100%', aspectRatio: 1, background: '#f5f5f5', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 14, marginBottom: 5 }}>生成失败</div>
+            )
           ))}
           {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 && (
             <div style={{ position: 'sticky', bottom: 0, textAlign: 'center', padding: '12px 0 8px', pointerEvents: 'none' }}>
@@ -651,8 +659,8 @@ export default function Home() {
             </div>
           )}
         </div>
-        {(viewAlbum?.imageUrls?.length || (viewAlbum?.imageUrl ? 1 : 0)) <= 1 && (
-          <a href={viewAlbum?.imageUrl || viewAlbum?.imageUrls?.[0] || '#'} download style={{ position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)', zIndex: 1001, width: 44, height: 44, borderRadius: '50%', background: '#fff', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, boxShadow: '0 2px 12px rgba(0,0,0,.2)', textDecoration: 'none', transition: 'all .2s' }} onClick={e => e.stopPropagation()}><DownloadOutlined /></a>
+        {((viewAlbum?.imageUrls && viewAlbum.imageUrls.filter(u => u).length) || (viewAlbum?.imageUrl ? 1 : 0)) <= 1 && (
+          <a href={viewAlbum?.imageUrl || viewAlbum?.imageUrls?.find(u => u) || '#'} download style={{ position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)', zIndex: 1001, width: 44, height: 44, borderRadius: '50%', background: '#fff', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, boxShadow: '0 2px 12px rgba(0,0,0,.2)', textDecoration: 'none', transition: 'all .2s' }} onClick={e => e.stopPropagation()}><DownloadOutlined /></a>
         )}
         <CloseOutlined
           onClick={() => setViewAlbum(null)}
