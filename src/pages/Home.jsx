@@ -8,8 +8,6 @@ export default function Home() {
   const [generating, setGenerating] = useState(false)
   const [generatingPrompts, setGeneratingPrompts] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
-  const [analysisText, setAnalysisText] = useState(null)
-  const [showAnalysisModal, setShowAnalysisModal] = useState(false)
   const promptGenId = useRef(0)
   const templateCountRef = useRef(1)
 
@@ -71,7 +69,6 @@ if (imgType === '详情图') {
     const token = localStorage.getItem('token')
     if (!token) return
     setAnalyzing(true)
-    setAnalysisText(null)
     try {
       const res = await fetch(`${API}/api/generate/prompts`, {
         method: 'POST',
@@ -80,8 +77,7 @@ if (imgType === '详情图') {
       })
       const data = await res.json()
       if (data.analysis) {
-        setAnalysisText(data.analysis)
-        setShowAnalysisModal(true)
+        generatePrompts('通用礼品', templateCountRef.current, imageUrl, '详情图', data.analysis)
       } else {
         console.error('分析失败:', data.error || res.statusText)
       }
@@ -172,7 +168,7 @@ if (imgType === '详情图') {
   }, [prompts])
 
   useEffect(() => {
-    if (imageType !== '图类型' && imageType !== '白底图') {
+    if (imageType !== '图类型') {
       const c = imageType === '详情图' ? 5 : 1
       generatePrompts('通用礼品', c, undefined, imageType)
     }
@@ -228,7 +224,6 @@ if (imgType === '详情图') {
     if (promptList.length === 0) return
 
     const imageTypePrefixes = {
-      '白底图': '白底图，把主图抠出来，',
       '场景图': '场景图，使用场景图，',
     }
     const prefixed = imageType === '详情图'
@@ -407,11 +402,11 @@ if (imgType === '详情图') {
           <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无画册</div>
         ) : (
           <>
-            <div className="card-grid">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
               {[...generations].reverse().map(item => (
-                <div key={item.id} className="card" style={{ padding: 12, margin: 0, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
+                <div key={item.id} style={{ padding: 0, margin: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
                   {!item.error ? (
-                    <div>
+                    <div style={{ textAlign: 'center' }}>
                       <div className="loading-spinner" />
                       <div style={{ fontSize: 28, fontWeight: 700, color: '#1677FF', marginTop: 12 }}>{item.progress}%</div>
                     </div>
@@ -421,21 +416,23 @@ if (imgType === '详情图') {
                 </div>
               ))}
               {[...albums].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
-                  <div key={album.id} className="card album-card" style={{ padding: 0, margin: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }} onClick={() => setViewAlbum(album)}>
-                  <div style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden' }}>
+                <div
+                  key={album.id}
+                  style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s', position: 'relative', display: 'flex', flexDirection: 'column' }}
+                  onClick={() => setViewAlbum(album)}
+                  onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.16), 0 16px 48px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '1' }}
+                  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)'; e.currentTarget.style.borderColor = '#f1f5f9'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '0' }}
+                >
+                  <div onClick={e => handleDelete(e, album.id)} className="del-btn" style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(15,23,42,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}>✕</div>
+                  <div style={{ position: 'relative' }}>
                     <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                     {album.imageUrls && album.imageUrls.filter(u => u).length > 1 && (
                       <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.filter(u => u).length}张</div>
                     )}
-                    <div onClick={e => handleDelete(e, album.id)} className="card-del-btn">×</div>
                   </div>
-                  <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
-                    {album.prompts && (
-                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setImageType(album.prompts[0].includes('白底图') ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
-                    )}
+                  <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #f8fafc' }}>
+                    <div style={{ color: '#94a3b8', fontSize: 12 }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                   </div>
-
                 </div>
               ))}
             </div>
@@ -454,14 +451,14 @@ if (imgType === '详情图') {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="desktop-only">
         {/* Generate Panel -- Premium Neutral */}
-        <div style={{ marginBottom: 24, maxWidth: 820, marginLeft: 'auto', marginRight: 'auto', marginTop: 100, borderRadius: 12, background: '#fcfcfd', boxShadow: '0 0 0 1px rgba(139,92,246,.06), 0 2px 4px rgba(0,0,0,.02), 0 8px 24px -4px rgba(0,0,0,.04), 0 24px 48px -12px rgba(0,0,0,.08)', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ marginBottom: 24, maxWidth: 1028, marginLeft: 'auto', marginRight: 'auto', marginTop: 100, borderRadius: 12, background: '#fcfcfd', boxShadow: '0 0 0 1px rgba(139,92,246,.06), 0 2px 4px rgba(0,0,0,.02), 0 8px 24px -4px rgba(0,0,0,.04), 0 24px 48px -12px rgba(0,0,0,.08)', overflow: 'hidden', position: 'relative' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(139,92,246,.25), #8B5CF6, rgba(139,92,246,.25), transparent)' }} />
           <div style={{ padding: '32px 32px 0', display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ width: 3, height: 22, borderRadius: 2, background: 'linear-gradient(180deg, #8B5CF6, #A78BFA)' }} />
             <span style={{ fontSize: 15, fontWeight: 600, color: '#2a2a2e', letterSpacing: -0.1 }}>礼品图生成</span>
           </div>
           <div style={{ padding: '20px 32px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => { setUploadedRef({ url: fr.result, blob: f }); if (imageType === '白底图') { setPrompts(['生成白底图']) } else if (prompts.some(p => p.trim())) { generatePrompts('通用礼品', templateCountRef.current, fr.result, imageType) } }; fr.readAsDataURL(f) } e.target.value = '' }} />
+            <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => { setUploadedRef({ url: fr.result, blob: f }); if (prompts.some(p => p.trim())) { generatePrompts('通用礼品', templateCountRef.current, fr.result, imageType) } }; fr.readAsDataURL(f) } e.target.value = '' }} />
 
             {previewUrl === uploadedRef?.url && (
               <div style={{ position: 'fixed', zIndex: 1000, left: previewPos.left, top: previewPos.top, background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.15)', padding: 6, pointerEvents: 'none', border: '1px solid #e8e6e4' }}>
@@ -538,13 +535,11 @@ if (imgType === '详情图') {
                       generatePrompts('通用礼品', c, undefined, v)
                     }
                   } else if (v === '图类型') { setPrompts(Array.from({ length: c }, (_, i) => prompts[i] || ''))
-                  } else if (v === '白底图') { setPrompts([`生成${v}`])
                   } else { generatePrompts('通用礼品', c, uploadedRef?.url, v) } }}
                   style={{ height: 34, padding: '0 12px', fontSize: 13, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', cursor: 'pointer', outline: 'none', color: '#333', transition: 'border-color .25s, box-shadow .25s' }}
                   onFocus={e => { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,.1)' }}
                   onBlur={e => { e.target.style.borderColor = '#e0dedc'; e.target.style.boxShadow = 'none' }}>
                   <option value="图类型">图类型</option>
-                  <option value="白底图">白底图</option>
                   <option value="场景图">场景图</option>
                   <option value="详情图">详情图</option>
                 </select>
@@ -581,6 +576,7 @@ if (imgType === '详情图') {
           </div>
         </div>
         {/* My Albums */}
+        <div style={{ maxWidth: 1060, margin: '0 auto', padding: '0 16px' }}>
         <div style={{ fontSize: 24, fontWeight: 600, color: '#333', marginTop: 100, marginBottom: 16 }}>我的礼品图</div>
         {albums.length === 0 && generations.length === 0 ? (
           <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>
@@ -588,11 +584,11 @@ if (imgType === '详情图') {
           </div>
         ) : (
           <>
-            <div className="card-grid">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
               {[...generations].reverse().map(item => (
-                <div key={item.id} className="card" style={{ padding: 12, margin: 0, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0 }}>
+                <div key={item.id} style={{ padding: 0, margin: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
                   {!item.error ? (
-                    <div>
+                    <div style={{ textAlign: 'center' }}>
                       <div className="loading-spinner" />
                       <div style={{ fontSize: 28, fontWeight: 700, color: '#1677FF', marginTop: 12 }}>{item.progress}%</div>
                     </div>
@@ -601,28 +597,24 @@ if (imgType === '详情图') {
                   )}
                 </div>
               ))}
-              {/* Historical albums */}
               {[...albums].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
                 <div
                   key={album.id}
-                  className="card album-card"
-                  style={{ padding: 0, margin: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 0 }}
+                  style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s', position: 'relative', display: 'flex', flexDirection: 'column' }}
                   onClick={() => setViewAlbum(album)}
+                  onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.16), 0 16px 48px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '1' }}
+                  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)'; e.currentTarget.style.borderColor = '#f1f5f9'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '0' }}
                 >
-                  <div style={{ position: 'relative', borderRadius: '6px', overflow: 'hidden' }}>
+                  <div onClick={e => handleDelete(e, album.id)} className="del-btn" style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(15,23,42,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}>✕</div>
+                  <div style={{ position: 'relative' }}>
                     <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                     {album.imageUrls && album.imageUrls.filter(u => u).length > 1 && (
                       <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.filter(u => u).length}张</div>
                     )}
-                    <div onClick={e => handleDelete(e, album.id)} className="card-del-btn">×</div>
                   </div>
-                  <div style={{ background: '#f5f5f5', fontSize: 12, color: '#666', padding: '10px 12px 12px', lineHeight: 1.6, borderRadius: '0 0 6px 6px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <div style={{ color: '#888' }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
-                    {album.prompts && (
-                      <button onClick={e => { e.stopPropagation(); setPrompts(album.prompts); setTemplateCount(album.prompts.length); templateCountRef.current = album.prompts.length; setImageSize(album.config?.size || '3:4'); setImageType(album.prompts[0].includes('白底图') ? (album.prompts.length > 1 ? '详情图' : '白底图') : '场景图') }} style={{ fontSize: 11, color: '#8B5CF6', background: 'none', border: '1px solid #8B5CF6', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', lineHeight: '20px', whiteSpace: 'nowrap' }}>做同款</button>
-                    )}
+                  <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #f8fafc' }}>
+                    <div style={{ color: '#94a3b8', fontSize: 12 }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
                   </div>
-
                 </div>
               ))}
             </div>
@@ -635,6 +627,7 @@ if (imgType === '详情图') {
             )}
           </>
         )}
+        </div>
         </div>
       </div>
     </div>
@@ -667,18 +660,6 @@ if (imgType === '详情图') {
           className="preview-close-btn"
           style={{ position: 'fixed', top: 24, right: 24, zIndex: 1001, width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,.55)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 17, transition: 'all .25s', border: '1px solid rgba(255,255,255,.15)' }}
         />
-      </div>
-    )}
-    {showAnalysisModal && analysisText && (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px) saturate(1.2)' }} onClick={() => setShowAnalysisModal(false)}>
-        <div className="preview-enter" style={{ position: 'relative', background: '#fff', padding: 24, borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,.35)', maxWidth: 520, width: '90%' }} onClick={e => e.stopPropagation()}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 16 }}>产品信息识别</div>
-          <div style={{ fontSize: 13, color: '#555', lineHeight: 1.8, whiteSpace: 'pre-wrap', maxHeight: 360, overflowY: 'auto', marginBottom: 20 }}>{analysisText}</div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-            <button onClick={() => { setShowAnalysisModal(false); setAnalysisText(null) }} style={{ height: 36, padding: '0 20px', fontSize: 13, border: '1px solid #e0dedc', borderRadius: 8, background: '#fff', color: '#666', cursor: 'pointer' }}>取消</button>
-            <button onClick={() => { setShowAnalysisModal(false); const info = analysisText; setAnalysisText(null); generatePrompts('通用礼品', templateCountRef.current, uploadedRef?.url, '详情图', info) }} style={{ height: 36, padding: '0 24px', fontSize: 13, border: 'none', borderRadius: 8, background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>确定</button>
-          </div>
-        </div>
       </div>
     )}
     </>

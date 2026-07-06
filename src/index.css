@@ -624,8 +624,9 @@ body {
 }
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 28px;
+  justify-items: center;
 }
 @media (max-width: 768px) {
   .app-main {
@@ -646,9 +647,6 @@ body {
   }
   .desktop-only { display: none; }
   .mobile-only { display: block; }
-  .card-grid {
-    grid-template-columns: repeat(1, 1fr);
-  }
 }
 @media (min-width: 769px) {
   .mobile-only { display: none; }

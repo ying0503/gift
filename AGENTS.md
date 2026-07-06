@@ -119,3 +119,36 @@ gift-album/
 
 push 和 deploy 均需通过 macOS `osascript` 弹窗确认（AI 无法点击按钮，必须用户手动确认）
 部署脚本：`bash deploy-ecs.sh`
+
+---
+
+## 重启流程
+
+```bash
+# 1. 停旧进程
+kill $(lsof -ti:3000) 2>/dev/null
+sleep 1
+
+# 2. 启动新进程
+nohup node server.js > /tmp/gift-album-server.log 2>&1 &
+sleep 2
+
+# 3. 验证服务在线
+curl -s http://localhost:3000/api/ping
+# 应返回 JSON 包含 ok:true
+
+# 4. 验证登录（注册临时账户并登录）
+curl -s -X POST http://localhost:3000/api/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"restart-verify@test.com","password":"verify123"}'
+curl -s -X POST http://localhost:3000/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"restart-verify@test.com","password":"verify123"}'
+# 应返回 success:true + token
+
+# 5. 清理临时账户
+mysql -h localhost -u gift_album -p'GiftAlbum@1d6ee11a' gift_album \
+  -e "DELETE FROM users WHERE email LIKE 'restart-verify%@test.com'"
+```
+
+每次重启后端必须执行上述验证，确认登录可用。
