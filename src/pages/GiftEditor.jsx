@@ -1,8 +1,34 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Modal, message } from 'antd'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core'
+import { arrayMove, SortableContext, useSortable, rectSwappingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { API } from '../AuthContext'
 import AlbumPickerModal from '../components/AlbumPickerModal'
+
+function SortableImage({ url, onDelete }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: url })
+  const style = {
+    position: 'relative',
+    width: 120,
+    height: 120,
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : 'auto',
+  }
+  if (isDragging) {
+    return <div ref={setNodeRef} style={{ ...style, borderRadius: 10, border: '2px dashed #3b82f6', background: '#f0f5ff' }} {...attributes} {...listeners} />
+  }
+  return (
+    <div ref={setNodeRef} style={style} className="gift-img-wrap" {...attributes} {...listeners}>
+      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10, border: '1px solid #f0f0f0', cursor: 'grab' }} />
+      <div className="gift-img-del"
+        onClick={e => { e.stopPropagation(); Modal.confirm({ title: '删除图片', content: '确定要删除这张图片吗？', okText: '删除', okType: 'danger', cancelText: '取消', onOk: onDelete }) }}
+      >✕</div>
+    </div>
+  )
+}
 
 export default function GiftEditor() {
   const navigate = useNavigate()
@@ -24,6 +50,22 @@ export default function GiftEditor() {
   const [showAlbumPicker, setShowAlbumPicker] = useState(false)
   const [albumImages, setAlbumImages] = useState([])
   const [pickerSelected, setPickerSelected] = useState(new Set())
+  const [dragActiveId, setDragActiveId] = useState(null)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  const handleDragStart = ({ active }) => setDragActiveId(active.id)
+
+  const handleDragEnd = ({ active, over }) => {
+    setDragActiveId(null)
+    if (!over || active.id === over.id) return
+    const oldIdx = imageUrls.indexOf(active.id)
+    const newIdx = imageUrls.indexOf(over.id)
+    if (oldIdx === -1 || newIdx === -1) return
+    setImageUrls(urls => arrayMove(urls, oldIdx, newIdx))
+  }
+
+  const handleDragCancel = () => setDragActiveId(null)
 
   useEffect(() => {
     if (initialImages.length > 0) {
@@ -137,7 +179,7 @@ export default function GiftEditor() {
         if (!res.ok) throw new Error(data.error || '保存失败')
         if (data.gift) {
           message.success('保存成功')
-          navigate(`/gift-editor/${data.gift.id}`, { replace: true })
+          navigate('/my-gifts', { replace: true })
         }
       } else {
         const res = await fetch(`${API}/api/gifts/${id}`, {
@@ -148,6 +190,7 @@ export default function GiftEditor() {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || '保存失败')
         message.success('保存成功')
+        navigate('/my-gifts', { replace: true })
       }
     } catch (err) {
       message.error(err.message || '保存失败')
@@ -173,7 +216,7 @@ export default function GiftEditor() {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '16px 16px 64px' }}>
+    <div style={{ maxWidth: 820, margin: '0 auto', padding: '16px 16px 64px' }}>
       <div style={{
         background: '#fff',
         borderRadius: 16,
@@ -188,28 +231,22 @@ export default function GiftEditor() {
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap', marginTop: 4 }}>礼品图</div>
             <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {imageUrls.map((url, i) => (
-                <div key={i} style={{ position: 'relative', width: 120, height: 120 }}>
-                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10, border: '1px solid #f0f0f0' }} />
-                  <div
-                    onClick={() => Modal.confirm({
-                      title: '删除图片',
-                      content: '确定要删除这张图片吗？',
-                      okText: '删除',
-                      okType: 'danger',
-                      cancelText: '取消',
-                      onOk: () => setImageUrls(urls => urls.filter((_, j) => j !== i)),
-                    })}
-                    style={{ position: 'absolute', top: 4, right: 4, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}
-                  >✕</div>
-                </div>
-              ))}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
+                <SortableContext items={imageUrls} strategy={rectSwappingStrategy}>
+                  {imageUrls.map((url, i) => (
+                    <SortableImage key={url} url={url} index={i} onDelete={() => setImageUrls(urls => urls.filter((_, j) => j !== i))} />
+                  ))}
+                </SortableContext>
+                <DragOverlay dropAnimation={null}>
+                  {dragActiveId ? <div style={{ width: 120, height: 120, borderRadius: 10, border: '1px solid #f0f0f0', boxShadow: '0 8px 24px rgba(0,0,0,.18)', overflow: 'hidden' }}><img src={dragActiveId} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /></div> : null}
+                </DragOverlay>
+              </DndContext>
               <div style={{ width: 120, height: 120, borderRadius: 10, border: '1px dashed #d9d9d9', background: '#fafafa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'border-color .2s, background .2s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#f0f5ff' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#d9d9d9'; e.currentTarget.style.background = '#fafafa' }}
               >
-                <button onClick={openAlbumPicker} style={{ padding: '4px 10px', fontSize: 11, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap' }}>选择礼品图</button>
-                <button onClick={uploadImage} style={{ padding: '4px 10px', fontSize: 11, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap' }}>上传图片</button>
+                <button onClick={openAlbumPicker} style={{ padding: '6px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100 }}>选择礼品图</button>
+                <button onClick={uploadImage} style={{ padding: '6px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100 }}>上传图片</button>
               </div>
             </div>
           </div>

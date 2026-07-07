@@ -105,7 +105,12 @@ export default function MyGifts() {
           >
             <div onClick={e => handleDelete(e, gift)} className="del-btn" style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(15,23,42,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}>✕</div>
             {gift.imageUrls && gift.imageUrls.length > 0 ? (
-              <img src={gift.imageUrls[0]} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+              <div style={{ position: 'relative' }}>
+                <img src={gift.imageUrls[0]} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                {gift.imageUrls.length > 1 && (
+                  <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10, lineHeight: '20px' }}>{gift.imageUrls.length}张</div>
+                )}
+              </div>
             ) : gift.firstImageUrl ? (
               <img src={gift.firstImageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
             ) : (
