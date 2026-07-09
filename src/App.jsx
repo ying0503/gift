@@ -85,7 +85,6 @@ function AppContent() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <img src="https://gift-bucket-0503.oss-cn-beijing.aliyuncs.com/static/site/logo-64.png" alt="logo" style={{ height: 28, display: 'block' }} />
               <span style={{ fontSize: 16, fontWeight: 700, color: '#111', letterSpacing: -0.5 }}>Ligent</span>
-              <span style={{ fontSize: 11, color: '#fff', background: '#111', padding: '2px 8px', borderRadius: 999, letterSpacing: 0.5, display: 'inline-block' }}>礼企AI智能体</span>
             </div>
           </div>
         </header>
@@ -118,7 +117,6 @@ function AppContent() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <img src="https://gift-bucket-0503.oss-cn-beijing.aliyuncs.com/static/site/logo-64.png" alt="logo" style={{ height: 28, display: 'block' }} />
             <span style={{ fontSize: 16, fontWeight: 700, color: '#111', letterSpacing: -0.5 }}>Ligent</span>
-            <span style={{ fontSize: 11, color: '#fff', background: '#111', padding: '2px 8px', borderRadius: 999, letterSpacing: 0.5, display: 'inline-block' }}>礼企AI智能体</span>
           </div>
         {user && (
             <div className="header-right">

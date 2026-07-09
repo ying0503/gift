@@ -434,6 +434,13 @@ app.get('/api/generate/batch-status', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+app.get('/api/generate/active-tasks', auth, async (req, res) => {
+  try {
+    const batches = await db.getActiveBatches(req.user.userId)
+    res.json({ batches })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
 app.post('/api/generate/prompts', auth, async (req, res) => {
   let textModel, startTime
   try {

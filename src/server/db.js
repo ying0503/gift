@@ -344,6 +344,17 @@ export async function createBatch(batch) {
      batch.createdAt, batch.done ? 1 : 0])
 }
 
+export async function getActiveBatches(userId) {
+  const p = await getPool()
+  const [rows] = await p.query('SELECT * FROM batches WHERE user_id = ? AND done = 0 ORDER BY created_at DESC', [userId])
+  return rows.map(r => ({
+    batchId: r.batch_id, userId: r.user_id,
+    taskIds: typeof r.task_ids === 'string' ? JSON.parse(r.task_ids) : r.task_ids,
+    config: r.config ? (typeof r.config === 'string' ? JSON.parse(r.config) : r.config) : null,
+    prompts: typeof r.prompts === 'string' ? JSON.parse(r.prompts) : r.prompts, createdAt: r.created_at, done: !!r.done,
+  }))
+}
+
 export async function getBatch(batchId) {
   const p = await getPool()
   const [rows] = await p.query('SELECT * FROM batches WHERE batch_id = ?', [batchId])

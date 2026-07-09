@@ -117,22 +117,6 @@ if (imgType === '详情图') {
       .catch(() => {})
   }, [])
 
-  const PENDING_BATCHES_KEY = 'pendingBatches'
-
-  function savePendingBatch(id, batchId, prompts) {
-    const list = JSON.parse(localStorage.getItem(PENDING_BATCHES_KEY) || '[]')
-    const idx = list.findIndex(b => b.id === id)
-    const entry = { id, batchId, prompts }
-    if (idx >= 0) list[idx] = entry
-    else list.push(entry)
-    localStorage.setItem(PENDING_BATCHES_KEY, JSON.stringify(list))
-  }
-
-  function removePendingBatch(id) {
-    const list = JSON.parse(localStorage.getItem(PENDING_BATCHES_KEY) || '[]')
-    localStorage.setItem(PENDING_BATCHES_KEY, JSON.stringify(list.filter(b => b.id !== id)))
-  }
-
   function handleDelete(e, albumId) {
     e.stopPropagation()
     Modal.confirm({
@@ -186,16 +170,18 @@ if (imgType === '详情图') {
   useEffect(() => {
     fetchAlbums()
     const token = localStorage.getItem('token')
-    if (!token) return
-    const pending = JSON.parse(localStorage.getItem(PENDING_BATCHES_KEY) || '[]')
-    for (const p of pending) {
-      if (!p.batchId) {
-        setGenerations(g => (g.some(x => x.id === p.id) ? g : [...g, { id: p.id, batchId: null, progress: 0, statusText: '已中断',         imageUrl: null, imageUrls: null, error: '生成未完成，页面刷新导致任务中断', prompt: p.prompts[0], promptCount: p.prompts.length }]))
-        removePendingBatch(p.id)
-        continue
-      }
-      setGenerations(g => (g.some(x => x.id === p.id) ? g : [...g, { id: p.id, batchId: p.batchId, progress: 0, statusText: '恢复中...',         imageUrl: null, imageUrls: null, error: null, prompt: p.prompts[0], promptCount: p.prompts.length }]))
-      startBatchPolling(p.id, p.batchId, token, p.prompts, () => { removePendingBatch(p.id) })
+    if (token) {
+      fetch(`${API}/api/generate/active-tasks`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(data => {
+          if (!data.batches) return
+          for (const b of data.batches) {
+            const id = b.batchId
+            setGenerations(g => g.some(x => x.id === id) ? g : [...g, { id, batchId: id, progress: 0, statusText: '恢复中...', imageUrl: null, imageUrls: null, error: null, prompt: b.prompts?.[0] || '', promptCount: b.prompts?.length || 0, restored: true }])
+            startBatchPolling(id, id, token, b.prompts || [], () => {})
+          }
+        })
+        .catch(() => {})
     }
     return () => {
       for (const key of Object.keys(pollTimers.current)) {
@@ -232,7 +218,6 @@ if (imgType === '详情图') {
 
     const id = Date.now() + Math.random().toString(36).slice(2, 6)
     setGenerations(g => [...g, { id, batchId: null, progress: 0, statusText: '准备中...',         imageUrl: null, imageUrls: null, error: null, prompt: prefixed[0], promptCount: prefixed.length }])
-    savePendingBatch(id, null, prefixed)
 
     try {
       const imgs = uploadedRef ? [uploadedRef.url] : []
@@ -256,8 +241,7 @@ if (imgType === '详情图') {
       if (!res.ok) throw new Error(r.error || '请求失败')
 
       setGenerations(g => g.map(item => item.id === id ? { ...item, batchId: r.batchId, statusText: '任务已提交' } : item))
-      savePendingBatch(id, r.batchId, prefixed)
-      startBatchPolling(id, r.batchId, token, prefixed, () => { setGenerating(false); removePendingBatch(id) })
+      startBatchPolling(id, r.batchId, token, prefixed, () => { setGenerating(false) })
     } catch (err) {
       setGenerations(g => g.map(item => item.id === id ? { ...item, error: err.message } : item))
       setGenerating(false)
@@ -272,8 +256,16 @@ if (imgType === '详情图') {
         const r = await fetch(`${API}/api/generate/batch-status?batchId=${batchId}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
+        if (!r.ok || cancelled) {
+          if (!cancelled) {
+            setGenerations(g => g.map(item => item.id === id ? { ...item, error: '生成任务不存在或已过期' } : item))
+            fetchAlbums()
+            onDone?.()
+          }
+          return
+        }
+
         const res = await r.json()
-        if (!r.ok || cancelled) return
 
         if (typeof res.progress === 'number' && res.progress > 0) {
           setGenerations(g => g.map(item => item.id === id ? { ...item, progress: res.progress, statusText: res.statusText || item.statusText } : item))
@@ -286,7 +278,7 @@ if (imgType === '详情图') {
           return
         }
         if (res.status === 'SUCCEEDED' && res.imageUrl) {
-          setGenerations(g => g.filter(item => item.id !== id))
+          setGenerations(g => g.map(item => item.id === id ? { ...item, imageUrl: res.imageUrl, imageUrls: res.imageUrls || [res.imageUrl], progress: 100, statusText: '已完成' } : item))
           fetchAlbums()
           onDone?.()
           return
@@ -398,13 +390,13 @@ if (imgType === '详情图') {
               )
             ))}
           </div>
-        ) : albums.length === 0 && generations.length === 0 ? (
+        ) : albums.length === 0 && generations.filter(g => !g.imageUrl).length === 0 ? (
           <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无画册</div>
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
-              {[...generations].reverse().map(item => (
-                <div key={item.id} style={{ padding: 0, margin: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
+              {[...generations].filter(g => !g.imageUrl).reverse().map(item => (
+                <div key={item.id} style={{ padding: 0, margin: 0, overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
                   {!item.error ? (
                     <div style={{ textAlign: 'center' }}>
                       <div className="loading-spinner" />
@@ -416,13 +408,13 @@ if (imgType === '详情图') {
                 </div>
               ))}
               {[...albums].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
-                <div
-                  key={album.id}
-                  style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s', position: 'relative', display: 'flex', flexDirection: 'column' }}
-                  onClick={() => setViewAlbum(album)}
-                  onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.16), 0 16px 48px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '1' }}
-                  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)'; e.currentTarget.style.borderColor = '#f1f5f9'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '0' }}
-                >
+                 <div
+                   key={album.id}
+                   style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s', position: 'relative', display: 'flex', flexDirection: 'column' }}
+                   onClick={() => setViewAlbum(album)}
+                   onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.16), 0 16px 48px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '1' }}
+                   onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)'; e.currentTarget.style.borderColor = '#f1f5f9'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '0' }}
+                 >
                   <div onClick={e => handleDelete(e, album.id)} className="del-btn" style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(15,23,42,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}>✕</div>
                   <div style={{ position: 'relative' }}>
                     <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
@@ -450,154 +442,210 @@ if (imgType === '详情图') {
       {/* Right: Preview */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="desktop-only">
-        {/* Generate Panel -- Premium Neutral */}
-        <div style={{ marginBottom: 24, maxWidth: 1028, marginLeft: 'auto', marginRight: 'auto', marginTop: 100, borderRadius: 12, background: '#fcfcfd', boxShadow: '0 0 0 1px rgba(139,92,246,.06), 0 2px 4px rgba(0,0,0,.02), 0 8px 24px -4px rgba(0,0,0,.04), 0 24px 48px -12px rgba(0,0,0,.08)', overflow: 'hidden', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(139,92,246,.25), #8B5CF6, rgba(139,92,246,.25), transparent)' }} />
-          <div style={{ padding: '32px 32px 0', display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 3, height: 22, borderRadius: 2, background: 'linear-gradient(180deg, #8B5CF6, #A78BFA)' }} />
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#2a2a2e', letterSpacing: -0.1 }}>礼品图生成</span>
+        {/* Generate Panel */}
+        <div style={{ marginBottom: 24, maxWidth: 1200, marginLeft: 'auto', marginRight: 'auto', marginTop: 40 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <span style={{ fontSize: 16, fontWeight: 600, color: '#2a2a2e', letterSpacing: -0.1 }}>礼品图生成</span>
           </div>
-          <div style={{ padding: '20px 32px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24, alignItems: 'start' }}>
             <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => { setUploadedRef({ url: fr.result, blob: f }); if (prompts.some(p => p.trim())) { generatePrompts('通用礼品', templateCountRef.current, fr.result, imageType) } }; fr.readAsDataURL(f) } e.target.value = '' }} />
 
-            {previewUrl === uploadedRef?.url && (
-              <div style={{ position: 'fixed', zIndex: 1000, left: previewPos.left, top: previewPos.top, background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.15)', padding: 6, pointerEvents: 'none', border: '1px solid #e8e6e4' }}>
-                <img src={uploadedRef.url} alt="" style={{ maxWidth: '30vw', maxHeight: '50vh', borderRadius: 6, display: 'block' }} />
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            {/* ========== LEFT COLUMN: Upload ========== */}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10, letterSpacing: 0.3 }}>上传参考图</div>
               {uploadedRef ? (
-                <div style={{ position: 'relative', width: 80, height: 80, borderRadius: 10, overflow: 'hidden', border: '1.5px solid #ddd', boxShadow: '0 2px 8px rgba(0,0,0,.06)', flexShrink: 0 }}
+                <div style={{ position: 'relative', width: '100%', aspectRatio: '1', borderRadius: 12, overflow: 'hidden', border: '1.5px solid #ddd', boxShadow: '0 2px 8px rgba(0,0,0,.06)' }}
                   onMouseEnter={(e) => { clearTimeout(previewTimer.current); const r = e.currentTarget.getBoundingClientRect(); previewTimer.current = setTimeout(() => { setPreviewPos({ left: r.right + 8, top: Math.min(r.top, window.innerHeight * 0.5 - 24) }); setPreviewUrl(uploadedRef.url) }, 300) }}
                   onMouseLeave={() => { clearTimeout(previewTimer.current); setPreviewUrl(null) }}
                 >
                   <img src={uploadedRef.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <div onClick={() => setUploadedRef(null)} style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: '50%', background: 'rgba(0,0,0,.45)', color: '#fff', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(190,70,60,.85)'; e.currentTarget.style.color = '#fff' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,.45)'; e.currentTarget.style.color = '#fff' }}
+                  <div onClick={() => setUploadedRef(null)} style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,.45)', color: '#fff', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(190,70,60,.85)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,.45)' }}
                   >&#10005;</div>
                 </div>
               ) : (
-                <div onClick={() => refInputRef.current?.click()} style={{ width: 80, height: 80, borderRadius: 10, border: '1.5px dashed #d0cecc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 11, color: '#999', transition: 'all .25s', flexShrink: 0, gap: 2, background: '#fafaf8' }}
+                <div onClick={() => refInputRef.current?.click()} style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1.5px dashed #d0cecc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, color: '#999', transition: 'all .25s', gap: 6, background: '#fafaf8' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#8B5CF6'; e.currentTarget.style.background = '#f5f0ff' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = '#d0cecc'; e.currentTarget.style.color = '#999'; e.currentTarget.style.background = '#fafaf8' }}
                 >
-                  <span style={{ fontSize: 20, lineHeight: 1 }}>+</span>
-                  <span style={{ letterSpacing: 0 }}>参考图</span>
+                  <span style={{ fontSize: 28, lineHeight: 1 }}>+</span>
+                  <span>上传图片</span>
                 </div>
               )}
               {analyzing && (
-                <div style={{ alignSelf: 'center', fontSize: 13, color: '#8B5CF6', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 16, height: 16, border: '2px solid #e0dedc', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
-                  AI 分析产品信息中...
+                <div style={{ marginTop: 10, fontSize: 12, color: '#8B5CF6', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                  <div style={{ width: 14, height: 14, border: '2px solid #e0dedc', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+                  AI 分析中...
                 </div>
               )}
 
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}>
-                {prompts.map((p, i) => (
-                  <div key={i} style={{ flex: 1 }}>
-                    <textarea
-                      ref={el => textareaRefs.current[i] = el}
-                      style={{
-                        width: '100%', minHeight: 72, padding: '12px 14px', fontSize: 14, color: '#333',
-                        border: '1px solid #e0dedc', borderRadius: 10, background: '#fafaf8',
-                        resize: 'none', lineHeight: 1.7, boxSizing: 'border-box', outline: 'none', transition: 'border-color .25s, box-shadow .25s',
-                        fontFamily: 'inherit', overflow: 'hidden',
-                      }}
-                      onFocus={e => { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,.1)'; e.target.style.background = '#fff' }}
-                      onBlur={e => { e.target.style.borderColor = '#e0dedc'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafaf8' }}
-                      value={p}
-                      onChange={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; const next = [...prompts]; next[i] = e.target.value; setPrompts(next) }}
-                      placeholder={''}
-                    />
-                  </div>
-                ))}
-                {generatingPrompts && (
-                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,.85)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2, borderRadius: 10, gap: 6 }}>
-                    <div style={{ width: 22, height: 22, border: '2px solid #e0dedc', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
-                    <span style={{ fontSize: 13, color: '#888', letterSpacing: 0.3 }}>AI 文案策划中<span className="loading-dots"><span>.</span><span>.</span><span>.</span></span></span>
-                  </div>
-                )}
+              {previewUrl === uploadedRef?.url && (
+                <div style={{ position: 'fixed', zIndex: 1000, left: previewPos.left, top: previewPos.top, background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.15)', padding: 6, pointerEvents: 'none', border: '1px solid #e8e6e4' }}>
+                  <img src={uploadedRef.url} alt="" style={{ maxWidth: '30vw', maxHeight: '50vh', borderRadius: 6, display: 'block' }} />
+                </div>
+              )}
+
+              <div style={{ marginTop: 16, padding: 12, borderRadius: 8, background: '#f5f0ff', border: '1px solid #e8dfff', fontSize: 12, color: '#6d4fc7', lineHeight: 1.8 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>上传建议</div>
+                <div>使用光线充足、对焦清晰的产品图</div>
+                <div>产品主体清晰、背景尽量简洁</div>
+                <div>产品居中放置在画面中间</div>
+                <div>建议分辨率 1024x1024 以上</div>
+                <div>上传后 AI 将基于原图优化而非重绘</div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select value={imageType} onChange={e => { const v = e.target.value; setImageType(v); const c = v === '详情图' ? 5 : 1; setTemplateCount(c); templateCountRef.current = c;
-                  if (v === '详情图') {
-                    const p = Array.from({ length: c }, () => '')
-                    p[0] = '生成白底图'
-                    setPrompts(p)
-                    if (uploadedRef?.url) {
-                      analyzeImage(uploadedRef.url)
-                    } else {
-                      generatePrompts('通用礼品', c, undefined, v)
-                    }
-                  } else if (v === '图类型') { setPrompts(Array.from({ length: c }, (_, i) => prompts[i] || ''))
-                  } else { generatePrompts('通用礼品', c, uploadedRef?.url, v) } }}
-                  style={{ height: 34, padding: '0 12px', fontSize: 13, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', cursor: 'pointer', outline: 'none', color: '#333', transition: 'border-color .25s, box-shadow .25s' }}
-                  onFocus={e => { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,.1)' }}
-                  onBlur={e => { e.target.style.borderColor = '#e0dedc'; e.target.style.boxShadow = 'none' }}>
-                  <option value="图类型">图类型</option>
-                  <option value="场景图">场景图</option>
-                  <option value="详情图">详情图</option>
-                </select>
-                <select value={templateCount} disabled
-                  style={{ height: 34, padding: '0 12px', fontSize: 13, border: '1px solid #e8e6e4', borderRadius: 8, background: '#f5f5f2', cursor: 'not-allowed', outline: 'none', color: '#aaa' }}>
-                  {[1,2,3,4,5].map(v => <option key={v} value={v}>{v}张</option>)}
-                </select>
-                <select value={imageSize} onChange={e => setImageSize(e.target.value)}
-                  style={{ height: 34, padding: '0 12px', fontSize: 13, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', cursor: 'pointer', outline: 'none', color: '#333' }}>
-                  <option value="3:4">3:4</option>
-                  <option value="1:1">1:1</option>
-                  <option value="16:9">16:9</option>
-                  <option value="9:16">9:16</option>
-                  <option value="2:3">2:3</option>
-                  <option value="4:3">4:3</option>
-                </select>
+            {/* ========== MIDDLE COLUMN: Parameters ========== */}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10, letterSpacing: 0.3 }}>参数配置</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6 }}>图类型</div>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {['场景图', '详情图'].map(t => (
+                    <div key={t}
+                      onClick={() => {
+                        const v = t; setImageType(v); const c = v === '详情图' ? 5 : 1; setTemplateCount(c); templateCountRef.current = c;
+                        if (v === '详情图') {
+                          const p = Array.from({ length: c }, () => '')
+                          p[0] = '生成白底图'
+                          setPrompts(p)
+                          if (uploadedRef?.url) {
+                            analyzeImage(uploadedRef.url)
+                          } else {
+                            generatePrompts('通用礼品', c, undefined, v)
+                          }
+                        } else { generatePrompts('通用礼品', c, uploadedRef?.url, v) }
+                      }}
+                      style={{
+                        padding: '6px 16px', fontSize: 14, borderRadius: 8, cursor: 'pointer', userSelect: 'none',
+                        background: imageType === t ? '#8B5CF6' : '#fafaf8',
+                        color: imageType === t ? '#fff' : '#555',
+                        border: imageType === t ? '1px solid #8B5CF6' : '1px solid #e0dedc',
+                        transition: 'all .2s',
+                      }}
+                    >{t}</div>
+                  ))}
+                  </div>
+                </div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6, marginTop: 2 }}>比例</div>
+                  <select value={imageSize} onChange={e => setImageSize(e.target.value)}
+                    style={{ height: 48, padding: '0 10px', fontSize: 14, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', cursor: 'pointer', outline: 'none', color: '#333' }}>
+                    <option value="3:4">3:4</option>
+                    <option value="1:1">1:1</option>
+                    <option value="16:9">16:9</option>
+                    <option value="9:16">9:16</option>
+                    <option value="2:3">2:3</option>
+                    <option value="4:3">4:3</option>
+                  </select>
+
+                <div style={{ position: 'relative' }}>
+                  {prompts.map((p, i) => (
+                    <div key={i} style={{ marginBottom: i < prompts.length - 1 ? 8 : 0 }}>
+                      <textarea
+                        ref={el => textareaRefs.current[i] = el}
+                        style={{
+                          width: '100%', minHeight: 56, padding: '10px 12px', fontSize: 14, color: '#333',
+                          border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8',
+                          resize: 'none', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none', transition: 'border-color .25s, box-shadow .25s',
+                          fontFamily: 'inherit', overflow: 'hidden',
+                        }}
+                        onFocus={e => { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,.1)'; e.target.style.background = '#fff' }}
+                        onBlur={e => { e.target.style.borderColor = '#e0dedc'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafaf8' }}
+                        value={p}
+                        onChange={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; const next = [...prompts]; next[i] = e.target.value; setPrompts(next) }}
+                        placeholder={''}
+                      />
+                    </div>
+                  ))}
+                  {generatingPrompts && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,.85)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2, borderRadius: 10, gap: 6 }}>
+                      <div style={{ width: 20, height: 20, border: '2px solid #e0dedc', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+                      <span style={{ fontSize: 12, color: '#888', letterSpacing: 0.3 }}>AI 文案策划中<span className="loading-dots"><span>.</span><span>.</span><span>.</span></span></span>
+                    </div>
+                  )}
+                </div>
+
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6, marginTop: 2 }}>张数</div>
+                  <select value={templateCount} disabled
+                    style={{ height: 48, padding: '0 10px', fontSize: 14, border: '1px solid #e8e6e4', borderRadius: 8, background: '#f5f5f2', cursor: 'not-allowed', outline: 'none', color: '#aaa', width: '100%' }}>
+                    {[1,2,3,4,5].map(v => <option key={v} value={v}>{v}张</option>)}
+                  </select>
+
+                <button
+                  disabled={!canGenerate || generating}
+                  onClick={handleGenerate}
+                  style={{
+                    height: 54, padding: '0 20px', fontSize: 14, fontWeight: 600,
+                    background: !canGenerate || generating ? '#e8e6e4' : 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
+                    color: !canGenerate || generating ? '#bbb' : '#fff',
+                    border: 'none', borderRadius: 8,
+                    cursor: !canGenerate || generating ? 'not-allowed' : 'pointer',
+                    boxShadow: !canGenerate || generating ? 'none' : '0 4px 20px rgba(139,92,246,.3)',
+                    transition: 'all .3s', letterSpacing: 0.5, whiteSpace: 'nowrap', width: '100%',
+                  }}
+                  onMouseEnter={e => { if (canGenerate && !generating) { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 8px 28px rgba(139,92,246,.4)' } }}
+                  onMouseLeave={e => { if (canGenerate && !generating) { e.target.style.transform = 'none'; e.target.style.boxShadow = '0 4px 20px rgba(139,92,246,.3)' } }}
+                >生成礼品图</button>
               </div>
-              <button
-                disabled={!canGenerate || generating}
-                onClick={handleGenerate}
-                style={{
-                  height: 40, padding: '0 28px', fontSize: 14, fontWeight: 600,
-                  background: !canGenerate || generating ? '#e8e6e4' : 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
-                  color: !canGenerate || generating ? '#bbb' : '#fff',
-                  border: 'none', borderRadius: 10,
-                  cursor: !canGenerate || generating ? 'not-allowed' : 'pointer',
-                  boxShadow: !canGenerate || generating ? 'none' : '0 4px 20px rgba(139,92,246,.3)',
-                  transition: 'all .3s', letterSpacing: 0.5, whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={e => { if (canGenerate && !generating) { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 8px 28px rgba(139,92,246,.4)' } }}
-                onMouseLeave={e => { if (canGenerate && !generating) { e.target.style.transform = 'none'; e.target.style.boxShadow = '0 4px 20px rgba(139,92,246,.3)' } }}
-              >生成礼品图</button>
+            </div>
+
+            {/* ========== RIGHT COLUMN: Current Image ========== */}
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10, letterSpacing: 0.3 }}>当前生成的图片</div>
+              {generations.length > 0 ? (
+                (() => {
+                  const last = [...generations].reverse()[0]
+                  if (last.error) {
+                    return <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF4D4F', fontSize: 13, background: '#fafaf8' }}>{last.error}</div>
+                  }
+                  if (last.imageUrl) {
+                    return (
+                      <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', background: '#fafaf8' }}>
+                        <img src={last.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </div>
+                    )
+                  }
+                  return (
+                    <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fafaf8' }}>
+                      <div className="loading-spinner" />
+                      <div style={{ fontSize: 18, fontWeight: 700, color: '#1677FF' }}>{last.progress}%</div>
+                      <div style={{ fontSize: 12, color: '#888' }}>{last.statusText}</div>
+                    </div>
+                  )
+                })()
+              ) : (
+                <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px dashed #e0dedc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 13, background: '#fafaf8' }}>
+                  暂无生成结果
+                </div>
+              )}
             </div>
           </div>
         </div>
         {/* My Albums */}
         <div style={{ maxWidth: 1060, margin: '0 auto', padding: '0 16px' }}>
         <div style={{ fontSize: 24, fontWeight: 600, color: '#333', marginTop: 100, marginBottom: 16 }}>我的礼品图</div>
-        {albums.length === 0 && generations.length === 0 ? (
-          <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>
-            <div>配置完成后点击「生成礼品图」</div>
-          </div>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
-              {[...generations].reverse().map(item => (
-                <div key={item.id} style={{ padding: 0, margin: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
-                  {!item.error ? (
-                    <div style={{ textAlign: 'center' }}>
-                      <div className="loading-spinner" />
-                      <div style={{ fontSize: 28, fontWeight: 700, color: '#1677FF', marginTop: 12 }}>{item.progress}%</div>
-                    </div>
-                  ) : (
-                    <div style={{ color: '#FF4D4F', fontSize: 13 }}>{item.error}</div>
-                  )}
-                </div>
-              ))}
-              {[...albums].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
+         {albums.length === 0 && generations.filter(g => !g.imageUrl).length === 0 ? (
+           <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>
+             <div>配置完成后点击「生成礼品图」</div>
+           </div>
+         ) : (
+           <>
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
+               {[...generations].filter(g => !g.imageUrl).reverse().map(item => (
+                 <div key={item.id} style={{ padding: 0, margin: 0, overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
+                   {!item.error ? (
+                     <div style={{ textAlign: 'center' }}>
+                       <div className="loading-spinner" />
+                       <div style={{ fontSize: 28, fontWeight: 700, color: '#1677FF', marginTop: 12 }}>{item.progress}%</div>
+                     </div>
+                   ) : (
+                     <div style={{ color: '#FF4D4F', fontSize: 13 }}>{item.error}</div>
+                   )}
+                 </div>
+               ))}
+               {[...albums].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
                 <div
                   key={album.id}
                   style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s', position: 'relative', display: 'flex', flexDirection: 'column' }}
