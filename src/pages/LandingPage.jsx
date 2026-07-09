@@ -436,7 +436,6 @@ export default function LandingPage() {
             <img src="https://gift-bucket-0503.oss-cn-beijing.aliyuncs.com/static/site/logo-64.png" alt="logo" style={{ height: 32, display: 'block' }} />
             <div>
               <span style={styles.logoText}>Ligent</span>
-              <span style={styles.logoBadge}>礼企AI智能体</span>
             </div>
           </div>
           {isMobile ? (
@@ -483,12 +482,14 @@ export default function LandingPage() {
                       {item}
                     </button>
                   ))}
-                  <button
-                    style={{ ...styles.navCta, width: '100%', marginTop: 8 }}
-                    onClick={navBtnAction}
-                  >
-                    {ctaText}
-                  </button>
+                  {user && (
+                    <button
+                      style={{ ...styles.navCta, width: '100%', marginTop: 8 }}
+                      onClick={navBtnAction}
+                    >
+                      {ctaText}
+                    </button>
+                  )}
                 </div>
               )}
             </>
@@ -512,7 +513,7 @@ export default function LandingPage() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
                 {user && <UserDropdown />}
-                <button style={styles.navCta} onClick={navBtnAction}
+                {user ? <button style={styles.navCta} onClick={navBtnAction}
                   onMouseEnter={(e) => { e.target.style.opacity = '0.9' }}
                   onMouseLeave={(e) => { e.target.style.opacity = '1' }}
                 >
@@ -520,7 +521,7 @@ export default function LandingPage() {
                     <path d="M6.9087987,2.1813321L8.775465,7.2245321L13.818132,9.0911989L8.775466,10.956798L6.9087996,15.999997L5.0432005,10.956797L0,9.091732L5.0431991,7.2250652L6.9087987,2.1823981L6.9087987,2.1813321ZM13.090667,0L13.876266,2.1237338L16,2.9093328L13.876266,3.6943991L13.090667,5.8181319L12.3056,3.6943991L10.181867,2.9087985L12.3056,2.1237323L13.090667,0Z" fill="#FFFFFF" />
                   </svg>
                   {ctaText}
-                </button>
+                </button> : null}
               </div>
             </>
           )}
@@ -548,12 +549,7 @@ export default function LandingPage() {
                 ...styles.heroTitle1,
                 fontSize: isMobile ? 36 : 72,
                 letterSpacing: isMobile ? -1 : -2,
-              }}>超级礼业AI设计</h1>
-              <h1 style={{
-                ...styles.heroTitle2,
-                fontSize: isMobile ? 36 : 72,
-                letterSpacing: isMobile ? -1 : -2,
-              }}>智能体</h1>
+              }}>礼业设计</h1>
               <p style={{
                 ...styles.heroDesc,
                 fontSize: isMobile ? 15 : 18,
@@ -562,7 +558,7 @@ export default function LandingPage() {
                 像点外卖一样简单高效
               </p>
               <div style={{ display: 'flex', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-                <button
+                {user && <button
                   style={styles.heroCta}
                   onClick={navBtnAction}
                   onMouseEnter={(e) => e.target.style.opacity = '0.8'}
@@ -572,7 +568,7 @@ export default function LandingPage() {
                     <path d="M6.9087987,2.1813321L8.775465,7.2245321L13.818132,9.0911989L8.775466,10.956798L6.9087996,15.999997L5.0432005,10.956797L0,9.091732L5.0431991,7.2250652L6.9087987,2.1823981L6.9087987,2.1813321ZM13.090667,0L13.876266,2.1237338L16,2.9093328L13.876266,3.6943991L13.090667,5.8181319L12.3056,3.6943991L10.181867,2.9087985L12.3056,2.1237323L13.090667,0Z" fill="#FFFFFF" />
                   </svg>
                   立即创作
-                </button>
+                </button>}
               </div>
             </div>
             <div style={{
@@ -652,7 +648,7 @@ export default function LandingPage() {
           ))}
         </div>
         <div style={{ textAlign: 'center' }}>
-          <button
+          {user && <button
             style={styles.ctaBtn}
             onClick={navBtnAction}
             onMouseEnter={(e) => e.target.style.opacity = '0.8'}
@@ -662,8 +658,8 @@ export default function LandingPage() {
               <path d="M6.9087987,2.1813321L8.775465,7.2245321L13.818132,9.0911989L8.775466,10.956798L6.9087996,15.999997L5.0432005,10.956797L0,9.091732L5.0431991,7.2250652L6.9087987,2.1823981L6.9087987,2.1813321ZM13.090667,0L13.876266,2.1237338L16,2.9093328L13.876266,3.6943991L13.090667,5.8181319L12.3056,3.6943991L10.181867,2.9087985L12.3056,2.1237323L13.090667,0Z" fill="#FFFFFF" />
             </svg>
             去创作
-          </button>
-        </div>
+          </button>}
+              </div>
       </section>
 
       {/* Users + Testimonials Section */}
@@ -805,8 +801,8 @@ export default function LandingPage() {
               <svg viewBox="0 0 1307 1024" width="34" height="34" fill="#666">
                 <path d="M1208.849121 916.353531c61.28479-55.978748 98.493413-129.600087 98.493413-210.185606 0-140.278497-112.753402-259.332825-268.950027-301.449537-9.3519-224.777223-238.108655-404.585737-519.063602-404.585737C232.53731 0 0 187.568601 0 418.978377c0 106.120849 49.014567 203.221426 129.799063 277.108067 25.336353 23.081285-4.311159 86.22319-40.65755 138.554033a719.565682 719.565682 0 0 1 184.451301-27.989374 315.6432 315.6432 0 0 1 73.952966 7.760088 632.214958 632.214958 0 0 0 172.048427 23.479237c11.739619 0 23.280261-0.331628 34.820904-0.928557 61.815395 110.233032 199.374545 187.037996 359.219073 187.037996a479.201959 479.201959 0 0 0 129.931715-17.841567 240.894327 240.894327 0 0 1 56.111399-5.902973 543.869351 543.869351 0 0 1 139.880544 21.290496c-27.591421-39.795318-50.00945-87.616026-30.841372-105.192292zM519.594207 761.350766a554.415111 554.415111 0 0 1-150.956908-20.560914l-1.32651-0.397954-1.326511-0.331627-92.391464-9.749853c-19.566032 0-39.065738 1.061208-58.167491 2.918323 4.045857-44.836059-13.265106-74.417245-33.958671-93.452673a336.602068 336.602068 0 0 1-77.799848-103.1362 270.67449 270.67449 0 0 1-27.193467-117.661491c0-88.345607 43.907501-172.44638 123.697114-236.715819a462.089972 462.089972 0 0 1 141.737659-76.937615 561.379291 561.379291 0 0 1 354.907915 0 463.615459 463.615459 0 0 1 141.737659 76.937615c71.167294 57.238933 113.748285 130.528644 122.105302 208.394817q-23.280261-2.321394-47.290104-2.321393c-217.614066 0-393.774675 142.268263-393.774675 317.831943a257.939989 257.939989 0 0 0 5.969298 55.116516h-5.969298z m637.918954 98.559739a97.631181 97.631181 0 0 0-31.637279 64.601066c-8.555993-0.530604-17.178312-0.795906-25.800631-0.795906a315.444224 315.444224 0 0 0-74.284594 8.091715l-1.326511 0.331627-1.326511 0.397954a403.325552 403.325552 0 0 1-109.503451 14.923244 397.289928 397.289928 0 0 1-128.671529-20.892542 332.821513 332.821513 0 0 1-101.876015-55.249167c-56.111399-45.234012-86.952771"/>
               </svg>
-            </button>
-          </div>
+                </button>
+              </div>
         </div>
       </footer>
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />

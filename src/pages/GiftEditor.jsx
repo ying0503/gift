@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Modal, message } from 'antd'
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core'
-import { arrayMove, SortableContext, useSortable, rectSwappingStrategy } from '@dnd-kit/sortable'
+import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core'
+import { arrayMove, SortableContext, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { API } from '../AuthContext'
 import AlbumPickerModal from '../components/AlbumPickerModal'
@@ -155,6 +155,14 @@ export default function GiftEditor() {
   }
 
   const handleSave = async () => {
+    if (!name.trim()) {
+      message.error('请输入礼品名称')
+      return
+    }
+    if (imageUrls.length === 0) {
+      message.error('请至少添加一张礼品图')
+      return
+    }
     const token = localStorage.getItem('token')
     if (!token) return
     setSaving(true)
@@ -229,10 +237,10 @@ export default function GiftEditor() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap', marginTop: 4 }}>礼品图</div>
+            <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap', marginTop: 4 }}>礼品图<span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span></div>
             <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
-                <SortableContext items={imageUrls} strategy={rectSwappingStrategy}>
+              <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
+                <SortableContext items={imageUrls} strategy={rectSortingStrategy}>
                   {imageUrls.map((url, i) => (
                     <SortableImage key={url} url={url} index={i} onDelete={() => setImageUrls(urls => urls.filter((_, j) => j !== i))} />
                   ))}
@@ -252,7 +260,7 @@ export default function GiftEditor() {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>礼品名称</div>
+              <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>礼品名称<span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span></div>
               <input
                 value={name} onChange={e => setName(e.target.value)}
                 placeholder="请输入礼品名称"

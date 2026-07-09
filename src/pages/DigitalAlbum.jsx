@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { Modal } from 'antd'
 import { EditOutlined, CloseOutlined, CheckOutlined, ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons'
 import TemplatePicker from '../components/TemplatePicker'
 import { API } from '../AuthContext'
@@ -32,6 +33,9 @@ export default function DigitalAlbum({ setPreviewSave, setPreviewAlbumId, setPre
   const [comboBannerProgress, setComboBannerProgress] = useState(0)
   const [comboUploadingBanner, setComboUploadingBanner] = useState(false)
   const comboFileInputRef = useRef(null)
+  const [editingComboBanner, setEditingComboBanner] = useState(false)
+  const [renameTarget, setRenameTarget] = useState(null)
+  const [renameInput, setRenameInput] = useState('')
   const [pickerPage, setPickerPage] = useState(0)
 const [globalBannerUrl, setGlobalBannerUrl] = useState(null)
 const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
@@ -106,7 +110,7 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
 
   useEffect(() => {
     if (loading) return
-    if (!bannerTitle) { setTitleModalOpen(true); setTitleInput('') }
+    if (!albumTitle) { setTitleModalOpen(true); setTitleInput('') }
   }, [loading])
 
   useEffect(() => {
@@ -255,10 +259,13 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ festival: text, count: 1 }),
     }).then(r => r.json()).then(data => {
-      if (data.prompts?.length) setFestivalPrompt(data.prompts[0])
-      else if (!data.prompts?.length && bannerTitle) setFestivalPrompt(`节日氛围浓厚的高品质banner图，以${bannerTitle}为主题，画面采用暖色调光影，点缀金色和红色元素，背景融入传统节日纹样与灯笼装饰，前景摆放精美礼品礼盒，整体构图大气喜庆，传递温馨团圆的节日祝福，细节丰富光影层次分明，适合作为品牌活动页顶部氛围展示。`)
+      const prompt = data.prompts?.[0] || (bannerTitle ? `节日氛围浓厚的高品质banner图，以${bannerTitle}为主题，画面采用暖色调光影，点缀金色和红色元素，背景融入传统节日纹样与灯笼装饰，前景摆放精美礼品礼盒，整体构图大气喜庆，传递温馨团圆的节日祝福，细节丰富光影层次分明，适合作为品牌活动页顶部氛围展示。` : '')
+      setFestivalPrompt(prompt)
+      if (prompt) generateGlobalBanner(prompt)
     }).catch(() => {
-      if (bannerTitle) setFestivalPrompt(`节日氛围浓厚的高品质banner图，以${bannerTitle}为主题，画面采用暖色调光影，点缀金色和红色元素，背景融入传统节日纹样与灯笼装饰，前景摆放精美礼品礼盒，整体构图大气喜庆，传递温馨团圆的节日祝福，细节丰富光影层次分明，适合作为品牌活动页顶部氛围展示。`)
+      const prompt = bannerTitle ? `节日氛围浓厚的高品质banner图，以${bannerTitle}为主题，画面采用暖色调光影，点缀金色和红色元素，背景融入传统节日纹样与灯笼装饰，前景摆放精美礼品礼盒，整体构图大气喜庆，传递温馨团圆的节日祝福，细节丰富光影层次分明，适合作为品牌活动页顶部氛围展示。` : ''
+      setFestivalPrompt(prompt)
+      if (prompt) generateGlobalBanner(prompt)
     }).finally(() => setGeneratingPrompt(false))
   }, [bannerAiMode])
 
@@ -275,10 +282,13 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ festival: text, count: 1 }),
     }).then(r => r.json()).then(data => {
-      if (data.prompts?.length) setComboBannerPrompt(data.prompts[0])
-      else setComboBannerPrompt(`高品质产品展示banner图，以${text}为主题，画面精美大气，光影层次分明，背景融入氛围感元素，前景摆放精美产品，整体构图专业，细节丰富。`)
+      const p = data.prompts?.[0] || `高品质产品展示banner图，以${text}为主题，画面精美大气，光影层次分明，背景融入氛围感元素，前景摆放精美产品，整体构图专业，细节丰富。`
+      setComboBannerPrompt(p)
+      generateBanner(p)
     }).catch(() => {
-      setComboBannerPrompt(`高品质产品展示banner图，以${text}为主题，画面精美大气，光影层次分明，背景融入氛围感元素，前景摆放精美产品，整体构图专业，细节丰富。`)
+      const p = `高品质产品展示banner图，以${text}为主题，画面精美大气，光影层次分明，背景融入氛围感元素，前景摆放精美产品，整体构图专业，细节丰富。`
+      setComboBannerPrompt(p)
+      generateBanner(p)
     }).finally(() => setComboGeneratingPrompt(false))
   }, [comboBannerAiMode])
 
@@ -321,7 +331,7 @@ if (setPreviewSave) setPreviewSave(saveForPreview)
 
 useEffect(() => { document.title = albumTitle || '礼企汇' }, [albumTitle])
 
-useEffect(() => { if (setPreviewTitle) setPreviewTitle(albumTitle || '画册标题') }, [albumTitle, setPreviewTitle])
+useEffect(() => { if (setPreviewTitle) setPreviewTitle(albumTitle || '画册名称') }, [albumTitle, setPreviewTitle])
 
 const saveGlobalBannerUrl = (url) => {
 const token = localStorage.getItem('token')
@@ -465,10 +475,10 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     e.target.value = ''
   }
 
-  const generateGlobalBanner = () => {
+  const generateGlobalBanner = (customPrompt) => {
     const token = localStorage.getItem('token')
     if (!token) return
-    const prompt = festivalPrompt || `生成一个${festival || '节日'}的banner，喜庆、大气`
+    const prompt = customPrompt || festivalPrompt || `生成一个${festival || '节日'}的banner，喜庆、大气`
     setGeneratingGlobalBanner(true)
     setGlobalBannerProgress(1)
     setGlobalBannerError(null)
@@ -626,11 +636,25 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       } : i)
     } : c)
     save(newCats)
+    if (bannerUrl) setEditingComboBanner(false)
     const cat = newCats.find(c => c.id === catId)
     const item = cat?.items.find(i => i.id === itemId)
     const updated = item?.albums.find(a => a.albumId === albumId)
     if (updated) setViewAlbum(updated)
   }, [categories, save])
+
+  const handleRenameCombo = useCallback(() => {
+    if (!renameTarget || !renameInput.trim()) return
+    const { catId, itemId, albumId } = renameTarget
+    const newCats = categories.map(c => c.id === catId ? {
+      ...c, items: c.items.map(i => i.id === itemId ? {
+        ...i, albums: i.albums.map(a => a.albumId === albumId ? { ...a, productName: renameInput.trim() } : a)
+      } : i)
+    } : c)
+    save(newCats)
+    setRenameTarget(null)
+    setRenameInput('')
+  }, [renameTarget, renameInput, categories, save])
 
   const openPicker = useCallback((type) => {
     setPicked(new Set())
@@ -654,7 +678,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       save(catsWithItem)
       setTimeout(() => {
         const finalAdded = pendingType === '组合' && added.length > 0
-          ? [{ albumId: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8), type: '组合', imageUrl: added[0].imageUrl, imageUrls: added[0].imageUrls, prompt: '', config: {}, createdAt: Date.now(), productName: '产品名称', productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' }, comboItems: added.slice(0, 12).map(a => { const g = giftMap[a.id]; return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: '', productParams: g ? { spec: g.spec || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', note: g.tips || '' } : { spec: '', shelfLife: '', totalWeight: '', note: '' } } }) }]
+          ? [{ albumId: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8), type: '组合', imageUrl: added[0].imageUrl, imageUrls: added[0].imageUrls, prompt: '', config: {}, createdAt: Date.now(), productName: '未命名组合', productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' }, comboItems: added.slice(0, 12).map(a => { const g = giftMap[a.id]; return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: '', productParams: g ? { spec: g.spec || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', note: g.tips || '' } : { spec: '', shelfLife: '', totalWeight: '', note: '' } } }) }]
           : added.map(a => ({ ...a, albumId: a.id, _albumData: a, type: pendingType || '单品', productName: '产品名称' }))
         const nextCats = categories.map(c => c.id === catId ? { ...c, items: [...c.items, newItem].map(i => i.id === itemId ? { ...i, albums: finalAdded } : i) } : c)
         save(nextCats)
@@ -664,7 +688,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     }
     if (pendingType === '组合' && added.length > 0) {
       const comboId = crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
-      const comboEntry = { albumId: comboId, type: '组合', imageUrl: added[0].imageUrl, imageUrls: added[0].imageUrls, prompt: '', config: {}, createdAt: Date.now(), productName: '产品名称', productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' }, comboItems: added.slice(0, 12).map(a => { const g = giftMap[a.id]; return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: '', productParams: g ? { spec: g.spec || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', note: g.tips || '' } : { spec: '', shelfLife: '', totalWeight: '', note: '' } } }) }
+      const comboEntry = { albumId: comboId, type: '组合', imageUrl: added[0].imageUrl, imageUrls: added[0].imageUrls, prompt: '', config: {}, createdAt: Date.now(), productName: '未命名组合', productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' }, comboItems: added.slice(0, 12).map(a => { const g = giftMap[a.id]; return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: '', productParams: g ? { spec: g.spec || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', note: g.tips || '' } : { spec: '', shelfLife: '', totalWeight: '', note: '' } } }) }
       save(categories.map(c => c.id === catId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, albums: [...i.albums, comboEntry] } : i) } : c))
     } else {
       save(categories.map(c => c.id === catId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, albums: [...i.albums, ...added.map(a => ({ ...a, albumId: a.id, _albumData: a, type: pendingType || '单品', productName: '产品名称' }))] } : i) } : c))
@@ -701,7 +725,8 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     setBannerError(null)
     const token = localStorage.getItem('token')
     if (!token) return
-    const promptText = prompt || currentViewAlbum.productName || '产品名称'
+    const title = currentViewAlbum.productName || '产品展示'
+    const promptText = (prompt || title) + `，图中居中大字标题为「${title}」`
     setTimeout(() => setComboBannerProgress(2), 200)
     let prog = 2
     const progTimer = setInterval(() => {
@@ -823,7 +848,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       <div className="card" style={{ padding: '12px 16px', marginBottom: 12 }}>
         {editingAlbumTitle ? (
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 4 }}>画册标题</div>
+            <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 4 }}>画册名称</div>
             <input autoFocus value={albumTitle} onChange={e => setAlbumTitle(e.target.value)}
               style={{ width: '100%', height: 34, padding: '0 10px', fontSize: 15, border: '1px solid #8B5CF6', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
               onKeyDown={e => { if (e.key === 'Enter') { setEditingAlbumTitle(false); saveAlbumTitle() } }}
@@ -833,7 +858,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 2 }}>画册标题</div>
+              <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 2 }}>画册名称</div>
               <span style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)' }}>{albumTitle || '未命名画册'}</span>
             </div>
             <span onClick={() => setEditingAlbumTitle(true)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 16, padding: 4 }}><EditOutlined /></span>
@@ -976,7 +1001,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
               <div key={cat.id} className="album-tree-group">
                 <div
                   className={`album-tree-node album-tree-node-level1${selectedCat === cat.id ? ' active' : ''}`}
-                  onClick={() => { setSelectedCat(cat.id); setSelectedItem(null); navigate(albumIdRef.current ? `/digital-album/${albumIdRef.current}/${cat.id}` : `/digital-album/${cat.id}`) }}
+                  onClick={() => { setViewAlbum(null); setSelectedCat(cat.id); setSelectedItem(null); navigate(albumIdRef.current ? `/digital-album/${albumIdRef.current}/${cat.id}` : `/digital-album/${cat.id}`) }}
                 >
 
                   {editing === cat.id ? (
@@ -1014,13 +1039,18 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                 className="btn btn-outline"
                 style={{ fontSize: 13, padding: '4px 12px' }}
               ><ArrowLeftOutlined /> 返回</button>
-              <div style={{ fontSize: 18, fontWeight: 600, color: '#333' }}>{currentViewAlbum.productName || '组合名称'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 18, fontWeight: 600, color: '#333' }}>{(currentViewAlbum.productName && currentViewAlbum.productName !== '产品名称') ? currentViewAlbum.productName : '未命名组合'}</div>
+                {albumLocation && (
+                  <EditOutlined onClick={() => { setRenameTarget({ catId: albumLocation.catId, itemId: albumLocation.itemId, albumId: currentViewAlbum.albumId }); setRenameInput(currentViewAlbum.productName || '') }} style={{ fontSize: 16, color: '#1677FF', cursor: 'pointer' }} />
+                )}
+              </div>
               <div style={{ width: 60 }} />
             </div>
             <div style={{ height: 350, borderRadius: 8, marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
-              {currentViewAlbum.bannerUrl ? (
+              {currentViewAlbum.bannerUrl && !editingComboBanner ? (
                 <div style={{ width: '100%', height: '100%', borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
-                  <div onClick={() => { updateAlbumBanner(albumLocation?.catId, albumLocation?.itemId, currentViewAlbum.albumId, ''); setComboBannerAiMode(false); setComboBannerPrompt('') }}
+                  <div onClick={() => { setEditingComboBanner(true) }}
                     style={{ position: 'absolute', top: 8, right: 8, zIndex: 2, width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.9)', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14, boxShadow: '0 2px 8px rgba(0,0,0,.1)' }}
                   ><EditOutlined /></div>
                   <img src={currentViewAlbum.bannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
@@ -1061,12 +1091,6 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                             <div style={{ color: '#999', fontSize: 13 }}>提示词生成失败，<span onClick={() => { setComboBannerAiMode(false); setTimeout(() => setComboBannerAiMode(true), 50) }} style={{ color: '#8B5CF6', cursor: 'pointer', textDecoration: 'underline' }}>点击重试</span></div>
                           )}
                         </div>
-                        {!comboGeneratingPrompt && comboBannerPrompt && (
-                          <button onClick={() => generateBanner(comboBannerPrompt)}
-                            disabled={!comboBannerPrompt}
-                            style={{ height: 38, padding: '0 24px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', background: 'linear-gradient(135deg, #8B5CF6, #EC4899)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', opacity: comboBannerPrompt ? 1 : 0.5, transition: 'opacity .2s' }}
-                          >生成氛围图</button>
-                        )}
                       </div>
                     </div>
                   )}
@@ -1079,23 +1103,23 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
               {(currentViewAlbum.comboItems || []).map(item => {
                 const itemUrl = albumMap[item.albumId]?.imageUrls?.[0] || albumMap[item.albumId]?.imageUrl || item.imageUrls?.[0] || item.imageUrl
                 const liveParams = mergedAlbums.find(x => x.id === item.albumId)?.productParams || item.productParams || {}
-                const liveName = mergedAlbums.find(x => x.id === item.albumId)?.productName || ''
+                const liveName = giftMap[item.albumId]?.name || mergedAlbums.find(x => x.id === item.albumId)?.productName || ''
                 const displayName = liveName || item.productName || ''
                 return (
                   <div key={item.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', position: 'relative', cursor: 'pointer', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum({ ...item, productName: displayName, productParams: liveParams }); const aid = urlAlbumId || albumIdRef.current; const found = mergedAlbums.find(x => x.id === item.albumId); const comboPath = albumLocation ? `${albumLocation.catId}/${albumLocation.itemId}/${currentViewAlbum?.albumId}` : ''; if (found?._catId && found?._itemId) navigate(`/digital-album/${aid}/${found._catId}/${found._itemId}/${found.albumId || found.id}${comboPath ? `?fromCombo=${comboPath}` : ''}`); else navigate(`/digital-album/${aid}/detail/${item.albumId}${comboPath ? `?fromCombo=${comboPath}` : ''}`) }}>
                     <div style={{ position: 'relative' }}>
                       <img src={itemUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <button
-                        onClick={() => albumLocation && removeComboItem(albumLocation.catId, albumLocation.itemId, currentViewAlbum.albumId, item.albumId)}
+                        onClick={e => { e.stopPropagation(); Modal.confirm({ title: '移除此礼品', content: '确定从组合中移除此礼品吗？', okText: '确定', okType: 'danger', cancelText: '取消', onOk: () => albumLocation && removeComboItem(albumLocation.catId, albumLocation.itemId, currentViewAlbum.albumId, item.albumId) }) }}
                         style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.4)', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
                       ><CloseOutlined /></button>
                     </div>
                     <div style={{ padding: '2px 6px 4px', fontSize: 11, color: '#999', lineHeight: 1.5 }} onClick={e => e.stopPropagation()}>
                       <div style={{ fontSize: 13, color: '#333', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
-                        {displayName || '产品名称'}
+                        {displayName}
                       </div>
                     </div>
-          </div>
+                  </div>
                 )
               })}
               {(currentViewAlbum.comboItems || []).length < 12 && albumLocation && (
@@ -1144,15 +1168,14 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,77,79,.75)', zIndex: 2, fontSize: 18, color: '#fff', fontWeight: 700, letterSpacing: 2 }}>
                         已删除
                       </div>
-                      <button onClick={e => { e.stopPropagation(); removeAlbum(selectedCat, a._itemId, a.albumId) }} style={{ position: 'absolute', top: 4, right: 4, width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, zIndex: 3 }}><CloseOutlined /></button>
-                    </>
-                  )}
+                      <button onClick={e => { e.stopPropagation(); Modal.confirm({ title: '删除画册', content: '确定删除此画册吗？', okText: '确定', okType: 'danger', cancelText: '取消', onOk: () => removeAlbum(selectedCat, a._itemId, a.albumId) }) }} style={{ position: 'absolute', top: 4, right: 4, width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, zIndex: 3 }}><CloseOutlined /></button>
+                    </>)}
                   <img src={coverUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
-                  <button onClick={e => { e.stopPropagation(); removeAlbum(selectedCat, a._itemId, a.albumId) }} style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.4)', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><CloseOutlined /></button>
+                  <button onClick={e => { e.stopPropagation(); Modal.confirm({ title: '删除画册', content: '确定删除此画册吗？', okText: '确定', okType: 'danger', cancelText: '取消', onOk: () => removeAlbum(selectedCat, a._itemId, a.albumId) }) }} style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.4)', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}><CloseOutlined /></button>
                   <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>
                     <div style={{ fontSize: 13, color: deleted ? '#bbb' : '#333', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
-                      {live?.name || a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
+                      {live?.name || (a.productName && a.productName !== '产品名称' ? a.productName : null) || (a.type === '组合' ? '未命名组合' : '产品名称')}
                     </div>
                     </div>
                   </div>
@@ -1188,18 +1211,18 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,77,79,.75)', zIndex: 2, fontSize: 18, color: '#fff', fontWeight: 700, letterSpacing: 2 }}>
                         已删除
                       </div>
-                      <button onClick={e => { e.stopPropagation(); removeAlbum(selectedCat, selectedItem, a.albumId) }} style={{ position: 'absolute', top: 4, right: 4, width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, zIndex: 3 }}><CloseOutlined /></button>
-                    </>
+                      <button onClick={e => { e.stopPropagation(); Modal.confirm({ title: '删除画册', content: '确定删除此画册吗？', okText: '确定', okType: 'danger', cancelText: '取消', onOk: () => removeAlbum(selectedCat, selectedItem, a.albumId) }) }} style={{ position: 'absolute', top: 4, right: 4, width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, zIndex: 3 }}><CloseOutlined /></button>
+                  </>
                   )}
                   <img src={coverUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
                   <button
-                    onClick={e => { e.stopPropagation(); removeAlbum(selectedCat, selectedItem, a.albumId) }}
+                    onClick={e => { e.stopPropagation(); Modal.confirm({ title: '删除画册', content: '确定删除此画册吗？', okText: '确定', okType: 'danger', cancelText: '取消', onOk: () => removeAlbum(selectedCat, selectedItem, a.albumId) }) }}
                     style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.4)', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
                   ><CloseOutlined /></button>
                   <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>
                     <div style={{ fontSize: 13, color: deleted ? '#bbb' : '#333', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
-                      {live?.name || a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
+                      {live?.name || (a.productName && a.productName !== '产品名称' ? a.productName : null) || (a.type === '组合' ? '未命名组合' : '产品名称')}
                     </div>
                   </div>
                 </div>
@@ -1240,14 +1263,14 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,77,79,.75)', zIndex: 2, fontSize: 18, color: '#fff', fontWeight: 700, letterSpacing: 2 }}>
                         已删除
                       </div>
-                      <button onClick={e => { e.stopPropagation(); removeAlbum(a._catId, a._itemId, a.albumId) }} style={{ position: 'absolute', top: 4, right: 4, width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, zIndex: 3 }}><CloseOutlined /></button>
+                      <button onClick={e => { e.stopPropagation(); Modal.confirm({ title: '删除画册', content: '确定删除此画册吗？', okText: '确定', okType: 'danger', cancelText: '取消', onOk: () => removeAlbum(a._catId, a._itemId, a.albumId) }) }} style={{ position: 'absolute', top: 4, right: 4, width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, zIndex: 3 }}><CloseOutlined /></button>
                     </>
                   )}
                   <img src={coverUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                   <div style={{ position: 'absolute', top: 4, left: 4, background: a.type === '组合' ? '#FF4D4F' : '#1677FF', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8, lineHeight: 1.6 }}>{a.type === '组合' ? '组合' : '单品'}</div>
                     <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>
                       <div style={{ fontSize: 13, color: deleted ? '#bbb' : '#333', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
-                        {live?.name || a.productName || (a.type === '组合' ? '组合名称' : '产品名称')}
+                        {live?.name || (a.productName && a.productName !== '产品名称' ? a.productName : null) || (a.type === '组合' ? '未命名组合' : '产品名称')}
                       </div>
                     </div>
                 </div>
@@ -1425,25 +1448,49 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           onClick={() => {}}
         >
           <div className="card" style={{ width: 380, padding: 24, position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 16 }}>输入画册主题</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 16 }}>填写画册名称</div>
             <span onClick={() => setTitleModalOpen(false)} style={{ position: 'absolute', top: 16, right: 16, cursor: 'pointer', fontSize: 16, color: 'rgba(0,0,0,.45)' }}>✕</span>
             <input
               autoFocus
               value={titleInput}
               onChange={e => setTitleInput(e.target.value)}
-              placeholder="请输入画册主题"
+              placeholder="请输入画册名称"
               style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 15, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
-              onKeyDown={e => { if (e.key === 'Enter' && titleInput.trim()) { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v, albumTitle, bannerSubtitle }) }).catch(() => {}) } }}
+              onKeyDown={e => { if (e.key === 'Enter' && titleInput.trim()) { const v = titleInput.trim(); setAlbumTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle: v, bannerSubtitle }) }).catch(() => {}) } }}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
               <button className="btn btn-outline" onClick={() => setTitleModalOpen(false)}>取消</button>
-              <button className="btn btn-primary" disabled={!titleInput.trim()} onClick={() => { const v = titleInput.trim(); setBannerTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle: v, albumTitle, bannerSubtitle }) }).catch(() => {}) }}>确定</button>
+              <button className="btn btn-primary" disabled={!titleInput.trim()} onClick={() => { const v = titleInput.trim(); setAlbumTitle(v); setTitleModalOpen(false); const t = localStorage.getItem('token'); if (t) fetch(`${API}/api/digital-album`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle: v, bannerSubtitle }) }).catch(() => {}) }}>确定</button>
             </div>
           </div>
         </div>
       )}
 
       <TemplatePicker visible={templatePickerOpen} onClose={() => setTemplatePickerOpen(false)} currentTitle={bannerTitle} currentAlbumTitle={albumTitle} albumId={urlAlbumId} currentCategories={categories} />
+
+      {renameTarget && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => { setRenameTarget(null); setRenameInput('') }}
+        >
+          <div className="card" style={{ width: 380, padding: 24, position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 16 }}>填写组合名称</div>
+            <span onClick={() => { setRenameTarget(null); setRenameInput('') }} style={{ position: 'absolute', top: 16, right: 16, cursor: 'pointer', fontSize: 16, color: 'rgba(0,0,0,.45)' }}>✕</span>
+            <input
+              autoFocus
+              value={renameInput}
+              onChange={e => setRenameInput(e.target.value)}
+              placeholder="请输入组合名称"
+              style={{ width: '100%', height: 38, padding: '0 12px', fontSize: 15, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none', boxSizing: 'border-box' }}
+              onKeyDown={e => { if (e.key === 'Enter') handleRenameCombo() }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button className="btn btn-outline" onClick={() => { setRenameTarget(null); setRenameInput('') }}>取消</button>
+              <button className="btn btn-primary" disabled={!renameInput.trim()} onClick={handleRenameCombo}>确定</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
     </div>
