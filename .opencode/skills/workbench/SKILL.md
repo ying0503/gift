@@ -1,6 +1,6 @@
 ---
 name: workbench
-description: 礼品图片生成工作台（Home.jsx），支持多提示词编辑、AI文案生成、参考图上传、多模型批量生成、进度轮询、全屏预览、画册管理
+description: 礼品图片生成工作台（Home.jsx），支持多提示词编辑、AI文案生成、参考图上传、多模型批量生成、进度轮询、全屏预览
 license: MIT
 compatibility: opencode
 ---
@@ -36,30 +36,19 @@ compatibility: opencode
 - `/api/generate/batch-status` 轮询真实进度（`res.progress > 0` 时覆盖模拟值）
 - 成功后从 `generations` 移除并刷新 `albums`
 
-### 历史画册管理
-- 分页（每页 20 条），按 `createdAt` 倒序
-- 点击画册 → 全屏模态弹窗预览（`viewAlbum` 状态）
-- 多图弹窗：显示"共N张"标签，可滚动浏览所有图片
-- 下载按钮（右上角 DownloadOutlined）
-- 删除按钮 → antd `Modal.confirm` 确认 → `DELETE /api/albums/:id`
-
-### 全屏预览（viewAlbum）
-- `viewAlbum` 非 null 时显示全屏弹窗（`position: fixed, inset: 0`）
-- `backdrop-filter: blur(6px)` 背景模糊
-- 多图向下滚动，单图 `object-fit: contain` + `max-height: 94vh`
-- 关闭按钮 `CloseOutlined`（右上角）
-- 弹窗打开时 `body.style.overflow = 'hidden'` 禁止页面滚动
-
 ### 布局
-- 两栏布局（`home-layout`）
-  - 移动端（`mobile-only`）：上方生成面板，下方画册列表
-  - 桌面端（`desktop-only`）：右上方生成面板（`margin-top: 116`），下方画册列表
+- 三栏等宽布局（`gridTemplateColumns: '1fr 1fr 1fr'`）
+  - 桌面端（`desktop-only`）：左栏上传参考图 / 中栏参数配置 / 右栏当前生成图片
 - 生成面板样式：`border-radius: 16`, `box-shadow`, purple 渐变主题
+- 移动端不单独渲染（由 CSS `.desktop-only`/`.mobile-only` 控制）
+
+### 历史画册查看
+- 画册列表已移至独立页面 `/image-list`（`ImageList.jsx`）
+- 工作台仅保留生成功能，不再展示历史画册列表
 
 ## 状态管理
 ```js
 const [generations, setGenerations] = useState([])   // 当前正在生成的批次
-const [albums, setAlbums] = useState([])              // 历史画册列表
 const [prompts, setPrompts] = useState([''])           // 提示词数组
 const [festival, setFestival] = useState('')           // 已选节日
 const [imageType, setImageType] = useState('白底图')    // 白底图/场景图/详情图
@@ -73,8 +62,6 @@ const [generatingPrompts, setGeneratingPrompts] = useState(false) // AI文案生
 - `POST /api/generate/prompts` — AI 文案生成（支持 refImage 参考图）
 - `POST /api/generate/batch` — 批量图片生成（body: config + prompts + images）
 - `GET /api/generate/batch-status?batchId=` — 进度轮询
-- `GET /api/albums` — 获取历史画册列表
-- `DELETE /api/albums/:id` — 删除画册
 
 ## 模型选择
 - 图片模型: `localStorage.getItem('defaultImageModel')` → `maiziai-chatgpt-image-2` / `agnes-image-2.1-flash`

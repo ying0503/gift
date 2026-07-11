@@ -12,6 +12,7 @@ import Resource from './pages/Resource'
 import VipInfo from './pages/VipInfo'
 import Preview from './pages/Preview'
 import MyGifts from './pages/MyGifts'
+import ImageList from './pages/ImageList'
 import GiftEditor from './pages/GiftEditor'
 import LandingPage from './pages/LandingPage'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -142,10 +143,16 @@ function AppContent() {
         {user && !['/template-set', '/model-use'].some(p => location.pathname.startsWith(p)) && (
           <nav className="app-sidebar">
             <div className="sidebar-nav">
-              <button className={`sidebar-tab${location.pathname === '/workbench' ? ' active' : ''}`} onClick={() => navigate('/workbench')}>
+              <div style={{ position: 'relative' }} onMouseEnter={e => { const s = e.currentTarget.querySelector('.sidebar-submenu'); if (s) s.style.display = 'block' }} onMouseLeave={e => { const s = e.currentTarget.querySelector('.sidebar-submenu'); if (s) s.style.display = 'none' }}>
+              <button className={`sidebar-tab${location.pathname === '/workbench' || location.pathname.startsWith('/my-gifts') || location.pathname.startsWith('/gift-editor') || location.pathname === '/image-list' ? ' active' : ''}`} onClick={() => navigate('/workbench')}>
                 <svg viewBox="0 0 1024 1024" width="22" height="22" fill="currentColor"><path d="M605.3376 800.1024v9.5744c0 15.872-9.6256 30.3104-24.576 36.7616l-43.0592 18.688a63.9488 63.9488 0 0 1-50.5856 0.1024l-43.776-18.7904a40.2432 40.2432 0 0 1-24.7296-36.864v-9.472h186.7264zM306.688 678.9632l4.9664 0.768c8.2432 2.1504 14.6432 8.3456 16.896 16.384a22.6816 22.6816 0 0 1-6.2464 22.3232l-30.0032 29.184a24.32 24.32 0 0 1-23.04 5.9392 23.4496 23.4496 0 0 1-16.8448-16.384 22.6816 22.6816 0 0 1 6.1952-22.272l30.0544-29.184a24.32 24.32 0 0 1 23.04-5.9904z m404.0704-0.8704a24.32 24.32 0 0 1 22.9888 5.9904l31.744 30.8224a22.784 22.784 0 0 1 0 32.6656 24.064 24.064 0 0 1-33.6896 0l-31.744-30.7712a22.6816 22.6816 0 0 1-6.144-22.3744 23.5008 23.5008 0 0 1 16.8448-16.3328zM512 260.096c137.5232 0 249.0368 108.2368 249.0368 241.7152 0 101.4784-64.4096 188.2624-155.648 224.1536v27.5456h-69.5296c0.6144-118.1696 34.4064-212.6336 51.8656-219.0336 8.3456 0 18.3296 10.6496 26.6752 28.4672 5.632 11.3664 19.6096 16.2304 31.3856 11.008a22.8864 22.8864 0 0 0 11.9808-30.208c-21.6064-45.8752-50.0224-55.5008-70.0416-55.5008-35.84 0-60.1088 41.0624-75.7248 93.5424-15.616-52.48-39.936-93.5424-75.776-93.5424-19.968 0-48.384 9.6256-69.9904 55.5008a22.528 22.528 0 0 0 2.2528 23.04 24.064 24.064 0 0 0 41.1136-3.84c8.3456-17.8176 18.3296-28.4672 25.7536-28.5696 18.432 6.5024 52.1728 100.9664 52.736 219.136H418.6624v-27.5456c-91.2384-35.8912-155.648-122.6752-155.648-224.1536C262.9632 368.2816 374.4768 260.096 512 260.096zM217.6 478.4128c13.1072 0 23.7568 10.3936 23.7568 23.1424 0 12.8-10.6496 23.0912-23.808 23.0912h-40.1408A23.4496 23.4496 0 0 1 153.6 501.5552c0-12.8 10.6496-23.1424 23.808-23.1424z m628.992 0c13.1584 0 23.808 10.3936 23.808 23.1424 0 12.8-10.6496 23.0912-23.808 23.0912h-43.6224a23.4496 23.4496 0 0 1-23.808-23.0912c0-12.8 10.6496-23.1424 23.808-23.1424z m-96.768-229.6832l4.9664 0.768c8.192 2.1504 14.6432 8.3968 16.8448 16.384a22.6816 22.6816 0 0 1-6.1952 22.3232l-29.2352 28.3648a24.32 24.32 0 0 1-23.04 5.9904 23.4496 23.4496 0 0 1-16.8448-16.384 22.6816 22.6816 0 0 1 6.1952-22.3232l29.2352-28.3648a24.32 24.32 0 0 1 23.04-5.9904z m-480.5632 0.768a24.32 24.32 0 0 1 22.9888 5.9904l27.4432 26.624a22.784 22.784 0 0 1 0 32.768 24.064 24.064 0 0 1-33.6896 0l-27.4432-26.6752a22.6816 22.6816 0 0 1-6.144-22.3232 23.5008 23.5008 0 0 1 16.8448-16.384zM512 153.6c13.1584 0 23.808 10.3424 23.808 23.1424v38.144c0 12.8-10.6496 23.1424-23.808 23.1424a23.4496 23.4496 0 0 1-23.808-23.1424v-38.144c0-12.8 10.6496-23.1424 23.808-23.1424z"/></svg>
                 创作
               </button>
+              <div className="sidebar-submenu" style={{ display: 'none' }}>
+                <button className="sidebar-submenu-item" onClick={() => navigate('/workbench')}>图片生成</button>
+                <button className="sidebar-submenu-item" onClick={() => navigate('/image-list')}>图片列表</button>
+              </div>
+            </div>
               <button className={`sidebar-tab${location.pathname.startsWith('/my-gifts') || location.pathname.startsWith('/gift-editor') ? ' active' : ''}`} onClick={() => navigate('/my-gifts')}>
                 <svg viewBox="0 0 1024 1024" width="22" height="22" fill="currentColor"><path d="M832 128H192c-35.2 0-64 28.8-64 64v640c0 35.2 28.8 64 64 64h640c35.2 0 64-28.8 64-64V192c0-35.2-28.8-64-64-64zM512 736c-123.2 0-224-100.8-224-224s100.8-224 224-224 224 100.8 224 224-100.8 224-224 224z"/></svg>
                 礼品
@@ -177,6 +184,7 @@ function AppContent() {
           <Route path="/resource" element={<ErrorBoundary>{user ? <Resource /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/template-set" element={<ErrorBoundary>{user ? (user.isAdmin ? <TemplateSet /> : <Navigate to="/workbench" replace />) : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/my-gifts" element={<ErrorBoundary>{user ? <MyGifts /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/image-list" element={<ErrorBoundary>{user ? <ImageList /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/gift-editor/:id" element={<ErrorBoundary>{user ? <GiftEditor /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/vip-info" element={<ErrorBoundary>{user ? <VipInfo /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="*" element={<Navigate to="/workbench" replace />} />

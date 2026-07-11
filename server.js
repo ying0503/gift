@@ -183,7 +183,7 @@ app.post('/api/global-config', auth, async (req, res) => {
 app.post('/api/generate', auth, async (req, res) => {
   let imgModel, imgStart
   try {
-    const { config, images } = req.body
+    const { config, images, name } = req.body
     if (!config) return res.status(400).json({ error: 'Missing config' })
     imgModel = config.model
     imgStart = Date.now()
@@ -229,7 +229,7 @@ app.post('/api/generate', auth, async (req, res) => {
         const taskId = uuid()
         await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'SUCCEEDED', imageUrl: ossUrl, createdAt: Date.now(), productCount: 0 })
         const albumId = uuid().slice(0, 8)
-        await db.createAlbum({ id: albumId, userId: req.user.userId, taskId, imageUrl: ossUrl, config, prompt, productCount: 0, banner: config.banner || false, createdAt: Date.now() })
+        await db.createAlbum({ id: albumId, userId: req.user.userId, taskId, imageUrl: ossUrl, config, prompt, productCount: 0, banner: config.banner || false, name: name || null, createdAt: Date.now() })
         await db.addUserAlbum(req.user.userId, albumId)
         modelLatencies.push({ model: imgModel, ms: Date.now() - imgStart, ts: Date.now() })
         return res.json({ taskId })
@@ -247,7 +247,7 @@ app.post('/api/generate', auth, async (req, res) => {
       const taskId = uuid()
       await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'SUCCEEDED', imageUrl: ossUrl, createdAt: Date.now(), productCount: 0 })
       const albumId = uuid().slice(0, 8)
-      await db.createAlbum({ id: albumId, userId: req.user.userId, taskId, imageUrl: ossUrl, config, prompt, productCount: 0, banner: config.banner || false, createdAt: Date.now() })
+      await db.createAlbum({ id: albumId, userId: req.user.userId, taskId, imageUrl: ossUrl, config, prompt, productCount: 0, banner: config.banner || false, name: name || null, createdAt: Date.now() })
       await db.addUserAlbum(req.user.userId, albumId)
       modelLatencies.push({ model: imgModel, ms: Date.now() - imgStart, ts: Date.now() })
       return res.json({ taskId })
@@ -270,7 +270,7 @@ app.post('/api/generate', auth, async (req, res) => {
       const taskId = uuid()
       await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'SUCCEEDED', imageUrl: ossUrl, createdAt: Date.now(), productCount: 0 })
       const albumId = uuid().slice(0, 8)
-      await db.createAlbum({ id: albumId, userId: req.user.userId, taskId, imageUrl: ossUrl, config, prompt, productCount: 0, banner: config.banner || false, createdAt: Date.now() })
+      await db.createAlbum({ id: albumId, userId: req.user.userId, taskId, imageUrl: ossUrl, config, prompt, productCount: 0, banner: config.banner || false, name: name || null, createdAt: Date.now() })
       await db.addUserAlbum(req.user.userId, albumId)
       modelLatencies.push({ model: imgModel, ms: Date.now() - imgStart, ts: Date.now() })
       return res.json({ taskId })
@@ -284,7 +284,7 @@ app.post('/api/generate', auth, async (req, res) => {
 
 app.post('/api/generate/batch', auth, async (req, res) => {
   try {
-    const { config, images, prompts } = req.body
+    const { config, images, prompts, name } = req.body
     if (!config || !prompts || !prompts.length) return res.status(400).json({ error: 'Missing config or prompts' })
     const hasImages = images && images.length
     const batchId = uuid().slice(0, 8)
@@ -305,9 +305,9 @@ app.post('/api/generate/batch', auth, async (req, res) => {
       if (!imageUrls.length) return res.status(500).json({ error: 'No images generated' })
       const ossUrls = await Promise.all(imageUrls.map(u => uploadToOSS(u)))
       const albumId = uuid().slice(0, 8)
-      await db.createAlbum({ id: albumId, userId: req.user.userId, batchId, imageUrls: ossUrls, imageUrl: ossUrls[0], config, prompts, prompt: prompts[0], productCount: 0, createdAt: Date.now() })
+      await db.createAlbum({ id: albumId, userId: req.user.userId, batchId, imageUrls: ossUrls, imageUrl: ossUrls[0], config, prompts, prompt: prompts[0], productCount: 0, name: name || null, createdAt: Date.now() })
       await db.addUserAlbum(req.user.userId, albumId)
-      await db.createBatch({ batchId, userId: req.user.userId, taskIds: [], config, prompts, createdAt: Date.now(), done: true })
+      await db.createBatch({ batchId, userId: req.user.userId, taskIds: [], config, prompts, createdAt: Date.now(), done: true, name: name || null })
       return res.json({ batchId })
     }
 
@@ -341,9 +341,9 @@ app.post('/api/generate/batch', auth, async (req, res) => {
       const maiziaiTaskId = data.data?.[0]?.task_id
       if (!maiziaiTaskId) return res.status(500).json({ error: 'No task_id from MaiziAI' })
       taskIds.push(maiziaiTaskId)
-      await db.createTask({ taskId: maiziaiTaskId, userId: req.user.userId, config, prompt, status: 'PENDING', createdAt: Date.now(), productCount: 0, maiziaiTaskId })
+      await db.createTask({ taskId: maiziaiTaskId, userId: req.user.userId, config, prompt, status: 'PENDING', createdAt: Date.now(), productCount: 0, maiziaiTaskId, name: name || null })
     }
-    await db.createBatch({ batchId, userId: req.user.userId, taskIds, config, prompts, createdAt: Date.now(), done: false })
+    await db.createBatch({ batchId, userId: req.user.userId, taskIds, config, prompts, createdAt: Date.now(), done: false, name: name || null })
     res.json({ batchId })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -369,7 +369,7 @@ app.get('/api/generate/status', auth, async (req, res) => {
             const ossUrl = await uploadToOSS(imageUrl)
             await db.updateTask(taskId, { status: 'SUCCEEDED', imageUrl: ossUrl })
             const albumId = uuid().slice(0, 8)
-            await db.createAlbum({ id: albumId, userId: task.userId, taskId, imageUrl: ossUrl, config: task.config, prompt: task.prompt, productCount: task.productCount || 0, createdAt: task.createdAt })
+            await db.createAlbum({ id: albumId, userId: task.userId, taskId, imageUrl: ossUrl, config: task.config, prompt: task.prompt, productCount: task.productCount || 0, name: task.name || null, createdAt: task.createdAt })
             await db.addUserAlbum(task.userId, albumId)
             return res.json({ taskStatus: 'SUCCEEDED', progress: 100, statusText: '生成完成', imageUrl: ossUrl })
           }
@@ -416,12 +416,21 @@ app.get('/api/generate/batch-status', auth, async (req, res) => {
     }
     if (allDone) {
       if (anySuccess) {
-        const firstValid = imageUrls.find(u => u !== null)
-        const albumId = uuid().slice(0, 8)
-        await db.createAlbum({ id: albumId, userId: batch.userId, batchId, imageUrls, imageUrl: firstValid, config: batch.config, prompts: batch.prompts, prompt: batch.prompts[0], productCount: 0, createdAt: batch.createdAt })
-        await db.addUserAlbum(batch.userId, albumId)
-        await db.updateBatch(batchId, { done: true })
-        return res.json({ status: 'SUCCEEDED', progress: 100, statusText: '生成完成', imageUrl: firstValid, imageUrls })
+        const existing = (await db.getUserAlbumsWithBatch(batch.userId)).find(a => a.batchId === batchId)
+        if (existing) {
+          await db.updateBatch(batchId, { done: true })
+          return res.json({ status: 'SUCCEEDED', progress: 100, statusText: '生成完成', imageUrl: existing.imageUrl, imageUrls: existing.imageUrls })
+        }
+        await db.lockBatch(batchId)
+        const afterLock = await db.getBatch(batchId)
+        if (afterLock && afterLock.done) {
+          const firstValid = imageUrls.find(u => u !== null)
+          const albumId = uuid().slice(0, 8)
+          await db.createAlbum({ id: albumId, userId: batch.userId, batchId, imageUrls, imageUrl: firstValid, config: batch.config, prompts: batch.prompts, prompt: batch.prompts[0], productCount: 0, name: batch.name || null, createdAt: batch.createdAt })
+          await db.addUserAlbum(batch.userId, albumId)
+          return res.json({ status: 'SUCCEEDED', progress: 100, statusText: '生成完成', imageUrl: firstValid, imageUrls })
+        }
+        return res.json({ status: 'PENDING', progress: 99, statusText: '正在保存...' })
       }
       return res.json({ status: 'FAILED', progress: -1, statusText: '全部生成失败' })
     }

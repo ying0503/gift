@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Modal } from 'antd'
 import { CloseOutlined, DownloadOutlined } from '@ant-design/icons'
 import { API } from '../AuthContext'
+
+function normalizeImgUrl(url) {
+  return url?.replace('gift-bucket-0503.oss-cn-beijing.aliyuncs.com', 'static.liqihui.com') || url
+}
 
 export default function Home() {
   const [image_size] = useState('1K')
@@ -28,7 +31,7 @@ export default function Home() {
     if (!token) return
     const genId = ++promptGenId.current
     setGeneratingPrompts(true)
-    if (imgType === '详情图') {
+    if (imgType === '详情图' || imgType === '白底图') {
       const p = Array.from({ length: count }, () => '')
       p[0] = '生成白底图'
       setPrompts(p)
@@ -36,7 +39,7 @@ export default function Home() {
       setPrompts(Array.from({ length: count }, () => ''))
     }
     try {
-      const apiCount = imgType === '详情图' ? count - 1 : count
+      const apiCount = (imgType === '详情图' || imgType === '白底图') ? count - 1 : count
       const res = await fetch(`${API}/api/generate/prompts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -45,7 +48,7 @@ export default function Home() {
       const data = await res.json()
       if (genId !== promptGenId.current) return
       if (data.prompts) {
-        if (imgType === '详情图') {
+        if (imgType === '详情图' || imgType === '白底图') {
           const result = ['生成白底图', ...data.prompts.slice(0, count - 1)]
           setPrompts(result)
         } else {
@@ -54,7 +57,7 @@ export default function Home() {
       }
     } catch {
       if (genId !== promptGenId.current) return
-if (imgType === '详情图') {
+ if (imgType === '详情图' || imgType === '白底图') {
           const empty = ['生成白底图', ...Array.from({ length: count - 1 }, () => '')]
         setPrompts(empty)
       } else {
@@ -89,9 +92,10 @@ if (imgType === '详情图') {
   }
 
   const [templateCount, setTemplateCount] = useState(1)
+  const [productTitle, setProductTitle] = useState('')
   const [imageSize, setImageSize] = useState('3:4')
   const [prompts, setPrompts] = useState([''])
-  const [imageType, setImageType] = useState('图类型')
+  const [imageType, setImageType] = useState('图片类型')
 
   const [generations, setGenerations] = useState([])
   const pollTimers = useRef({})
@@ -103,7 +107,20 @@ if (imgType === '详情图') {
   const [previewPos, setPreviewPos] = useState({ left: 0, top: 0 })
   const previewTimer = useRef(null)
   const refInputRef = useRef()
+  const [dragOver, setDragOver] = useState(false)
   const PAGE_SIZE = 20
+
+  const handleImageFile = (f) => {
+    if (!f || !f.type?.startsWith('image/')) return
+    const fr = new FileReader()
+    fr.onload = () => {
+      setUploadedRef({ url: fr.result, blob: f })
+      if (prompts.some(p => p.trim())) {
+        generatePrompts('通用礼品', templateCountRef.current, fr.result, imageType)
+      }
+    }
+    fr.readAsDataURL(f)
+  }
 
   useEffect(() => {
     fetch(`${API}/api/global-config`)
@@ -117,21 +134,20 @@ if (imgType === '详情图') {
       .catch(() => {})
   }, [])
 
-  function handleDelete(e, albumId) {
-    e.stopPropagation()
-    Modal.confirm({
-      title: '删除画册',
-      content: '确定要删除这个画册吗？',
-      okText: '删除',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: async () => {
-        const token = localStorage.getItem('token')
-        if (!token) return
-        const res = await fetch(`${API}/api/albums/${albumId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
-        if (res.ok) fetchAlbums()
-      },
-    })
+  const PENDING_BATCHES_KEY = 'pendingBatches'
+
+  function savePendingBatch(id, batchId, prompts) {
+    const list = JSON.parse(localStorage.getItem(PENDING_BATCHES_KEY) || '[]')
+    const idx = list.findIndex(b => b.id === id)
+    const entry = { id, batchId, prompts }
+    if (idx >= 0) list[idx] = entry
+    else list.push(entry)
+    localStorage.setItem(PENDING_BATCHES_KEY, JSON.stringify(list))
+  }
+
+  function removePendingBatch(id) {
+    const list = JSON.parse(localStorage.getItem(PENDING_BATCHES_KEY) || '[]')
+    localStorage.setItem(PENDING_BATCHES_KEY, JSON.stringify(list.filter(b => b.id !== id)))
   }
 
   const fetchAlbums = useCallback(() => {
@@ -152,7 +168,7 @@ if (imgType === '详情图') {
   }, [prompts])
 
   useEffect(() => {
-    if (imageType !== '图类型') {
+    if (imageType !== '图片类型') {
       const c = imageType === '详情图' ? 5 : 1
       generatePrompts('通用礼品', c, undefined, imageType)
     }
@@ -171,17 +187,16 @@ if (imgType === '详情图') {
     fetchAlbums()
     const token = localStorage.getItem('token')
     if (token) {
-      fetch(`${API}/api/generate/active-tasks`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.json())
-        .then(data => {
-          if (!data.batches) return
-          for (const b of data.batches) {
-            const id = b.batchId
-            setGenerations(g => g.some(x => x.id === id) ? g : [...g, { id, batchId: id, progress: 0, statusText: '恢复中...', imageUrl: null, imageUrls: null, error: null, prompt: b.prompts?.[0] || '', promptCount: b.prompts?.length || 0, restored: true }])
-            startBatchPolling(id, id, token, b.prompts || [], () => {})
-          }
-        })
-        .catch(() => {})
+      const pending = JSON.parse(localStorage.getItem(PENDING_BATCHES_KEY) || '[]')
+      for (const p of pending) {
+        if (!p.batchId) {
+          setGenerations(g => (g.some(x => x.id === p.id) ? g : [...g, { id: p.id, batchId: null, progress: 0, statusText: '已中断',         imageUrl: null, imageUrls: null, error: '生成未完成，页面刷新导致任务中断', prompt: p.prompts[0], promptCount: p.prompts.length }]))
+          removePendingBatch(p.id)
+          continue
+        }
+        setGenerations(g => (g.some(x => x.id === p.id) ? g : [...g, { id: p.id, batchId: p.batchId, progress: 0, statusText: '恢复中...',         imageUrl: null, imageUrls: null, error: null, restored: true, prompt: p.prompts[0], promptCount: p.prompts.length }]))
+        startBatchPolling(p.id, p.batchId, token, p.prompts, () => { removePendingBatch(p.id) })
+      }
     }
     return () => {
       for (const key of Object.keys(pollTimers.current)) {
@@ -192,7 +207,7 @@ if (imgType === '详情图') {
     }
   }, [fetchAlbums])
 
-  const canGenerate = getModel() && prompts.every(p => p.length > 0)
+  const canGenerate = getModel() && prompts.every(p => p.length > 0) && productTitle.trim().length > 0
 
   const handleGenerate = async () => {
     if (!getModel()) return alert('请选择模型')
@@ -217,7 +232,8 @@ if (imgType === '详情图') {
       : promptList.map(p => (imageTypePrefixes[imageType] || '') + p)
 
     const id = Date.now() + Math.random().toString(36).slice(2, 6)
-    setGenerations(g => [...g, { id, batchId: null, progress: 0, statusText: '准备中...',         imageUrl: null, imageUrls: null, error: null, prompt: prefixed[0], promptCount: prefixed.length }])
+    setGenerations(g => [...g, { id, batchId: null, progress: 0, statusText: '准备中...',         imageUrl: null, imageUrls: null, error: null, prompt: prefixed[0], promptCount: prefixed.length, title: productTitle.trim() }])
+    savePendingBatch(id, null, prefixed)
 
     try {
       const imgs = uploadedRef ? [uploadedRef.url] : []
@@ -234,6 +250,7 @@ if (imgType === '详情图') {
           config: { size: imageSize, model: getModel(), image_size, n: 1, festival: '通用礼品' },
           prompts: prefixed,
           images: sendImages.length ? sendImages : undefined,
+          name: productTitle.trim(),
         }),
       })
 
@@ -241,7 +258,8 @@ if (imgType === '详情图') {
       if (!res.ok) throw new Error(r.error || '请求失败')
 
       setGenerations(g => g.map(item => item.id === id ? { ...item, batchId: r.batchId, statusText: '任务已提交' } : item))
-      startBatchPolling(id, r.batchId, token, prefixed, () => { setGenerating(false) })
+      savePendingBatch(id, r.batchId, prefixed)
+      startBatchPolling(id, r.batchId, token, prefixed, () => { setGenerating(false); removePendingBatch(id) })
     } catch (err) {
       setGenerations(g => g.map(item => item.id === id ? { ...item, error: err.message } : item))
       setGenerating(false)
@@ -278,7 +296,7 @@ if (imgType === '详情图') {
           return
         }
         if (res.status === 'SUCCEEDED' && res.imageUrl) {
-          setGenerations(g => g.map(item => item.id === id ? { ...item, imageUrl: res.imageUrl, imageUrls: res.imageUrls || [res.imageUrl], progress: 100, statusText: '已完成' } : item))
+          setGenerations(g => g.map(item => item.id === id ? { ...item, imageUrl: normalizeImgUrl(res.imageUrl), imageUrls: (res.imageUrls || [res.imageUrl]).map(normalizeImgUrl), progress: 100, statusText: '已完成' } : item))
           fetchAlbums()
           onDone?.()
           return
@@ -377,100 +395,48 @@ if (imgType === '详情图') {
   return (
     <>
       <div className="home-layout">
-      <div className="mobile-only" style={{ width: '100%', marginTop: 16 }}>
-        <div style={{ fontSize: 24, fontWeight: 600, color: '#333', marginBottom: 16 }}>我的礼品图</div>
-        {viewAlbum ? (
-          <div className="card" style={{ padding: 16, marginBottom: 0 }}>
-            <button onClick={() => setViewAlbum(null)} className="btn btn-outline" style={{ marginBottom: 12, fontSize: 13, padding: '4px 12px' }}>← 返回</button>
-            {(viewAlbum.imageUrls || [viewAlbum.imageUrl]).map((url, i) => (
-              url ? (
-                <img key={i} src={url} alt="" style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: i < (viewAlbum.imageUrls || [viewAlbum.imageUrl]).length - 1 ? 12 : 0 }} />
-              ) : (
-                <div key={i} style={{ width: '100%', aspectRatio: 1, background: '#f5f5f5', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 14, marginBottom: 12 }}>生成失败</div>
-              )
-            ))}
-          </div>
-        ) : albums.length === 0 && generations.filter(g => !g.imageUrl).length === 0 ? (
-          <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>暂无画册</div>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
-              {[...generations].filter(g => !g.imageUrl).reverse().map(item => (
-                <div key={item.id} style={{ padding: 0, margin: 0, overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
-                  {!item.error ? (
-                    <div style={{ textAlign: 'center' }}>
-                      <div className="loading-spinner" />
-                      <div style={{ fontSize: 28, fontWeight: 700, color: '#1677FF', marginTop: 12 }}>{item.progress}%</div>
-                    </div>
-                  ) : (
-                    <div style={{ color: '#FF4D4F', fontSize: 13 }}>{item.error}</div>
-                  )}
-                </div>
-              ))}
-              {[...albums].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
-                 <div
-                   key={album.id}
-                   style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s', position: 'relative', display: 'flex', flexDirection: 'column' }}
-                   onClick={() => setViewAlbum(album)}
-                   onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.16), 0 16px 48px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '1' }}
-                   onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)'; e.currentTarget.style.borderColor = '#f1f5f9'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '0' }}
-                 >
-                  <div onClick={e => handleDelete(e, album.id)} className="del-btn" style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(15,23,42,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}>✕</div>
-                  <div style={{ position: 'relative' }}>
-                    <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                    {album.imageUrls && album.imageUrls.filter(u => u).length > 1 && (
-                      <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.filter(u => u).length}张</div>
-                    )}
-                  </div>
-                  <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #f8fafc' }}>
-                    <div style={{ color: '#94a3b8', fontSize: 12 }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {albums.length > PAGE_SIZE && (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 32 }}>
-                <button className="btn btn-outline" disabled={albumPage === 0} onClick={() => setAlbumPage(p => p - 1)}>上一页</button>
-                <span style={{ fontSize: 13, color: '#666', alignSelf: 'center' }}>{albumPage + 1} / {Math.ceil(albums.length / PAGE_SIZE)}</span>
-                <button className="btn btn-outline" disabled={(albumPage + 1) * PAGE_SIZE >= albums.length} onClick={() => setAlbumPage(p => p + 1)}>下一页</button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
 
       {/* Right: Preview */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="desktop-only">
         {/* Generate Panel */}
-        <div style={{ marginBottom: 24, maxWidth: 1200, marginLeft: 'auto', marginRight: 'auto', marginTop: 40 }}>
+        <div style={{ marginBottom: 24, maxWidth: 1200, marginLeft: 'auto', marginRight: 'auto', marginTop: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-            <span style={{ fontSize: 16, fontWeight: 600, color: '#2a2a2e', letterSpacing: -0.1 }}>礼品图生成</span>
+            <span style={{ fontSize: 20, fontWeight: 600, color: '#2a2a2e', letterSpacing: -0.1 }}>图片生成</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24, alignItems: 'start' }}>
-            <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { const fr = new FileReader(); fr.onload = () => { setUploadedRef({ url: fr.result, blob: f }); if (prompts.some(p => p.trim())) { generatePrompts('通用礼品', templateCountRef.current, fr.result, imageType) } }; fr.readAsDataURL(f) } e.target.value = '' }} />
+            <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(f); e.target.value = '' }} />
 
             {/* ========== LEFT COLUMN: Upload ========== */}
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10, letterSpacing: 0.3 }}>上传参考图</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10, letterSpacing: 0.3 }}>上传产品图</div>
               {uploadedRef ? (
-                <div style={{ position: 'relative', width: '100%', aspectRatio: '1', borderRadius: 12, overflow: 'hidden', border: '1.5px solid #ddd', boxShadow: '0 2px 8px rgba(0,0,0,.06)' }}
+                <div style={{ position: 'relative', width: '100%', height: 300, borderRadius: 12, overflow: 'hidden', border: '1.5px solid #ddd', boxShadow: '0 2px 8px rgba(0,0,0,.06)' }}
                   onMouseEnter={(e) => { clearTimeout(previewTimer.current); const r = e.currentTarget.getBoundingClientRect(); previewTimer.current = setTimeout(() => { setPreviewPos({ left: r.right + 8, top: Math.min(r.top, window.innerHeight * 0.5 - 24) }); setPreviewUrl(uploadedRef.url) }, 300) }}
                   onMouseLeave={() => { clearTimeout(previewTimer.current); setPreviewUrl(null) }}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) handleImageFile(f) }}
                 >
-                  <img src={uploadedRef.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={uploadedRef.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#fafaf8' }} />
+                  {dragOver && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(139,92,246,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#fff', fontWeight: 600 }}>松开替换图片</div>
+                  )}
                   <div onClick={() => setUploadedRef(null)} style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,.45)', color: '#fff', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .2s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(190,70,60,.85)' }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,.45)' }}
                   >&#10005;</div>
                 </div>
               ) : (
-                <div onClick={() => refInputRef.current?.click()} style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1.5px dashed #d0cecc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, color: '#999', transition: 'all .25s', gap: 6, background: '#fafaf8' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#8B5CF6'; e.currentTarget.style.background = '#f5f0ff' }}
+                <div onClick={() => refInputRef.current?.click()} style={{ width: '100%', height: 300, borderRadius: 12, border: '1.5px dashed #d0cecc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, color: '#999', transition: 'all .25s', gap: 16, background: '#fafaf8' }}
+                  onMouseEnter={e => { if (!dragOver) { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#8B5CF6'; e.currentTarget.style.background = '#f5f0ff' } }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = '#d0cecc'; e.currentTarget.style.color = '#999'; e.currentTarget.style.background = '#fafaf8' }}
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.color = '#8B5CF6'; e.currentTarget.style.background = '#f5f0ff' }}
+                  onDragLeave={e => { setDragOver(false); e.currentTarget.style.borderColor = '#d0cecc'; e.currentTarget.style.color = '#999'; e.currentTarget.style.background = '#fafaf8' }}
+                  onDrop={e => { e.preventDefault(); setDragOver(false); e.currentTarget.style.borderColor = '#d0cecc'; e.currentTarget.style.color = '#999'; e.currentTarget.style.background = '#fafaf8'; const f = e.dataTransfer.files?.[0]; if (f) handleImageFile(f) }}
                 >
-                  <span style={{ fontSize: 28, lineHeight: 1 }}>+</span>
-                  <span>上传图片</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 32, height: 32 }} aria-hidden="true"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></svg>
+                  <span style={{ fontSize: 15, color: '#1a1a1a' }}>点击上传或拖拽图片到此处</span>
                 </div>
               )}
               {analyzing && (
@@ -486,24 +452,23 @@ if (imgType === '详情图') {
                 </div>
               )}
 
-              <div style={{ marginTop: 16, padding: 12, borderRadius: 8, background: '#f5f0ff', border: '1px solid #e8dfff', fontSize: 12, color: '#6d4fc7', lineHeight: 1.8 }}>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>上传建议</div>
-                <div>使用光线充足、对焦清晰的产品图</div>
-                <div>产品主体清晰、背景尽量简洁</div>
-                <div>产品居中放置在画面中间</div>
-                <div>建议分辨率 1024x1024 以上</div>
-                <div>上传后 AI 将基于原图优化而非重绘</div>
+              <div style={{ marginTop: 16, padding: 12, borderRadius: 8, background: '#fafafa', border: '1px solid #eee', fontSize: 12, color: '#999', lineHeight: 1.8 }}>
+                <div style={{ fontWeight: 500, marginBottom: 6, color: '#888' }}>上传建议</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 4, height: 4, borderRadius: '50%', background: '#bbb', flexShrink: 0 }} />使用光线充足、对焦清晰的产品图</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 4, height: 4, borderRadius: '50%', background: '#bbb', flexShrink: 0 }} />产品主体清晰、背景尽量简洁</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 4, height: 4, borderRadius: '50%', background: '#bbb', flexShrink: 0 }} />产品居中放置在画面中间</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 4, height: 4, borderRadius: '50%', background: '#bbb', flexShrink: 0 }} />建议分辨率 1024x1024 以上</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 4, height: 4, borderRadius: '50%', background: '#bbb', flexShrink: 0 }} />上传后 AI 将基于原图优化而非重绘</div>
               </div>
             </div>
 
             {/* ========== MIDDLE COLUMN: Parameters ========== */}
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10, letterSpacing: 0.3 }}>参数配置</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6 }}>图类型</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6 }}>图片类型</div>
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  {['场景图', '详情图'].map(t => (
+                  {['白底图', '场景图', '详情图'].map(t => (
                     <div key={t}
                       onClick={() => {
                         const v = t; setImageType(v); const c = v === '详情图' ? 5 : 1; setTemplateCount(c); templateCountRef.current = c;
@@ -529,7 +494,7 @@ if (imgType === '详情图') {
                   ))}
                   </div>
                 </div>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6, marginTop: 2 }}>比例</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6, marginTop: 2 }}>生成比例</div>
                   <select value={imageSize} onChange={e => setImageSize(e.target.value)}
                     style={{ height: 48, padding: '0 10px', fontSize: 14, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', cursor: 'pointer', outline: 'none', color: '#333' }}>
                     <option value="3:4">3:4</option>
@@ -567,11 +532,17 @@ if (imgType === '详情图') {
                   )}
                 </div>
 
-                  <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6, marginTop: 2 }}>张数</div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6, marginTop: 2 }}>生成张数</div>
                   <select value={templateCount} disabled
                     style={{ height: 48, padding: '0 10px', fontSize: 14, border: '1px solid #e8e6e4', borderRadius: 8, background: '#f5f5f2', cursor: 'not-allowed', outline: 'none', color: '#aaa', width: '100%' }}>
                     {[1,2,3,4,5].map(v => <option key={v} value={v}>{v}张</option>)}
                   </select>
+
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6 }}>产品标题 <span style={{ color: '#FF4D4F' }}>*</span></div>
+                  <input value={productTitle} onChange={e => setProductTitle(e.target.value)} placeholder="仅用于任务区分，不影响生图效果"
+                    style={{ height: 48, padding: '0 12px', fontSize: 14, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', outline: 'none', color: '#333', width: '100%', boxSizing: 'border-box' }} />
+                </div>
 
                 <button
                   disabled={!canGenerate || generating}
@@ -593,26 +564,29 @@ if (imgType === '详情图') {
 
             {/* ========== RIGHT COLUMN: Current Image ========== */}
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10, letterSpacing: 0.3 }}>当前生成的图片</div>
-              {generations.length > 0 ? (
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10, letterSpacing: 0.3 }}>生成结果</div>
+              {generations.filter(g => !g.restored).length > 0 ? (
                 (() => {
-                  const last = [...generations].reverse()[0]
-                  if (last.error) {
-                    return <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF4D4F', fontSize: 13, background: '#fafaf8' }}>{last.error}</div>
-                  }
-                  if (last.imageUrl) {
-                    return (
-                      <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', background: '#fafaf8' }}>
-                        <img src={last.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      </div>
-                    )
-                  }
+                  const last = [...generations].filter(g => !g.restored).reverse()[0]
                   return (
-                    <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fafaf8' }}>
-                      <div className="loading-spinner" />
-                      <div style={{ fontSize: 18, fontWeight: 700, color: '#1677FF' }}>{last.progress}%</div>
-                      <div style={{ fontSize: 12, color: '#888' }}>{last.statusText}</div>
-                    </div>
+                    <>
+                      {last.title && (
+                        <div style={{ fontSize: 13, color: '#8B5CF6', marginBottom: 8, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{last.title}</div>
+                      )}
+                      {last.error ? (
+                        <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF4D4F', fontSize: 13, background: '#fafaf8' }}>{last.error}</div>
+                      ) : last.imageUrl ? (
+                        <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', background: '#fafaf8' }}>
+                          <img src={last.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        </div>
+                      ) : (
+                        <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fafaf8' }}>
+                          <div className="loading-spinner" />
+                          <div style={{ fontSize: 18, fontWeight: 700, color: '#1677FF' }}>{last.progress}%</div>
+                          <div style={{ fontSize: 12, color: '#888' }}>{last.statusText}</div>
+                        </div>
+                      )}
+                    </>
                   )
                 })()
               ) : (
@@ -622,59 +596,6 @@ if (imgType === '详情图') {
               )}
             </div>
           </div>
-        </div>
-        {/* My Albums */}
-        <div style={{ maxWidth: 1060, margin: '0 auto', padding: '0 16px' }}>
-        <div style={{ fontSize: 24, fontWeight: 600, color: '#333', marginTop: 100, marginBottom: 16 }}>我的礼品图</div>
-         {albums.length === 0 && generations.filter(g => !g.imageUrl).length === 0 ? (
-           <div className="card" style={{ padding: 40, textAlign: 'center', color: '#999' }}>
-             <div>配置完成后点击「生成礼品图」</div>
-           </div>
-         ) : (
-           <>
-             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22 }}>
-               {[...generations].filter(g => !g.imageUrl).reverse().map(item => (
-                 <div key={item.id} style={{ padding: 0, margin: 0, overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
-                   {!item.error ? (
-                     <div style={{ textAlign: 'center' }}>
-                       <div className="loading-spinner" />
-                       <div style={{ fontSize: 28, fontWeight: 700, color: '#1677FF', marginTop: 12 }}>{item.progress}%</div>
-                     </div>
-                   ) : (
-                     <div style={{ color: '#FF4D4F', fontSize: 13 }}>{item.error}</div>
-                   )}
-                 </div>
-               ))}
-               {[...albums].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(albumPage * PAGE_SIZE, (albumPage + 1) * PAGE_SIZE).map(album => (
-                <div
-                  key={album.id}
-                  style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s', position: 'relative', display: 'flex', flexDirection: 'column' }}
-                  onClick={() => setViewAlbum(album)}
-                  onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.16), 0 16px 48px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '1' }}
-                  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)'; e.currentTarget.style.borderColor = '#f1f5f9'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '0' }}
-                >
-                  <div onClick={e => handleDelete(e, album.id)} className="del-btn" style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(15,23,42,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}>✕</div>
-                  <div style={{ position: 'relative' }}>
-                    <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                    {album.imageUrls && album.imageUrls.filter(u => u).length > 1 && (
-                      <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.filter(u => u).length}张</div>
-                    )}
-                  </div>
-                  <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #f8fafc' }}>
-                    <div style={{ color: '#94a3b8', fontSize: 12 }}>{new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {albums.length > PAGE_SIZE && (
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 32 }}>
-                <button className="btn btn-outline" disabled={albumPage === 0} onClick={() => setAlbumPage(p => p - 1)}>上一页</button>
-                <span style={{ fontSize: 13, color: '#666', alignSelf: 'center' }}>{albumPage + 1} / {Math.ceil(albums.length / PAGE_SIZE)}</span>
-                <button className="btn btn-outline" disabled={(albumPage + 1) * PAGE_SIZE >= albums.length} onClick={() => setAlbumPage(p => p + 1)}>下一页</button>
-              </div>
-            )}
-          </>
-        )}
         </div>
         </div>
       </div>

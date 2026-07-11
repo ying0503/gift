@@ -46,6 +46,7 @@ export async function initSchema() {
     banner TINYINT(1) DEFAULT 0,
     created_at BIGINT NOT NULL
   )`)
+  try { await p.query('ALTER TABLE albums ADD COLUMN name TEXT') } catch (e) {}
   await p.query(`CREATE TABLE IF NOT EXISTS tasks (
     task_id VARCHAR(64) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
@@ -58,6 +59,7 @@ export async function initSchema() {
     maiziai_task_id VARCHAR(64),
     created_at BIGINT NOT NULL
   )`)
+  try { await p.query('ALTER TABLE tasks ADD COLUMN name TEXT') } catch (e) {}
   await p.query(`CREATE TABLE IF NOT EXISTS batches (
     batch_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
@@ -67,6 +69,7 @@ export async function initSchema() {
     created_at BIGINT NOT NULL,
     done TINYINT(1) DEFAULT 0
   )`)
+  try { await p.query('ALTER TABLE batches ADD COLUMN name TEXT') } catch (e) {}
   try { await p.query('DROP TABLE IF EXISTS public_album_data') } catch (e) {}
   const [triggers] = await p.query("SELECT TRIGGER_NAME FROM information_schema.TRIGGERS WHERE EVENT_OBJECT_TABLE = 'digital_albums'")
   for (const t of triggers) {
@@ -251,11 +254,11 @@ export async function createAlbum(album) {
   const imageUrls = album.imageUrls ? (Array.isArray(album.imageUrls) ? JSON.stringify(album.imageUrls) : album.imageUrls) : null
   const config = album.config ? (typeof album.config === 'object' ? JSON.stringify(album.config) : album.config) : null
   const prompts = album.prompts ? (Array.isArray(album.prompts) ? JSON.stringify(album.prompts) : album.prompts) : null
-  await p.query(`INSERT INTO albums (id, user_id, task_id, batch_id, image_url, image_urls, config, prompt, prompts, product_count, banner, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  await p.query(`INSERT INTO albums (id, user_id, task_id, batch_id, image_url, image_urls, config, prompt, prompts, product_count, banner, name, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [album.id, album.userId, album.taskId || null, album.batchId || null,
      album.imageUrl || null, imageUrls, config, album.prompt || null,
-     prompts, album.productCount || 0, album.banner ? 1 : 0, album.createdAt])
+     prompts, album.productCount || 0, album.banner ? 1 : 0, album.name || null, album.createdAt])
 }
 
 export async function getAlbum(id) {
@@ -298,6 +301,7 @@ function rowToAlbum(row) {
     prompts: row.prompts ? (typeof row.prompts === 'string' ? JSON.parse(row.prompts) : row.prompts) : null,
     productCount: row.product_count,
     banner: !!row.banner,
+    name: row.name || null,
     createdAt: row.created_at,
   }
 }
@@ -305,11 +309,11 @@ function rowToAlbum(row) {
 export async function createTask(task) {
   const p = await getPool()
   const config = task.config ? JSON.stringify(task.config) : null
-  await p.query(`INSERT INTO tasks (task_id, user_id, config, prompt, status, image_url, status_text, product_count, maiziai_task_id, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  await p.query(`INSERT INTO tasks (task_id, user_id, config, prompt, status, image_url, status_text, product_count, maiziai_task_id, name, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [task.taskId, task.userId, config, task.prompt || null,
      task.status || 'PENDING', task.imageUrl || null, task.statusText || null,
-     task.productCount || 0, task.maiziaiTaskId || null, task.createdAt])
+     task.productCount || 0, task.maiziaiTaskId || null, task.name || null, task.createdAt])
 }
 
 export async function getTask(taskId) {
@@ -321,7 +325,7 @@ export async function getTask(taskId) {
     taskId: r.task_id, userId: r.user_id,
     config: r.config ? (typeof r.config === 'string' ? JSON.parse(r.config) : r.config) : null, prompt: r.prompt,
     status: r.status, imageUrl: r.image_url, statusText: r.status_text,
-    productCount: r.product_count, maiziaiTaskId: r.maiziai_task_id, createdAt: r.created_at,
+    productCount: r.product_count, maiziaiTaskId: r.maiziai_task_id, name: r.name || null, createdAt: r.created_at,
   }
 }
 
@@ -337,11 +341,11 @@ export async function updateTask(taskId, updates) {
 export async function createBatch(batch) {
   const p = await getPool()
   const config = batch.config ? JSON.stringify(batch.config) : null
-  await p.query(`INSERT INTO batches (batch_id, user_id, task_ids, config, prompts, created_at, done)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  await p.query(`INSERT INTO batches (batch_id, user_id, task_ids, config, prompts, created_at, done, name)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [batch.batchId, batch.userId, JSON.stringify(batch.taskIds || []),
      config, JSON.stringify(batch.prompts || []),
-     batch.createdAt, batch.done ? 1 : 0])
+     batch.createdAt, batch.done ? 1 : 0, batch.name || null])
 }
 
 export async function getActiveBatches(userId) {
@@ -351,7 +355,7 @@ export async function getActiveBatches(userId) {
     batchId: r.batch_id, userId: r.user_id,
     taskIds: typeof r.task_ids === 'string' ? JSON.parse(r.task_ids) : r.task_ids,
     config: r.config ? (typeof r.config === 'string' ? JSON.parse(r.config) : r.config) : null,
-    prompts: typeof r.prompts === 'string' ? JSON.parse(r.prompts) : r.prompts, createdAt: r.created_at, done: !!r.done,
+    prompts: typeof r.prompts === 'string' ? JSON.parse(r.prompts) : r.prompts, createdAt: r.created_at, done: !!r.done, name: r.name || null,
   }))
 }
 
@@ -364,7 +368,7 @@ export async function getBatch(batchId) {
     batchId: r.batch_id, userId: r.user_id,
     taskIds: typeof r.task_ids === 'string' ? JSON.parse(r.task_ids) : r.task_ids,
     config: r.config ? (typeof r.config === 'string' ? JSON.parse(r.config) : r.config) : null,
-    prompts: typeof r.prompts === 'string' ? JSON.parse(r.prompts) : r.prompts, createdAt: r.created_at, done: !!r.done,
+    prompts: typeof r.prompts === 'string' ? JSON.parse(r.prompts) : r.prompts, createdAt: r.created_at, done: !!r.done, name: r.name || null,
   }
 }
 
@@ -373,6 +377,11 @@ export async function updateBatch(batchId, updates) {
   if (updates.done !== undefined) {
     await p.query('UPDATE batches SET done = ? WHERE batch_id = ?', [updates.done ? 1 : 0, batchId])
   }
+}
+
+export async function lockBatch(batchId) {
+  const p = await getPool()
+  await p.query('UPDATE batches SET done = 1 WHERE batch_id = ? AND done = 0', [batchId])
 }
 
 export async function getDigitalAlbum(id, userId) {

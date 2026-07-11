@@ -354,6 +354,33 @@ body {
 }
 .sidebar-tab:hover { color: #8B5CF6; background: #F5F3FF; }
 .sidebar-tab.active { color: #8B5CF6; background: #F5F3FF; font-weight: 600; }
+
+.sidebar-submenu {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.12);
+  min-width: 130px;
+  padding: 4px;
+  z-index: 200;
+  margin-left: 4px;
+}
+.sidebar-submenu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #333;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: left;
+  white-space: nowrap;
+}
+.sidebar-submenu-item:hover { background: #F5F3FF; color: #8B5CF6; }
 .header-user { font-size: 13px; color: rgba(0,0,0,.45); }
 
 .user-menu-wrap { position: relative; cursor: pointer; padding-bottom: 8px; margin-bottom: -8px; }
