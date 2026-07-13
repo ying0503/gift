@@ -71,6 +71,7 @@ ssh ${SSH_USER}@${ECS_IP} << 'CMD'
   npx vite build --outDir dist-new
   ln -sfn dist-new dist-current.tmp
   mv -T dist-current.tmp dist-current
+  ln -sfn dist-new dist 2>/dev/null || true
 
   echo ">>> 启动服务..."
   npm install -g pm2
@@ -81,7 +82,6 @@ ssh ${SSH_USER}@${ECS_IP} << 'CMD'
   fi
   pm2 save
   pm2 startup | tail -1
-  rm -rf dist 2>/dev/null || true
 
   echo "=== ECS 完成！http://localhost:${PORT:-3000} ==="
 CMD
