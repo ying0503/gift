@@ -68,7 +68,7 @@ ssh ${SSH_USER}@${ECS_IP} << 'CMD'
   npm install
   echo ">>> 构建前端..."
   npx vite build --outDir dist-new
-  mv dist dist-tmp 2>/dev/null; mv dist-new dist; rm -rf dist-tmp 2>/dev/null
+  mv dist dist-tmp 2>/dev/null || true; mv dist-new dist; rm -rf dist-tmp 2>/dev/null || true
 
   echo ">>> 启动服务..."
   npm install -g pm2
