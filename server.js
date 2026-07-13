@@ -792,7 +792,7 @@ app.delete('/api/gifts/:id', auth, async (req, res) => {
 })
 
 app.use((req, res) => {
-  const filePath = path.join(__dirname, 'dist', 'index.html')
+  const filePath = path.join(__dirname, 'dist-current', 'index.html')
   if (fs.existsSync(filePath)) res.sendFile(filePath)
   else res.status(200).send('OK - SPA fallback')
 })

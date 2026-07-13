@@ -67,8 +67,11 @@ ssh ${SSH_USER}@${ECS_IP} << 'CMD'
   echo ">>> 安装依赖..."
   npm install
   echo ">>> 构建前端..."
+  if [ ! -L dist-current ]; then ln -s dist dist-current; fi
   npx vite build --outDir dist-new
-  mv dist dist-tmp 2>/dev/null || true; mv dist-new dist; rm -rf dist-tmp 2>/dev/null || true
+  ln -sfn dist-new dist-current.tmp
+  mv -T dist-current.tmp dist-current
+  rm -rf dist dist-tmp 2>/dev/null || true
 
   echo ">>> 启动服务..."
   npm install -g pm2
