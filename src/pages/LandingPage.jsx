@@ -781,7 +781,7 @@ export default function LandingPage() {
               <span style={{ fontSize: 11, color: '#fff', background: '#111', padding: '3px 10px', borderRadius: 999, display: 'inline-block' }}>礼企AI智能体</span>
             </div>
             <div style={styles.footerCopyright}>
-              © 2026 杭州吾皇文化创意有限公司
+              © 2026 杭州吾皇文化创意有限公司 <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=33018502002623" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>浙公网安备33018502002623号</a> <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>浙ICP备2026051660号-1</a>
             </div>
           </div>
           <div style={{ ...styles.footerRight, gap: 16 }}>
