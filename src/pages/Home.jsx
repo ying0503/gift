@@ -593,11 +593,9 @@ export default function Home() {
                     if (urls.length >= 5) {
                       const u = urls
                       return (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: 5 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '3fr 3fr 4fr', gap: 10, padding: 5 }}>
                           {u.slice(0, 6).map((url, i) => (
-                            <div key={i} style={{ width: 'calc(50% - 5px)' }}>
-                              <ResultImageCell url={url} ratio={ratio} statusText={last.statusText} />
-                            </div>
+                            <ResultImageCell key={i} url={url} ratio={ratio} statusText={last.statusText} />
                           ))}
                         </div>
                       )
