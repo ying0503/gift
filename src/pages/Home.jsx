@@ -6,6 +6,21 @@ function normalizeImgUrl(url) {
   return url?.replace('gift-bucket-0503.oss-cn-beijing.aliyuncs.com', 'static.liqihui.com') || url
 }
 
+function ResultImageCell({ url, ratio, statusText }) {
+  return (
+    <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, overflow: 'hidden', background: '#fafaf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {url ? (
+        <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#fafaf8', display: 'block' }} />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <div className="loading-spinner" />
+          <div style={{ fontSize: 12, color: '#888' }}>{statusText || '生成中...'}</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Home() {
   const [image_size] = useState('1K')
   const [generating, setGenerating] = useState(false)
@@ -26,43 +41,36 @@ export default function Home() {
   const getMaxTokens = () => parseInt(localStorage.getItem('textMaxTokens') || '2000', 10)
 
   async function generatePrompts(fest, count, refImageUrl, imgType, productInfo) {
-    if (!fest) { setPrompts(Array.from({ length: count }, () => '')); return }
     const token = localStorage.getItem('token')
-    if (!token) return
+    if (!token) return []
     const genId = ++promptGenId.current
     setGeneratingPrompts(true)
-    if (imgType === '详情图' || imgType === '白底图') {
-      const p = Array.from({ length: count }, () => '')
-      p[0] = '生成白底图'
-      setPrompts(p)
-    } else {
-      setPrompts(Array.from({ length: count }, () => ''))
-    }
+    const base = (imgType === '详情图' || imgType === '白底图')
+      ? (() => { const p = Array.from({ length: count }, () => ''); p[0] = '生成白底图'; return p })()
+      : Array.from({ length: count }, () => '')
+    setPrompts(base)
     try {
       const apiCount = (imgType === '详情图' || imgType === '白底图') ? count - 1 : count
       const res = await fetch(`${API}/api/generate/prompts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ festival: fest, count: apiCount, refImage: refImageUrl, model: getTextModel(), temperature: getTemperature(), maxTokens: getMaxTokens(), imageType: imgType, productInfo }),
+        body: JSON.stringify({ count: apiCount, refImage: refImageUrl, model: getTextModel(), temperature: getTemperature(), maxTokens: getMaxTokens(), imageType: imgType, productInfo }),
       })
       const data = await res.json()
-      if (genId !== promptGenId.current) return
+      if (genId !== promptGenId.current) return null
       if (data.prompts) {
-        if (imgType === '详情图' || imgType === '白底图') {
-          const result = ['生成白底图', ...data.prompts.slice(0, count - 1)]
-          setPrompts(result)
-        } else {
-          setPrompts(data.prompts.slice(0, count))
-        }
+        const result = (imgType === '详情图' || imgType === '白底图')
+          ? ['生成白底图', ...data.prompts.slice(0, count - 1)]
+          : data.prompts.slice(0, count)
+        setPrompts(result)
+        return result
       }
+      setPrompts(base)
+      return base
     } catch {
-      if (genId !== promptGenId.current) return
- if (imgType === '详情图' || imgType === '白底图') {
-          const empty = ['生成白底图', ...Array.from({ length: count - 1 }, () => '')]
-        setPrompts(empty)
-      } else {
-        setPrompts(Array.from({ length: count }, () => ''))
-      }
+      if (genId !== promptGenId.current) return null
+      setPrompts(base)
+      return base
     } finally {
       if (genId === promptGenId.current) setGeneratingPrompts(false)
     }
@@ -70,7 +78,7 @@ export default function Home() {
 
   async function analyzeImage(imageUrl) {
     const token = localStorage.getItem('token')
-    if (!token) return
+    if (!token) return null
     setAnalyzing(true)
     try {
       const res = await fetch(`${API}/api/generate/prompts`, {
@@ -80,12 +88,14 @@ export default function Home() {
       })
       const data = await res.json()
       if (data.analysis) {
-        generatePrompts('通用礼品', templateCountRef.current, imageUrl, '详情图', data.analysis)
+        return data.analysis
       } else {
         console.error('分析失败:', data.error || res.statusText)
+        return null
       }
     } catch (e) {
       console.error('analyzeImage error:', e)
+      return null
     } finally {
       setAnalyzing(false)
     }
@@ -94,8 +104,16 @@ export default function Home() {
   const [templateCount, setTemplateCount] = useState(1)
   const [productTitle, setProductTitle] = useState('')
   const [imageSize, setImageSize] = useState('3:4')
+  const [ratioOpen, setRatioOpen] = useState(false)
+  const ratioRef = useRef(null)
+  useEffect(() => {
+    if (!ratioOpen) return
+    const onDown = e => { if (ratioRef.current && !ratioRef.current.contains(e.target)) setRatioOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [ratioOpen])
   const [prompts, setPrompts] = useState([''])
-  const [imageType, setImageType] = useState('图片类型')
+  const [imageType, setImageType] = useState('白底图')
 
   const [generations, setGenerations] = useState([])
   const pollTimers = useRef({})
@@ -115,9 +133,6 @@ export default function Home() {
     const fr = new FileReader()
     fr.onload = () => {
       setUploadedRef({ url: fr.result, blob: f })
-      if (prompts.some(p => p.trim())) {
-        generatePrompts('通用礼品', templateCountRef.current, fr.result, imageType)
-      }
     }
     fr.readAsDataURL(f)
   }
@@ -168,13 +183,6 @@ export default function Home() {
   }, [prompts])
 
   useEffect(() => {
-    if (imageType !== '图片类型') {
-      const c = imageType === '详情图' ? 5 : 1
-      generatePrompts('通用礼品', c, undefined, imageType)
-    }
-  }, [])
-
-  useEffect(() => {
     if (viewAlbum) {
       document.body.style.overflow = 'hidden'
     } else {
@@ -207,7 +215,7 @@ export default function Home() {
     }
   }, [fetchAlbums])
 
-  const canGenerate = getModel() && prompts.every(p => p.length > 0) && productTitle.trim().length > 0
+  const canGenerate = getModel() && productTitle.trim().length > 0
 
   const handleGenerate = async () => {
     if (!getModel()) return alert('请选择模型')
@@ -221,11 +229,23 @@ export default function Home() {
       return
     }
 
-    const promptList = prompts.filter(p => p.trim())
-    if (promptList.length === 0) return
+    let promptList = prompts.filter(p => p.trim())
+    if (promptList.length === 0) {
+      const c = imageType === '详情图' ? 5 : 1
+      setTemplateCount(c); templateCountRef.current = c
+      let generated
+      if (imageType === '详情图' && uploadedRef?.url) {
+        const analysis = await analyzeImage(uploadedRef.url)
+        generated = await generatePrompts('', c, uploadedRef.url, imageType, analysis)
+      } else {
+        generated = await generatePrompts('', c, uploadedRef?.url, imageType)
+      }
+      promptList = (generated || []).filter(p => p.trim())
+      if (promptList.length === 0) { setGenerating(false); return }
+    }
 
     const imageTypePrefixes = {
-      '场景图': '场景图，使用场景图，',
+      '场景图': '真实使用场景图，',
     }
     const prefixed = imageType === '详情图'
       ? promptList
@@ -247,7 +267,7 @@ export default function Home() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          config: { size: imageSize, model: getModel(), image_size, n: 1, festival: '通用礼品' },
+          config: { size: imageSize, model: getModel(), image_size, n: 1 },
           prompts: prefixed,
           images: sendImages.length ? sendImages : undefined,
           name: productTitle.trim(),
@@ -409,7 +429,7 @@ export default function Home() {
 
             {/* ========== LEFT COLUMN: Upload ========== */}
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10, letterSpacing: 0.3 }}>上传产品图</div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 10, letterSpacing: 0.3 }}>上传产品图</div>
               {uploadedRef ? (
                 <div style={{ position: 'relative', width: '100%', height: 300, borderRadius: 12, overflow: 'hidden', border: '1.5px solid #ddd', boxShadow: '0 2px 8px rgba(0,0,0,.06)' }}
                   onMouseEnter={(e) => { clearTimeout(previewTimer.current); const r = e.currentTarget.getBoundingClientRect(); previewTimer.current = setTimeout(() => { setPreviewPos({ left: r.right + 8, top: Math.min(r.top, window.innerHeight * 0.5 - 24) }); setPreviewUrl(uploadedRef.url) }, 300) }}
@@ -439,12 +459,6 @@ export default function Home() {
                   <span style={{ fontSize: 15, color: '#1a1a1a' }}>点击上传或拖拽图片到此处</span>
                 </div>
               )}
-              {analyzing && (
-                <div style={{ marginTop: 10, fontSize: 12, color: '#8B5CF6', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                  <div style={{ width: 14, height: 14, border: '2px solid #e0dedc', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
-                  AI 分析中...
-                </div>
-              )}
 
               {previewUrl === uploadedRef?.url && (
                 <div style={{ position: 'fixed', zIndex: 1000, left: previewPos.left, top: previewPos.top, background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,.15)', padding: 6, pointerEvents: 'none', border: '1px solid #e8e6e4' }}>
@@ -472,16 +486,7 @@ export default function Home() {
                     <div key={t}
                       onClick={() => {
                         const v = t; setImageType(v); const c = v === '详情图' ? 5 : 1; setTemplateCount(c); templateCountRef.current = c;
-                        if (v === '详情图') {
-                          const p = Array.from({ length: c }, () => '')
-                          p[0] = '生成白底图'
-                          setPrompts(p)
-                          if (uploadedRef?.url) {
-                            analyzeImage(uploadedRef.url)
-                          } else {
-                            generatePrompts('通用礼品', c, undefined, v)
-                          }
-                        } else { generatePrompts('通用礼品', c, uploadedRef?.url, v) }
+                        setPrompts(Array.from({ length: c }, () => ''))
                       }}
                       style={{
                         padding: '6px 16px', fontSize: 14, borderRadius: 8, cursor: 'pointer', userSelect: 'none',
@@ -495,48 +500,29 @@ export default function Home() {
                   </div>
                 </div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6, marginTop: 2 }}>生成比例</div>
-                  <select value={imageSize} onChange={e => setImageSize(e.target.value)}
-                    style={{ height: 48, padding: '0 10px', fontSize: 14, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', cursor: 'pointer', outline: 'none', color: '#333' }}>
-                    <option value="3:4">3:4</option>
-                    <option value="1:1">1:1</option>
-                    <option value="16:9">16:9</option>
-                    <option value="9:16">9:16</option>
-                    <option value="2:3">2:3</option>
-                    <option value="4:3">4:3</option>
-                  </select>
-
-                <div style={{ position: 'relative' }}>
-                  {prompts.map((p, i) => (
-                    <div key={i} style={{ marginBottom: i < prompts.length - 1 ? 8 : 0 }}>
-                      <textarea
-                        ref={el => textareaRefs.current[i] = el}
-                        style={{
-                          width: '100%', minHeight: 56, padding: '10px 12px', fontSize: 14, color: '#333',
-                          border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8',
-                          resize: 'none', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none', transition: 'border-color .25s, box-shadow .25s',
-                          fontFamily: 'inherit', overflow: 'hidden',
-                        }}
-                        onFocus={e => { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,.1)'; e.target.style.background = '#fff' }}
-                        onBlur={e => { e.target.style.borderColor = '#e0dedc'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafaf8' }}
-                        value={p}
-                        onChange={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; const next = [...prompts]; next[i] = e.target.value; setPrompts(next) }}
-                        placeholder={''}
-                      />
+                  <div ref={ratioRef} style={{ position: 'relative' }}>
+                    <div onClick={() => setRatioOpen(o => !o)} role="button" tabIndex={0}
+                      style={{ height: 48, padding: '0 30px 0 10px', fontSize: 14, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', cursor: 'pointer', outline: 'none', color: '#333', display: 'flex', alignItems: 'center',
+                        backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
+                        backgroundRepeat: 'no-repeat', backgroundPosition: 'right 15px center' }}>
+                      {imageSize}
                     </div>
-                  ))}
-                  {generatingPrompts && (
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,.85)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2, borderRadius: 10, gap: 6 }}>
-                      <div style={{ width: 20, height: 20, border: '2px solid #e0dedc', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
-                      <span style={{ fontSize: 12, color: '#888', letterSpacing: 0.3 }}>AI 文案策划中<span className="loading-dots"><span>.</span><span>.</span><span>.</span></span></span>
-                    </div>
-                  )}
-                </div>
+                    {ratioOpen && (
+                      <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: '#fff', border: '1px solid #e0dedc', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.12)', padding: 4, zIndex: 50 }}>
+                        {['3:4', '1:1', '16:9', '9:16', '2:3', '4:3'].map(v => (
+                          <div key={v} onClick={() => { setImageSize(v); setRatioOpen(false) }}
+                            style={{ padding: '9px 10px', fontSize: 14, borderRadius: 6, cursor: 'pointer', color: imageSize === v ? '#8B5CF6' : '#333', background: imageSize === v ? '#F5F3FF' : 'transparent', fontWeight: imageSize === v ? 600 : 400 }}
+                            onMouseEnter={e => { if (imageSize !== v) e.currentTarget.style.background = '#f5f5f5' }}
+                            onMouseLeave={e => { if (imageSize !== v) e.currentTarget.style.background = 'transparent' }}
+                          >{v}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6, marginTop: 2 }}>生成张数</div>
-                  <select value={templateCount} disabled
-                    style={{ height: 48, padding: '0 10px', fontSize: 14, border: '1px solid #e8e6e4', borderRadius: 8, background: '#f5f5f2', cursor: 'not-allowed', outline: 'none', color: '#aaa', width: '100%' }}>
-                    {[1,2,3,4,5].map(v => <option key={v} value={v}>{v}张</option>)}
-                  </select>
+                  <input value={`${templateCount}张`} readOnly
+                    style={{ height: 48, padding: '0 12px', fontSize: 14, border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8', outline: 'none', color: '#333', width: '100%', boxSizing: 'border-box', cursor: 'default' }} />
 
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 6 }}>产品标题 <span style={{ color: '#FF4D4F' }}>*</span></div>
@@ -559,41 +545,76 @@ export default function Home() {
                   onMouseEnter={e => { if (canGenerate && !generating) { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 8px 28px rgba(139,92,246,.4)' } }}
                   onMouseLeave={e => { if (canGenerate && !generating) { e.target.style.transform = 'none'; e.target.style.boxShadow = '0 4px 20px rgba(139,92,246,.3)' } }}
                 >生成礼品图</button>
+
+                <div style={{ position: 'relative' }}>
+                  {prompts.map((p, i) => (
+                    <div key={i} style={{ marginBottom: i < prompts.length - 1 ? 8 : 0 }}>
+                      <textarea
+                        ref={el => textareaRefs.current[i] = el}
+                        style={{
+                          width: '100%', minHeight: 56, padding: '10px 12px', fontSize: 14, color: '#333',
+                          border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8',
+                          resize: 'none', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none', transition: 'border-color .25s, box-shadow .25s',
+                          fontFamily: 'inherit', overflow: 'hidden',
+                        }}
+                        onFocus={e => { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,.1)'; e.target.style.background = '#fff' }}
+                        onBlur={e => { e.target.style.borderColor = '#e0dedc'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafaf8' }}
+                        value={p}
+                        onChange={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; const next = [...prompts]; next[i] = e.target.value; setPrompts(next) }}
+                        placeholder={''}
+                      />
+                    </div>
+                  ))}
+                  {(generatingPrompts || analyzing) && (
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,.85)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2, borderRadius: 10, gap: 6 }}>
+                      <div style={{ width: 20, height: 20, border: '2px solid #e0dedc', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+                      <span style={{ fontSize: 12, color: '#888', letterSpacing: 0.3 }}>{analyzing ? 'AI 分析中' : 'AI 文案策划中'}<span className="loading-dots"><span>.</span><span>.</span><span>.</span></span></span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* ========== RIGHT COLUMN: Current Image ========== */}
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#444', marginBottom: 10, letterSpacing: 0.3 }}>生成结果</div>
-              {generations.filter(g => !g.restored).length > 0 ? (
-                (() => {
-                  const last = [...generations].filter(g => !g.restored).reverse()[0]
-                  return (
-                    <>
-                      {last.title && (
-                        <div style={{ fontSize: 13, color: '#8B5CF6', marginBottom: 8, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{last.title}</div>
-                      )}
-                      {last.error ? (
-                        <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF4D4F', fontSize: 13, background: '#fafaf8' }}>{last.error}</div>
-                      ) : last.imageUrl ? (
-                        <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', overflow: 'hidden', background: '#fafaf8' }}>
-                          <img src={last.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 10, letterSpacing: 0.3 }}>生成结果</div>
+              <div style={{ border: '1px solid #e0dedc', borderRadius: 12, background: '#fafaf8', minHeight: 200 }}>
+                {generations.filter(g => !g.restored).length > 0 ? (
+                  (() => {
+                    const last = [...generations].filter(g => !g.restored).reverse()[0]
+                    const ratio = imageSize.replace(':', ' / ')
+                    const urls = last.imageUrls && last.imageUrls.length ? last.imageUrls : (last.imageUrl ? [last.imageUrl] : [])
+                    if (last.error) {
+                      return <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF4D4F', fontSize: 13, padding: '0 12px', textAlign: 'center' }}>{last.error}</div>
+                    }
+                    if (urls.length === 0) {
+                      return <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}><div className="loading-spinner" /><div style={{ fontSize: 12, color: '#888' }}>{last.statusText}</div></div>
+                    }
+                    if (urls.length >= 5) {
+                      const u = urls
+                      return (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: 5 }}>
+                          {u.slice(0, 6).map((url, i) => (
+                            <div key={i} style={{ width: 'calc(50% - 5px)' }}>
+                              <ResultImageCell url={url} ratio={ratio} statusText={last.statusText} />
+                            </div>
+                          ))}
                         </div>
-                      ) : (
-                        <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#fafaf8' }}>
-                          <div className="loading-spinner" />
-                          <div style={{ fontSize: 18, fontWeight: 700, color: '#1677FF' }}>{last.progress}%</div>
-                          <div style={{ fontSize: 12, color: '#888' }}>{last.statusText}</div>
-                        </div>
-                      )}
-                    </>
-                  )
-                })()
-              ) : (
-                <div style={{ width: '100%', aspectRatio: '1', borderRadius: 12, border: '1px dashed #e0dedc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 13, background: '#fafaf8' }}>
-                  暂无生成结果
-                </div>
-              )}
+                      )
+                    }
+                    const cols = urls.length === 1 ? 1 : 2
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 10 }}>
+                        {urls.map((url, i) => <ResultImageCell key={i} url={url} ratio={ratio} statusText={last.statusText} />)}
+                      </div>
+                    )
+                  })()
+                ) : (
+                  <div style={{ width: '100%', minHeight: 178, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 13 }}>
+                    暂无生成结果
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

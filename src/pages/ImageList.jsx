@@ -28,8 +28,22 @@ export default function ImageList() {
   const [albums, setAlbums] = useState([])
   const [generations, setGenerations] = useState([])
   const [viewAlbum, setViewAlbum] = useState(null)
+  const [viewIndex, setViewIndex] = useState(0)
   const [page, setPage] = useState(0)
   const pollTimers = useRef({})
+
+  useEffect(() => {
+    if (!viewAlbum) return
+    const urls = viewAlbum.imageUrls || (viewAlbum.imageUrl ? [viewAlbum.imageUrl] : [])
+    if (urls.length <= 1) return
+    const onKey = e => {
+      if (e.key === 'ArrowLeft') setViewIndex(i => (i - 1 + urls.length) % urls.length)
+      if (e.key === 'ArrowRight') setViewIndex(i => (i + 1) % urls.length)
+      if (e.key === 'Escape') setViewAlbum(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [viewAlbum])
 
   const fetchAlbums = () => {
     const token = localStorage.getItem('token')
@@ -153,15 +167,42 @@ export default function ImageList() {
       </div>
 
       {viewAlbum ? (
-        <div style={{ maxWidth: 600, margin: '0 auto' }}>
-          <button onClick={() => setViewAlbum(null)} style={{ marginBottom: 16, padding: '6px 16px', fontSize: 13, border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', background: '#fff', color: '#64748b' }}>← 返回</button>
-          {(viewAlbum.imageUrls || [viewAlbum.imageUrl]).map((url, i) => (
-            url ? (
-              <img key={i} src={url} alt="" style={{ width: '100%', borderRadius: 8, display: 'block', marginBottom: i < (viewAlbum.imageUrls || [viewAlbum.imageUrl]).length - 1 ? 12 : 0 }} />
-            ) : (
-              <div key={i} style={{ width: '100%', aspectRatio: 1, background: '#f5f5f5', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 14, marginBottom: 12 }}>生成失败</div>
+        <div
+          onClick={() => setViewAlbum(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
+        >
+          {(() => {
+            const urls = viewAlbum.imageUrls || (viewAlbum.imageUrl ? [viewAlbum.imageUrl] : [])
+            const total = urls.length
+            const url = urls[viewIndex]
+            return (
+              <>
+                {total > 1 && (
+                  <button onClick={e => { e.stopPropagation(); setViewIndex(i => (i - 1 + total) % total) }} style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.14)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.28)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.14)'}>‹</button>
+                )}
+                {url ? (
+                  <img
+                    src={url}
+                    onClick={e => e.stopPropagation()}
+                    alt=""
+                    style={{ maxWidth: '90vw', maxHeight: '86vh', borderRadius: 8, objectFit: 'contain', display: 'block', boxShadow: '0 12px 48px rgba(0,0,0,.5)' }}
+                  />
+                ) : (
+                  <div onClick={e => e.stopPropagation()} style={{ width: 'min(86vw, 78vh)', aspectRatio: viewAlbum.ratio || '1', background: '#fff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 15, boxShadow: '0 12px 48px rgba(0,0,0,.5)' }}>生成失败</div>
+                )}
+                {total > 1 && (
+                  <button onClick={e => { e.stopPropagation(); setViewIndex(i => (i + 1) % total) }} style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.14)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.28)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.14)'}>›</button>
+                )}
+                <div onClick={e => { e.stopPropagation(); setViewAlbum(null) }} style={{ position: 'absolute', top: 22, right: 22, width: 42, height: 42, borderRadius: '50%', background: 'rgba(255,255,255,.14)', color: '#fff', cursor: 'pointer', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.28)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.14)'}>✕</div>
+                {total > 1 && (
+                  <div style={{ position: 'absolute', bottom: 22, left: '50%', transform: 'translateX(-50%)', color: '#fff', fontSize: 13, letterSpacing: 1 }}>{viewIndex + 1} / {total}</div>
+                )}
+              </>
             )
-          ))}
+          })()}
         </div>
       ) : albums.length === 0 && inProgress.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8', fontSize: 14 }}>
@@ -175,7 +216,6 @@ export default function ImageList() {
                 {!item.error ? (
                   <div style={{ textAlign: 'center' }}>
                     <div className="loading-spinner" />
-                    <div style={{ fontSize: 28, fontWeight: 700, color: '#1677FF', marginTop: 12 }}>{item.progress}%</div>
                   </div>
                 ) : (
                   <>
@@ -189,15 +229,15 @@ export default function ImageList() {
               <div
                 key={album.id}
                 style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s', position: 'relative', display: 'flex', flexDirection: 'column' }}
-                onClick={() => setViewAlbum(album)}
+                onClick={() => { setViewAlbum(album); setViewIndex(0) }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.16), 0 16px 48px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '1' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)'; e.currentTarget.style.borderColor = '#f1f5f9'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '0' }}
               >
                 <div onClick={e => handleDelete(e, album.id)} className="del-btn" style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(15,23,42,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}>✕</div>
                 <div style={{ position: 'relative' }}>
                   <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                  {album.imageUrls && album.imageUrls.filter(u => u).length > 1 && (
-                    <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.filter(u => u).length}张</div>
+                  {album.imageUrls && album.imageUrls.length > 1 && (
+                    <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.length}张</div>
                   )}
                 </div>
                 <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #f8fafc' }}>

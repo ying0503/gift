@@ -453,14 +453,14 @@ app.get('/api/generate/active-tasks', auth, async (req, res) => {
 app.post('/api/generate/prompts', auth, async (req, res) => {
   let textModel, startTime
   try {
-    const { festival, count, refImage, model: modelVal, mode, productInfo } = req.body
+    const { festival, count, refImage, model: modelVal, mode, productInfo, imageType } = req.body
     const isAnalyze = mode === 'analyze'
     textModel = modelVal || 'qwen3.5-flash'
     startTime = Date.now()
     if (isAnalyze) {
       if (!refImage) return res.status(400).json({ error: 'Missing refImage for analysis' })
     } else {
-      if (!festival || !count) return res.status(400).json({ error: 'Missing festival or count' })
+      if (!count) return res.status(400).json({ error: 'Missing count' })
     }
     const modelConfigMap = {
       'qwen3.5-flash': { key: process.env.QWEN_API_KEY, url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', model: 'qwen3.5-flash', label: 'Qwen3.5' },
@@ -468,18 +468,24 @@ app.post('/api/generate/prompts', auth, async (req, res) => {
       'doubao-seed-2-0-mini-260428': { key: process.env.DOUBAO_API_KEY, url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-seed-2-0-mini-260428', label: 'Doubao' },
     }
     const { temperature = isAnalyze ? 0.7 : 0.8, maxTokens = isAnalyze ? 1000 : 2000 } = req.body
-    const systemPrompt = isAnalyze
-      ? '你是一个产品信息智能提取助手。请仔细分析用户提供的产品图片，按以下格式提取信息并返回纯文本（不包含markdown标记）：\n\n品牌名称识别：\n- 中文品牌名：\n- 英文品牌名：\n- 设计风格：\n\n产品类型判断：\n- 产品类别：\n- 产品名称：\n- 产品规格：\n\n详细描述：\n'
-      : productInfo
-        ? '你是一个礼品营销AI图像提示词生成器。根据产品信息和产品名称，生成4个提示词，每个提示词按以下格式输出：\n主标题（居中大字）：{标题}；副标题（产品主图右侧或者左侧）：{围绕主题的一句话或几个特点描述}；其他参考：{图像生成提示词，至少50字}\n\n4个主题和标题要求：\n1. 主视觉图：标题用产品信息中的"产品名称"，不加任何修饰；副标题（产品主图右侧或者左侧）和其他参考侧重综合展示产品整体形象\n2. 产品卖点：标题用5-8字适合送礼的文案\n3. 品质工艺：标题用5-8字适合送礼的文案\n4. 适用场景：标题用5-8字适合送礼的文案\n\n直接输出4行，不要编号。标题不要包含"主视觉""卖点""品质""场景"等主题类别词。'
-        : '你是一个礼品营销AI图像提示词生成器。根据用户提供的主题，生成中文AI图像生成提示词。每个提示词用于文生图模型，描述礼品展示场景。'
-    const userContent = isAnalyze
-      ? (refImage ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: '请分析这张产品图片，提取所有可见的产品信息。' }] : '请分析产品图片，提取产品信息。')
-      : (productInfo
-        ? [{ type: 'text', text: `基于以下产品信息，输出4个提示词。第1个主视觉图的标题必须用产品信息中的"产品名称"，且副标题（产品主图右侧或者左侧）和其他参考都要综合展示产品整体形象，避免过多细节堆砌；其他3个标题用5-8字适合送礼的文案。\n\n产品信息：\n${productInfo}` }]
-        : (refImage
-          ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]
-          : [{ type: 'text', text: `请为"${festival}"主题生成${count}个中文图像描述提示词，用于礼品礼盒宣传banner图。要求每个提示词至少50字，详细描述节日氛围、色彩光影、构图元素。直接输出，不需要编号。` }]))
+    let systemPrompt, userContent
+    if (isAnalyze) {
+      systemPrompt = '你是一个产品信息智能提取助手。请仔细分析用户提供的产品图片，按以下格式提取信息并返回纯文本（不包含markdown标记）：\n\n品牌名称识别：\n- 中文品牌名：\n- 英文品牌名：\n- 设计风格：\n\n产品类型判断：\n- 产品类别：\n- 产品名称：\n- 产品规格：\n\n详细描述：\n'
+      userContent = refImage ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: '请分析这张产品图片，提取所有可见的产品信息。' }] : '请分析产品图片，提取产品信息。'
+    } else if (productInfo) {
+      systemPrompt = '你是一个礼品营销AI图像提示词生成器。根据产品信息和产品名称，生成4个提示词，每个提示词按以下格式输出：\n主标题（居中大字）：{标题}；副标题（产品主图右侧或者左侧）：{围绕主题的一句话或几个特点描述}；其他参考：{图像生成提示词，至少50字}\n\n4个主题和标题要求：\n1. 主视觉图：标题用产品信息中的"产品名称"，不加任何修饰；副标题（产品主图右侧或者左侧）和其他参考侧重综合展示产品整体形象\n2. 产品卖点：标题用5-8字适合送礼的文案\n3. 品质工艺：标题用5-8字适合送礼的文案\n4. 适用场景：标题用5-8字适合送礼的文案\n\n直接输出4行，不要编号。标题不要包含"主视觉""卖点""品质""场景"等主题类别词。'
+      userContent = [{ type: 'text', text: `基于以下产品信息，输出4个提示词。第1个主视觉图的标题必须用产品信息中的"产品名称"，且副标题（产品主图右侧或者左侧）和其他参考都要综合展示产品整体形象，避免过多细节堆砌；其他3个标题用5-8字适合送礼的文案。\n\n产品信息：\n${productInfo}` }]
+    } else if (imageType === '场景图') {
+      systemPrompt = '你是一个礼品营销AI图像提示词生成器，专注于生成"真实使用场景图"提示词。请描述产品在真实生活场景中被人使用的画面：强调真实环境（如居家、办公、送礼现场、出行等）、自然光影、实拍质感与生活化构图，让产品自然融入它真正被使用的真实情境，避免纯包装展示或节日banner风格。'
+      userContent = refImage
+        ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请基于这张产品图，生成${count}个中文图像描述提示词，描述该产品在真实生活中的使用场景（如被赠送、被使用、被摆放的真实环境），强调真实感、自然光影与生活化构图，每个提示词至少50字。直接输出，不需要编号。` }]
+        : [{ type: 'text', text: `生成${count}个中文图像描述提示词，描述产品在真实生活中的使用场景（如送礼、居家、办公、出行等），强调真实环境、自然光影、实拍质感与生活化构图，每个提示词至少50字。直接输出，不需要编号。` }]
+    } else {
+      systemPrompt = '你是一个礼品营销AI图像提示词生成器。根据产品图或主题，生成中文AI图像生成提示词，描述礼品产品的展示场景，突出产品主体与质感。'
+      userContent = refImage
+        ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: `请基于这张产品图，生成${count}个中文图像描述提示词，用于礼品产品宣传展示图。要求每个提示词至少50字，详细描述产品主体、色彩光影、构图元素与展示氛围。直接输出，不需要编号。` }]
+        : [{ type: 'text', text: `请生成${count}个中文图像描述提示词，用于礼品产品宣传展示图。要求每个提示词至少50字，详细描述产品主体、色彩光影、构图元素与展示氛围。直接输出，不需要编号。` }]
+    }
     const models = ['qwen3.5-flash', 'glm-4.6v-flashx', 'doubao-seed-2-0-mini-260428']
     const modelOrder = models.includes(textModel) ? [textModel, ...models.filter(m => m !== textModel)] : models
     let lastError = null

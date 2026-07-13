@@ -1060,7 +1060,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                   <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>组合头图</div>
                   {!comboBannerAiMode ? (
                     <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flex: 1, alignItems: 'center' }}>
-                      <button onClick={() => { setComboBannerPrompt(''); setComboBannerAiMode(true) }}
+                      <button onClick={() => { if (!currentViewAlbum?.productName?.trim() || currentViewAlbum.productName.trim() === '未命名组合') { setRenameTarget({ catId: albumLocation.catId, itemId: albumLocation.itemId, albumId: currentViewAlbum.albumId }); setRenameInput('未命名组合'); return } setComboBannerPrompt(''); setComboBannerAiMode(true) }}
                         style={{ padding: '8px 20px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', background: 'linear-gradient(135deg, #8B5CF6, #EC4899)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}
                       >AI智能生成</button>
                       <button onClick={() => comboFileInputRef.current?.click()} disabled={comboUploadingBanner}
@@ -1474,7 +1474,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           onClick={() => { setRenameTarget(null); setRenameInput('') }}
         >
           <div className="card" style={{ width: 380, padding: 24, position: 'relative' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 16 }}>填写组合名称</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 16 }}>请先填写组合名称</div>
             <span onClick={() => { setRenameTarget(null); setRenameInput('') }} style={{ position: 'absolute', top: 16, right: 16, cursor: 'pointer', fontSize: 16, color: 'rgba(0,0,0,.45)' }}>✕</span>
             <input
               autoFocus
