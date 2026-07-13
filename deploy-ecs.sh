@@ -71,8 +71,11 @@ ssh ${SSH_USER}@${ECS_IP} << 'CMD'
 
   echo ">>> 启动服务..."
   npm install -g pm2
-  pm2 delete gift-album 2>/dev/null || true
-  pm2 start server.js --name gift-album
+  if pm2 list 2>/dev/null | grep -q gift-album; then
+    pm2 reload gift-album --update-env
+  else
+    pm2 start server.js --name gift-album -i 2
+  fi
   pm2 save
   pm2 startup | tail -1
 

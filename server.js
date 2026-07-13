@@ -800,6 +800,7 @@ app.use((req, res) => {
 async function start() {
   try { await db.initSchema(); console.log('Database schema ready') } catch (e) { console.error('Database init failed:', e.message); process.exit(1) }
   try { await db.bootstrapAdmin(); console.log('Admin bootstrap done') } catch (e) { console.error('Admin bootstrap failed:', e.message) }
-  app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`))
+  const server = app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://0.0.0.0:${PORT}`))
+  process.on('SIGINT', () => { server.close(() => process.exit(0)); setTimeout(() => process.exit(0), 5000) })
 }
 start()
