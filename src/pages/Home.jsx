@@ -6,16 +6,13 @@ function normalizeImgUrl(url) {
   return url?.replace('gift-bucket-0503.oss-cn-beijing.aliyuncs.com', 'static.liqihui.com') || url
 }
 
-function ResultImageCell({ url, ratio, statusText }) {
+function ResultImageCell({ url, ratio }) {
   return (
-    <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, overflow: 'hidden', background: '#fafaf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, overflow: 'hidden', background: url ? '#fafaf8' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: url ? 'none' : '1px solid #e0dedc' }}>
       {url ? (
         <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#fafaf8', display: 'block' }} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <div className="loading-spinner" />
-          <div style={{ fontSize: 12, color: '#888' }}>{statusText || '生成中...'}</div>
-        </div>
+        <div style={{ fontSize: 13, color: '#888' }}>生成失败</div>
       )}
     </div>
   )
@@ -424,7 +421,7 @@ export default function Home() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
             <span style={{ fontSize: 20, fontWeight: 600, color: '#2a2a2e', letterSpacing: -0.1 }}>图片生成</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24, alignItems: 'start' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '3fr 3fr 4fr', gap: 24, alignItems: 'start' }}>
             <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(f); e.target.value = '' }} />
 
             {/* ========== LEFT COLUMN: Upload ========== */}
@@ -593,7 +590,7 @@ export default function Home() {
                     if (urls.length >= 5) {
                       const u = urls
                       return (
-                        <div style={{ display: 'grid', gridTemplateColumns: '3fr 3fr 4fr', gap: 10, padding: 5 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, padding: 5 }}>
                           {u.slice(0, 6).map((url, i) => (
                             <ResultImageCell key={i} url={url} ratio={ratio} statusText={last.statusText} />
                           ))}
@@ -608,7 +605,7 @@ export default function Home() {
                     )
                   })()
                 ) : (
-                  <div style={{ width: '100%', minHeight: 178, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 13 }}>
+                  <div style={{ width: '100%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 13 }}>
                     暂无生成结果
                   </div>
                 )}
