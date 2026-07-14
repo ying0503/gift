@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Modal } from 'antd'
 import { API } from '../AuthContext'
+import ImagePreviewModal from '../components/ImagePreviewModal'
 
 function normalizeUrls(album) {
   const replace = (url) => url?.replace('gift-bucket-0503.oss-cn-beijing.aliyuncs.com', 'static.liqihui.com') || url
@@ -32,18 +33,7 @@ export default function ImageList() {
   const [page, setPage] = useState(0)
   const pollTimers = useRef({})
 
-  useEffect(() => {
-    if (!viewAlbum) return
-    const urls = viewAlbum.imageUrls || (viewAlbum.imageUrl ? [viewAlbum.imageUrl] : [])
-    if (urls.length <= 1) return
-    const onKey = e => {
-      if (e.key === 'ArrowLeft') setViewIndex(i => (i - 1 + urls.length) % urls.length)
-      if (e.key === 'ArrowRight') setViewIndex(i => (i + 1) % urls.length)
-      if (e.key === 'Escape') setViewAlbum(null)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [viewAlbum])
+
 
   const fetchAlbums = () => {
     const token = localStorage.getItem('token')
@@ -167,43 +157,12 @@ export default function ImageList() {
       </div>
 
       {viewAlbum ? (
-        <div
-          onClick={() => setViewAlbum(null)}
-          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}
-        >
-          {(() => {
-            const urls = viewAlbum.imageUrls || (viewAlbum.imageUrl ? [viewAlbum.imageUrl] : [])
-            const total = urls.length
-            const url = urls[viewIndex]
-            return (
-              <>
-                {total > 1 && (
-                  <button onClick={e => { e.stopPropagation(); setViewIndex(i => (i - 1 + total) % total) }} style={{ position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.14)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.28)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.14)'}>‹</button>
-                )}
-                {url ? (
-                  <img
-                    src={url}
-                    onClick={e => e.stopPropagation()}
-                    alt=""
-                    style={{ maxWidth: '90vw', maxHeight: '86vh', borderRadius: 8, objectFit: 'contain', display: 'block', boxShadow: '0 12px 48px rgba(0,0,0,.5)' }}
-                  />
-                ) : (
-                  <div onClick={e => e.stopPropagation()} style={{ width: 'min(86vw, 78vh)', aspectRatio: viewAlbum.ratio || '1', background: '#fff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 15, boxShadow: '0 12px 48px rgba(0,0,0,.5)' }}>生成失败</div>
-                )}
-                {total > 1 && (
-                  <button onClick={e => { e.stopPropagation(); setViewIndex(i => (i + 1) % total) }} style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,.14)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.28)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.14)'}>›</button>
-                )}
-                <div onClick={e => { e.stopPropagation(); setViewAlbum(null) }} style={{ position: 'absolute', top: 22, right: 22, width: 42, height: 42, borderRadius: '50%', background: 'rgba(255,255,255,.14)', color: '#fff', cursor: 'pointer', fontSize: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background .2s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.28)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.14)'}>✕</div>
-                {total > 1 && (
-                  <div style={{ position: 'absolute', bottom: 22, left: '50%', transform: 'translateX(-50%)', color: '#fff', fontSize: 13, letterSpacing: 1 }}>{viewIndex + 1} / {total}</div>
-                )}
-              </>
-            )
-          })()}
-        </div>
+        <ImagePreviewModal
+          album={viewAlbum}
+          index={viewIndex}
+          onClose={() => setViewAlbum(null)}
+          onIndexChange={setViewIndex}
+        />
       ) : albums.length === 0 && inProgress.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#94a3b8', fontSize: 14 }}>
           暂无图片，请先在创作中生成

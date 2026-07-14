@@ -290,18 +290,32 @@ app.post('/api/generate/batch', auth, async (req, res) => {
     const hasImages = images && images.length
     const batchId = uuid().slice(0, 8)
 
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms))
     const handleSyncBatch = async (modelKey, modelLabel, apiUrl, apiBodyFn) => {
       const key = process.env[modelKey]
       if (!key) return res.status(500).json({ error: `${modelKey} not configured` })
       const imageUrls = []
       for (const prompt of prompts) {
-        
-        const apiRes = await fetch(apiUrl, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify(apiBodyFn(prompt)),
-        })
-        const data = await apiRes.json()
-        if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || `${modelLabel} API call failed` })
-        if (data.data?.[0]?.url) imageUrls.push(data.data[0].url)
+        let retries = 5
+        let lastErr
+        while (retries > 0) {
+          const apiRes = await fetch(apiUrl, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }, body: JSON.stringify(apiBodyFn(prompt)),
+          })
+          const data = await apiRes.json()
+          if (apiRes.ok) {
+            if (data.data?.[0]?.url) imageUrls.push(data.data[0].url)
+            break
+          }
+          lastErr = data.error?.message || `${modelLabel} API call failed`
+          if (lastErr.toLowerCase().includes('queue') && lastErr.toLowerCase().includes('full')) {
+            retries--
+            if (retries > 0) await sleep(3000)
+            continue
+          }
+          return res.status(apiRes.status).json({ error: lastErr })
+        }
+        if (retries === 0) return res.status(503).json({ error: lastErr || `${modelLabel} queue full, please retry later` })
       }
       if (!imageUrls.length) return res.status(500).json({ error: 'No images generated' })
       const ossUrls = await Promise.all(imageUrls.map(u => uploadToOSS(u)))

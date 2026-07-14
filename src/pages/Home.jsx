@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { CloseOutlined, DownloadOutlined } from '@ant-design/icons'
 import { API } from '../AuthContext'
+import ImagePreviewModal from '../components/ImagePreviewModal'
 
 function normalizeImgUrl(url) {
   return url?.replace('gift-bucket-0503.oss-cn-beijing.aliyuncs.com', 'static.liqihui.com') || url
@@ -26,9 +26,9 @@ function WipeText({ text }) {
   return <div className={phase ? `wipe-${phase}` : undefined} style={{ fontSize: 14, color: '#888' }}>{display}</div>
 }
 
-function ResultImageCell({ url, ratio }) {
+function ResultImageCell({ url, ratio, onClick }) {
   return (
-    <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, overflow: 'hidden', background: url ? '#fafaf8' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: url ? 'none' : '1px solid #e0dedc' }}>
+    <div onClick={onClick} style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, overflow: 'hidden', background: url ? '#fafaf8' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: url ? 'none' : '1px solid #e0dedc', cursor: onClick ? 'pointer' : undefined }}>
       {url ? (
         <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#fafaf8', display: 'block' }} />
       ) : (
@@ -136,7 +136,8 @@ export default function Home() {
   const pollTimers = useRef({})
   const [albums, setAlbums] = useState([])
   const [albumPage, setAlbumPage] = useState(0)
-  const [viewAlbum, setViewAlbum] = useState(null)
+  const [previewUrls, setPreviewUrls] = useState(null)
+  const [previewIndex, setPreviewIndex] = useState(0)
   const [uploadedRef, setUploadedRef] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [previewPos, setPreviewPos] = useState({ left: 0, top: 0 })
@@ -200,13 +201,13 @@ export default function Home() {
   }, [prompts])
 
   useEffect(() => {
-    if (viewAlbum) {
+    if (previewUrls) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
     }
     return () => { document.body.style.overflow = '' }
-  }, [viewAlbum])
+  }, [previewUrls])
 
   useEffect(() => {
     fetchAlbums()
@@ -591,7 +592,7 @@ export default function Home() {
                       return (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, padding: 5 }}>
                           {u.slice(0, 6).map((url, i) => (
-                            <ResultImageCell key={i} url={url} ratio={ratio} statusText={last.statusText} />
+                            <ResultImageCell key={i} url={url} ratio={ratio} onClick={() => { setPreviewUrls(u.filter(Boolean)); setPreviewIndex(i) }} />
                           ))}
                         </div>
                       )
@@ -599,7 +600,7 @@ export default function Home() {
                     const cols = urls.length === 1 ? 1 : 2
                     return (
                       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 10 }}>
-                        {urls.map((url, i) => <ResultImageCell key={i} url={url} ratio={ratio} statusText={last.statusText} />)}
+                        {urls.map((url, i) => <ResultImageCell key={i} url={url} ratio={ratio} onClick={() => { setPreviewUrls(urls.filter(Boolean)); setPreviewIndex(i) }} />)}
                       </div>
                     )
                   }
@@ -615,36 +616,13 @@ export default function Home() {
         </div>
       </div>
     </div>
-    {viewAlbum && (
-      <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px) saturate(1.2)' }} onClick={() => setViewAlbum(null)}>
-        <div className="preview-enter" style={{ position: 'relative', background: '#fff', padding: 6, borderRadius: 8, boxShadow: '0 8px 30px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.12)', maxWidth: '96%', maxHeight: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? '94%' : 'none', overflowY: (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 ? 'auto' : 'visible', overflowX: 'visible' }} onClick={e => e.stopPropagation()}>
-          {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).filter(u => u).length > 1 && (
-            <div style={{ position: 'sticky', top: 0, zIndex: 2, textAlign: 'center', padding: '10px 6px 8px', fontSize: 12, color: '#999', letterSpacing: 1, background: 'rgba(255,255,255,.85)', margin: '-6px -6px 6px', borderRadius: '8px 8px 0 0' }}>
-              共 {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).filter(u => u).length} 张
-            </div>
-          )}
-          {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).map((url, i) => (
-            url ? (
-              <img key={i} src={url} alt="" style={{ width: '100%', display: 'block', maxHeight: '94vh', objectFit: 'contain', borderRadius: 4, marginBottom: i < (viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length - 1 ? 5 : 0 }} />
-            ) : (
-              <div key={i} style={{ width: '100%', aspectRatio: 1, background: '#f5f5f5', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#bbb', fontSize: 14, marginBottom: 5 }}>生成失败</div>
-            )
-          ))}
-          {(viewAlbum?.imageUrls || [viewAlbum?.imageUrl]).length > 1 && (
-            <div style={{ position: 'sticky', bottom: 0, textAlign: 'center', padding: '12px 0 8px', pointerEvents: 'none' }}>
-              <svg viewBox="0 0 24 24" width="24" height="24" style={{ animation: 'scrollDown 1.6s ease-in-out infinite', display: 'block', margin: '0 auto' }}><path d="M6 6l6 6 6-6M6 12l6 6 6-6" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </div>
-          )}
-        </div>
-        {((viewAlbum?.imageUrls && viewAlbum.imageUrls.filter(u => u).length) || (viewAlbum?.imageUrl ? 1 : 0)) <= 1 && (
-          <a href={viewAlbum?.imageUrl || viewAlbum?.imageUrls?.find(u => u) || '#'} download style={{ position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)', zIndex: 1001, width: 44, height: 44, borderRadius: '50%', background: '#fff', color: '#666', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, boxShadow: '0 2px 12px rgba(0,0,0,.2)', textDecoration: 'none', transition: 'all .2s' }} onClick={e => e.stopPropagation()}><DownloadOutlined /></a>
-        )}
-        <CloseOutlined
-          onClick={() => setViewAlbum(null)}
-          className="preview-close-btn"
-          style={{ position: 'fixed', top: 24, right: 24, zIndex: 1001, width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,.55)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 17, transition: 'all .25s', border: '1px solid rgba(255,255,255,.15)' }}
-        />
-      </div>
+    {previewUrls && (
+      <ImagePreviewModal
+        album={{ imageUrls: previewUrls }}
+        index={previewIndex}
+        onClose={() => setPreviewUrls(null)}
+        onIndexChange={setPreviewIndex}
+      />
     )}
     </>
   )
