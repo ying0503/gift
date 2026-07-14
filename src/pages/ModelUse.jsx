@@ -15,6 +15,14 @@ const MODELS = [
     keyLabel: 'MAIZIAI_API_KEY',
   },
   {
+    id: 'maiziai-chatgpt-image-2-vip',
+    name: 'MaiziAI GPT-Image-2 VIP',
+    provider: 'MaiziAI (麦思科技)',
+    usage: '画册图片生成、Banner生成（VIP 高速通道）',
+    keyStatus: 'hasMaiziaiKey',
+    keyLabel: 'MAIZIAI_API_KEY',
+  },
+  {
     id: 'ithinkai-gpt-image-2',
     name: 'iThinkAPI GPT-Image-2',
     provider: 'iThinkAPI',
@@ -56,7 +64,7 @@ const MODELS = [
   },
 ]
 
-const IMAGE_MODEL_IDS = ['maiziai-chatgpt-image-2', 'agnes-image-2.1-flash', 'ithinkai-gpt-image-2']
+const IMAGE_MODEL_IDS = ['maiziai-chatgpt-image-2', 'maiziai-chatgpt-image-2-vip', 'agnes-image-2.1-flash', 'ithinkai-gpt-image-2']
 const TEXT_MODEL_IDS = ['qwen3.5-flash', 'glm-4.6v-flashx', 'doubao-seed-2-0-mini-260428']
 
 function getDefaultImageModel(saved) {

@@ -189,7 +189,8 @@ app.post('/api/generate', auth, async (req, res) => {
     imgStart = Date.now()
     const hasImages = images && images.length
     const prompt = config.prompt || ''
-    const isMaiziai = config.model === 'maiziai-chatgpt-image-2'
+    const isMaiziai = config.model === 'maiziai-chatgpt-image-2' || config.model === 'maiziai-chatgpt-image-2-vip'
+    const maiziaiSlug = config.model === 'maiziai-chatgpt-image-2-vip' ? 'gpt-image-2-vip' : 'gpt-image-2'
 
     if (isMaiziai) {
       const maiziaiKey = process.env.MAIZIAI_API_KEY
@@ -198,7 +199,7 @@ app.post('/api/generate', auth, async (req, res) => {
       const apiRes = await fetch('https://www.maizitech.xyz/v1/images/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${maiziaiKey}` },
-        body: JSON.stringify({ model: 'gpt-image-2', prompt, size: maiziaiSizeMap[config.size] || config.size, image_size: config.image_size || '1K', images: hasImages ? images : undefined, n: 1 }),
+        body: JSON.stringify({ model: maiziaiSlug, prompt, size: maiziaiSizeMap[config.size] || config.size, image_size: config.image_size || '1K', images: hasImages ? images : undefined, n: 1 }),
       })
       const data = await apiRes.json()
       if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'MaiziAI API call failed' })
@@ -328,13 +329,14 @@ app.post('/api/generate/batch', auth, async (req, res) => {
 
     const maiziaiKey = process.env.MAIZIAI_API_KEY
     if (!maiziaiKey) return res.status(500).json({ error: 'MAIZIAI_API_KEY not configured' })
+    const maiziaiSlug = config.model === 'maiziai-chatgpt-image-2-vip' ? 'gpt-image-2-vip' : 'gpt-image-2'
     const maiziaiSizeMap = { 'auto': undefined, '1:1': '1024x1024', '16:9': '1536x864', '9:16': '864x1536', '4:3': '1024x768', '3:4': '768x1024', '3:2': '1536x1024', '2:3': '1024x1536' }
     const taskIds = []
     for (const prompt of prompts) {
-      
+
       const apiRes = await fetch('https://www.maizitech.xyz/v1/images/generations', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${maiziaiKey}` },
-        body: JSON.stringify({ model: 'gpt-image-2', prompt, size: maiziaiSizeMap[config.size] || config.size, image_size: config.image_size || '1K', images: hasImages ? images : undefined, n: 1 }),
+        body: JSON.stringify({ model: maiziaiSlug, prompt, size: maiziaiSizeMap[config.size] || config.size, image_size: config.image_size || '1K', images: hasImages ? images : undefined, n: 1 }),
       })
       const data = await apiRes.json()
       if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'MaiziAI API call failed' })

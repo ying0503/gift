@@ -236,9 +236,9 @@ export default function ImageList() {
                 <div onClick={e => handleDelete(e, album.id)} className="del-btn" style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(15,23,42,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}>✕</div>
                 <div style={{ position: 'relative' }}>
                   <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                  {album.imageUrls && album.imageUrls.length > 1 && (
-                    <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.length}张</div>
-                  )}
+                   {album.imageUrls && album.imageUrls.length > 1 && (
+                     <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>共{album.imageUrls.filter(Boolean).length}张</div>
+                   )}
                 </div>
                 <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #f8fafc' }}>
                   <div style={{ color: '#0f172a', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{album.name || new Date(album.createdAt).toLocaleDateString('zh-CN')}</div>

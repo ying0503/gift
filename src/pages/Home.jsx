@@ -6,6 +6,26 @@ function normalizeImgUrl(url) {
   return url?.replace('gift-bucket-0503.oss-cn-beijing.aliyuncs.com', 'static.liqihui.com') || url
 }
 
+function singleImageStageText(p) {
+  if (p >= 80) return '最后微调一下'
+  if (p >= 60) return '即将完成'
+  if (p >= 40) return '正在润饰细节'
+  if (p >= 20) return '生成初稿中'
+  return null
+}
+
+function WipeText({ text }) {
+  const [display, setDisplay] = useState(text)
+  const [phase, setPhase] = useState('')
+  useEffect(() => {
+    if (text === display) return
+    setPhase('out')
+    const t = setTimeout(() => { setDisplay(text); setPhase('in') }, 240)
+    return () => clearTimeout(t)
+  }, [text, display])
+  return <div className={phase ? `wipe-${phase}` : undefined} style={{ fontSize: 14, color: '#888' }}>{display}</div>
+}
+
 function ResultImageCell({ url, ratio }) {
   return (
     <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, overflow: 'hidden', background: url ? '#fafaf8' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: url ? 'none' : '1px solid #e0dedc' }}>
@@ -28,7 +48,7 @@ export default function Home() {
 
   const getModel = () => {
     const saved = localStorage.getItem('defaultImageModel')
-    return ['maiziai-chatgpt-image-2', 'ithinkai-gpt-image-2', 'agnes-image-2.1-flash'].includes(saved) ? saved : 'maiziai-chatgpt-image-2'
+    return ['maiziai-chatgpt-image-2', 'maiziai-chatgpt-image-2-vip', 'ithinkai-gpt-image-2', 'agnes-image-2.1-flash'].includes(saved) ? saved : 'maiziai-chatgpt-image-2'
   }
   const getTextModel = () => {
     const saved = localStorage.getItem('textGenerationModel')
@@ -303,7 +323,10 @@ export default function Home() {
         const res = await r.json()
 
         if (typeof res.progress === 'number' && res.progress > 0) {
-          setGenerations(g => g.map(item => item.id === id ? { ...item, progress: res.progress, statusText: res.statusText || item.statusText } : item))
+          setGenerations(g => g.map(item => item.id === id ? (() => {
+            const stage = item.promptCount === 1 ? singleImageStageText(res.progress) : null
+            return { ...item, progress: res.progress, statusText: stage || res.statusText || item.statusText }
+          })() : item))
         }
         if (res.status === 'FAILED') {
           cancelled = true
@@ -337,7 +360,8 @@ export default function Home() {
       setGenerations(g => g.map(item => {
         if (item.error || item.progress >= 95) return item
         const p = Math.min(item.progress + Math.floor(Math.random() * 2) + 1, 95)
-        return { ...item, progress: p }
+        const stage = item.promptCount === 1 ? singleImageStageText(p) : null
+        return { ...item, progress: p, statusText: stage || item.statusText }
       }))
     }, 800)
     return () => clearInterval(sim)
@@ -532,43 +556,17 @@ export default function Home() {
                   onClick={handleGenerate}
                   style={{
                     height: 54, padding: '0 20px', fontSize: 14, fontWeight: 600,
-                    background: !canGenerate || generating ? '#e8e6e4' : 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
-                    color: !canGenerate || generating ? '#bbb' : '#fff',
+                    background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
+                    color: '#fff',
                     border: 'none', borderRadius: 8,
                     cursor: !canGenerate || generating ? 'not-allowed' : 'pointer',
                     boxShadow: !canGenerate || generating ? 'none' : '0 4px 20px rgba(139,92,246,.3)',
+                    opacity: !canGenerate || generating ? 0.5 : 1,
                     transition: 'all .3s', letterSpacing: 0.5, whiteSpace: 'nowrap', width: '100%',
                   }}
                   onMouseEnter={e => { if (canGenerate && !generating) { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 8px 28px rgba(139,92,246,.4)' } }}
                   onMouseLeave={e => { if (canGenerate && !generating) { e.target.style.transform = 'none'; e.target.style.boxShadow = '0 4px 20px rgba(139,92,246,.3)' } }}
-                >生成礼品图</button>
-
-                <div style={{ position: 'relative' }}>
-                  {prompts.map((p, i) => (
-                    <div key={i} style={{ marginBottom: i < prompts.length - 1 ? 8 : 0 }}>
-                      <textarea
-                        ref={el => textareaRefs.current[i] = el}
-                        style={{
-                          width: '100%', minHeight: 56, padding: '10px 12px', fontSize: 14, color: '#333',
-                          border: '1px solid #e0dedc', borderRadius: 8, background: '#fafaf8',
-                          resize: 'none', lineHeight: 1.6, boxSizing: 'border-box', outline: 'none', transition: 'border-color .25s, box-shadow .25s',
-                          fontFamily: 'inherit', overflow: 'hidden',
-                        }}
-                        onFocus={e => { e.target.style.borderColor = '#8B5CF6'; e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,.1)'; e.target.style.background = '#fff' }}
-                        onBlur={e => { e.target.style.borderColor = '#e0dedc'; e.target.style.boxShadow = 'none'; e.target.style.background = '#fafaf8' }}
-                        value={p}
-                        onChange={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; const next = [...prompts]; next[i] = e.target.value; setPrompts(next) }}
-                        placeholder={''}
-                      />
-                    </div>
-                  ))}
-                  {(generatingPrompts || analyzing) && (
-                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,.85)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 2, borderRadius: 10, gap: 6 }}>
-                      <div style={{ width: 20, height: 20, border: '2px solid #e0dedc', borderTopColor: '#8B5CF6', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
-                      <span style={{ fontSize: 12, color: '#888', letterSpacing: 0.3 }}>{analyzing ? 'AI 分析中' : 'AI 文案策划中'}<span className="loading-dots"><span>.</span><span>.</span><span>.</span></span></span>
-                    </div>
-                  )}
-                </div>
+                >生成图片</button>
               </div>
             </div>
 
@@ -576,16 +574,17 @@ export default function Home() {
             <div>
               <div style={{ fontSize: 14, fontWeight: 500, color: '#555', marginBottom: 10, letterSpacing: 0.3 }}>生成结果</div>
               <div style={{ border: '1px solid #e0dedc', borderRadius: 12, background: '#fafaf8', minHeight: 200 }}>
-                {generations.filter(g => !g.restored).length > 0 ? (
-                  (() => {
+                {(() => {
+                  const ratio = imageSize.replace(':', ' / ')
+                  if (generations.filter(g => !g.restored).length > 0) {
                     const last = [...generations].filter(g => !g.restored).reverse()[0]
-                    const ratio = imageSize.replace(':', ' / ')
                     const urls = last.imageUrls && last.imageUrls.length ? last.imageUrls : (last.imageUrl ? [last.imageUrl] : [])
                     if (last.error) {
                       return <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF4D4F', fontSize: 13, padding: '0 12px', textAlign: 'center' }}>{last.error}</div>
                     }
                     if (urls.length === 0) {
-                      return <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}><div className="loading-spinner" /><div style={{ fontSize: 12, color: '#888' }}>{last.statusText}</div></div>
+                      const loadingText = analyzing ? 'AI 分析中' : (generatingPrompts ? 'AI 文案策划中' : last.statusText)
+                      return <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 13 }}><div className="loading-spinner" /><WipeText text={loadingText} /></div>
                     }
                     if (urls.length >= 5) {
                       const u = urls
@@ -603,12 +602,12 @@ export default function Home() {
                         {urls.map((url, i) => <ResultImageCell key={i} url={url} ratio={ratio} statusText={last.statusText} />)}
                       </div>
                     )
-                  })()
-                ) : (
-                  <div style={{ width: '100%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 13 }}>
-                    暂无生成结果
-                  </div>
-                )}
+                  }
+                  if (analyzing || generatingPrompts) {
+                    return <div style={{ width: '100%', aspectRatio: ratio, borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 13 }}><div className="loading-spinner" /><WipeText text={analyzing ? 'AI 分析中' : 'AI 文案策划中'} /></div>
+                  }
+                  return <div style={{ width: '100%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 13 }}>暂无生成结果</div>
+                })()}
               </div>
             </div>
           </div>
