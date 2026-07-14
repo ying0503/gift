@@ -134,7 +134,7 @@ app.patch('/api/users/:id/admin', auth, async (req, res) => {
 })
 
 app.get('/api/ping', (req, res) => {
-  res.json({ ok: true, hasMaiziaiKey: !!process.env.MAIZIAI_API_KEY, hasAgnesKey: !!process.env.AGNES_API_KEY, hasIthinkaiKey: !!process.env.ITHINKAI_API_KEY, hasGlmKey: !!process.env.GLM_API_KEY, hasQwenKey: !!process.env.QWEN_API_KEY, hasDoubaoKey: !!process.env.DOUBAO_API_KEY })
+  res.json({ ok: true, hasMaiziaiKey: !!process.env.MAIZIAI_API_KEY, hasAgnesKey: !!process.env.AGNES_API_KEY, hasArkKey: !!process.env.ARK_API_KEY, hasGlmKey: !!process.env.GLM_API_KEY, hasQwenKey: !!process.env.QWEN_API_KEY, hasDoubaoKey: !!process.env.DOUBAO_API_KEY })
 })
 
 app.get('/api/model-stats', (req, res) => {
@@ -254,19 +254,18 @@ app.post('/api/generate', auth, async (req, res) => {
       return res.json({ taskId })
     }
 
-    if (config.model === 'ithinkai-gpt-image-2') {
-      const ithinkaiKey = process.env.ITHINKAI_API_KEY
-      if (!ithinkaiKey) return res.status(500).json({ error: 'ITHINKAI_API_KEY not configured' })
-      
-      const body = { model: 'gpt-image-2', prompt, size: config.size || 'auto', response_format: 'url' }
-      if (hasImages) body.image = images
-      const apiRes = await fetch('https://token.ithinkai.cn/v1/images/generations', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ithinkaiKey}` }, body: JSON.stringify(body),
+    if (config.model === 'doubao-seedream-5-0-pro-260628') {
+      const arkKey = process.env.ARK_API_KEY
+      if (!arkKey) return res.status(500).json({ error: 'ARK_API_KEY not configured' })
+      const body = { model: 'doubao-seedream-5-0-pro-260628', prompt, response_format: 'url', size: '2K', stream: false, watermark: true }
+      if (hasImages) body.image = images[0]
+      const apiRes = await fetch('https://ark.cn-beijing.volces.com/api/v3/images/generations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${arkKey}` }, body: JSON.stringify(body),
       })
       const data = await apiRes.json()
-      if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'iThinkAPI call failed' })
+      if (!apiRes.ok) return res.status(apiRes.status).json({ error: data.error?.message || 'Doubao Seedream API call failed' })
       const imageUrl = data.data?.[0]?.url
-      if (!imageUrl) return res.status(500).json({ error: 'No image URL from iThinkAPI' })
+      if (!imageUrl) return res.status(500).json({ error: 'No image URL from Doubao Seedream' })
       const ossUrl = await uploadToOSS(imageUrl)
       const taskId = uuid()
       await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'SUCCEEDED', imageUrl: ossUrl, createdAt: Date.now(), productCount: 0 })
@@ -276,6 +275,7 @@ app.post('/api/generate', auth, async (req, res) => {
       modelLatencies.push({ model: imgModel, ms: Date.now() - imgStart, ts: Date.now() })
       return res.json({ taskId })
     }
+
     res.status(400).json({ error: 'Unknown model: ' + config.model })
   } catch (e) {
     if (imgModel) modelLatencies.push({ model: imgModel, ms: Date.now() - imgStart, ts: Date.now(), error: true })
@@ -312,6 +312,13 @@ app.post('/api/generate/batch', auth, async (req, res) => {
       return res.json({ batchId })
     }
 
+    if (config.model === 'doubao-seedream-5-0-pro-260628') {
+      return handleSyncBatch('ARK_API_KEY', 'Doubao Seedream', 'https://ark.cn-beijing.volces.com/api/v3/images/generations', (prompt) => ({
+        model: 'doubao-seedream-5-0-pro-260628', prompt, response_format: 'url', size: '2K', stream: false, watermark: true,
+        ...(hasImages ? { image: images[0] } : {}),
+      }))
+    }
+
     if (config.model === 'agnes-image-2.1-flash') {
       const agnesSizeMap = { 'auto': '1024x1024', '1:1': '1024x1024', '16:9': '1024x768', '9:16': '768x1024', '4:3': '1024x768', '3:4': '768x1024' }
       const apiSize = agnesSizeMap[config.size] || config.size || '1024x1024'
@@ -321,10 +328,6 @@ app.post('/api/generate/batch', auth, async (req, res) => {
         }
         return { model: 'agnes-image-2.1-flash', prompt, size: apiSize, n: 1 }
       })
-    }
-
-    if (config.model === 'ithinkai-gpt-image-2') {
-      return handleSyncBatch('ITHINKAI_API_KEY', 'iThinkAPI', 'https://token.ithinkai.cn/v1/images/generations', (prompt) => ({ model: 'gpt-image-2', prompt, size: config.size || 'auto', response_format: 'url', image: hasImages ? images : undefined }))
     }
 
     const maiziaiKey = process.env.MAIZIAI_API_KEY

@@ -48,7 +48,7 @@ export default function Home() {
 
   const getModel = () => {
     const saved = localStorage.getItem('defaultImageModel')
-    return ['maiziai-chatgpt-image-2', 'maiziai-chatgpt-image-2-vip', 'ithinkai-gpt-image-2', 'agnes-image-2.1-flash'].includes(saved) ? saved : 'maiziai-chatgpt-image-2'
+    return ['maiziai-chatgpt-image-2', 'maiziai-chatgpt-image-2-vip', 'doubao-seedream-5-0-pro-260628', 'agnes-image-2.1-flash'].includes(saved) ? saved : 'maiziai-chatgpt-image-2'
   }
   const getTextModel = () => {
     const saved = localStorage.getItem('textGenerationModel')

@@ -23,12 +23,12 @@ const MODELS = [
     keyLabel: 'MAIZIAI_API_KEY',
   },
   {
-    id: 'ithinkai-gpt-image-2',
-    name: 'iThinkAPI GPT-Image-2',
-    provider: 'iThinkAPI',
+    id: 'doubao-seedream-5-0-pro-260628',
+    name: 'Doubao-Seedream-5.0-Pro',
+    provider: '字节跳动 豆包 (火山引擎)',
     usage: '画册图片生成、Banner生成',
-    keyStatus: 'hasIthinkaiKey',
-    keyLabel: 'ITHINKAI_API_KEY',
+    keyStatus: 'hasArkKey',
+    keyLabel: 'ARK_API_KEY',
   },
   {
     id: 'agnes-image-2.1-flash',
@@ -64,7 +64,7 @@ const MODELS = [
   },
 ]
 
-const IMAGE_MODEL_IDS = ['maiziai-chatgpt-image-2', 'maiziai-chatgpt-image-2-vip', 'agnes-image-2.1-flash', 'ithinkai-gpt-image-2']
+const IMAGE_MODEL_IDS = ['maiziai-chatgpt-image-2', 'maiziai-chatgpt-image-2-vip', 'doubao-seedream-5-0-pro-260628', 'agnes-image-2.1-flash']
 const TEXT_MODEL_IDS = ['qwen3.5-flash', 'glm-4.6v-flashx', 'doubao-seed-2-0-mini-260428']
 
 function getDefaultImageModel(saved) {
@@ -191,13 +191,13 @@ export default function ModelUse() {
 
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: '#333', marginBottom: 12 }}>图片生成模型</div>
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {MODELS.filter(m => IMAGE_MODEL_IDS.includes(m.id)).map(m => (
             <div
               key={m.id}
               onClick={() => handleImageModelChange(m.id)}
               style={{
-                flex: 1, padding: 16, borderRadius: 12, cursor: 'pointer',
+                width: 'calc(33.33% - 8px)', padding: 16, borderRadius: 12, cursor: 'pointer',
                 border: defaultImageModel === m.id ? '2px solid #8b5cf6' : '2px solid #e8e8e8',
                 background: defaultImageModel === m.id ? 'rgba(139,92,246,.04)' : '#fff',
                 transition: 'all .2s',
@@ -305,7 +305,7 @@ export default function ModelUse() {
       <div style={{ padding: 16, background: '#fffbe6', borderRadius: 12, border: '1px solid #ffe58f' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#ad8b00', marginBottom: 4 }}>说明</div>
         <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: '#8c7a0a', lineHeight: 2 }}>
-          <li>图片生成模型可切换默认使用哪个服务商（MaiziAI / iThinkAPI / Agnes AI）</li>
+           <li>图片生成模型可切换默认使用哪个服务商（MaiziAI / 豆包Seedream / Agnes AI）</li>
           <li>文案策划和智能目录可在 Qwen / GLM / Doubao 间切换</li>
           <li>温度和 Token 数在"文案生成参数"中调节，控制生成结果的随机性和长度</li>
           <li>API 密钥在 <code style={{ background: '#fff2cc', padding: '1px 4px', borderRadius: 3 }}>.env</code> 文件中配置</li>
