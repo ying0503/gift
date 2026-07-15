@@ -85,7 +85,7 @@ function AppContent() {
   if (loading) {
     return (
       <div className="app">
-        <header className="app-header">
+      <header className="app-header" style={['/workbench', '/image-list'].some(p => location.pathname.startsWith(p)) ? { display: 'none' } : undefined}>
           <div className="header-inner">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <img src="https://gift-bucket-0503.oss-cn-beijing.aliyuncs.com/static/site/logo-64.png" alt="logo" style={{ height: 28, display: 'block' }} />
@@ -117,7 +117,7 @@ function AppContent() {
 
   return (
     <div className="app">
-      <header className="app-header">
+      <header className="app-header" style={['/workbench', '/image-list'].some(p => location.pathname.startsWith(p)) ? { display: 'none' } : undefined}>
         <div className="header-inner">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <img src="https://gift-bucket-0503.oss-cn-beijing.aliyuncs.com/static/site/logo-64.png" alt="logo" style={{ height: 28, display: 'block' }} />
@@ -144,7 +144,7 @@ function AppContent() {
         </div>
       </header>
       <div className="app-body">
-        {user && !['/template-set', '/model-use'].some(p => location.pathname.startsWith(p)) && (
+        {user && !['/template-set', '/model-use', '/workbench', '/image-list'].some(p => location.pathname.startsWith(p)) && (
           <nav className="app-sidebar">
             <div className="sidebar-nav">
               <div style={{ position: 'relative' }} onMouseEnter={openSubmenu} onMouseLeave={closeSubmenu}>
@@ -172,7 +172,7 @@ function AppContent() {
             </div>
           </nav>
         )}
-        <main className="app-main" style={['/model-use', '/template-set'].some(p => location.pathname.startsWith(p)) ? { padding: 0 } : undefined}>
+        <main className="app-main" style={['/model-use', '/template-set', '/workbench', '/image-list'].some(p => location.pathname.startsWith(p)) ? { padding: 0 } : undefined}>
         <Routes>
           <Route path="/workbench" element={<ErrorBoundary>{user ? <Home /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/digital-album" element={<ErrorBoundary>{user ? <DigitalAlbumList /> : <Navigate to="/" />}</ErrorBoundary>} />
