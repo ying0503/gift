@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API, useAuth } from '../AuthContext'
 import ImagePreviewModal from '../components/ImagePreviewModal'
+import WorkbenchSidebar from '../components/WorkbenchSidebar'
 
 function normalizeImgUrl(url) {
   return url?.replace('gift-bucket-0503.oss-cn-beijing.aliyuncs.com', 'static.liqihui.com') || url
@@ -42,7 +43,6 @@ function ResultImageCell({ url, ratio, onClick }) {
 export default function Home() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const [userPop, setUserPop] = useState(false)
   const [image_size] = useState('1K')
   const [generating, setGenerating] = useState(false)
   const [generatingPrompts, setGeneratingPrompts] = useState(false)
@@ -66,12 +66,12 @@ export default function Home() {
     if (!token) return []
     const genId = ++promptGenId.current
     setGeneratingPrompts(true)
-    const base = (imgType === '详情图' || imgType === '白底图')
-      ? (() => { const p = Array.from({ length: count }, () => ''); p[0] = '生成白底图'; return p })()
+    const base = (imgType === '详情图' || imgType === '白底图' || imgType === '样机图')
+      ? (() => { const p = Array.from({ length: count }, () => ''); p[0] = imgType === '样机图' ? '生成一个3d效果图，真实立体包装' : '生成白底图'; return p })()
       : Array.from({ length: count }, () => '')
     setPrompts(base)
     try {
-      const apiCount = (imgType === '详情图' || imgType === '白底图') ? count - 1 : count
+      const apiCount = (imgType === '详情图' || imgType === '白底图' || imgType === '样机图') ? count - 1 : count
       const res = await fetch(`${API}/api/generate/prompts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -80,8 +80,8 @@ export default function Home() {
       const data = await res.json()
       if (genId !== promptGenId.current) return null
       if (data.prompts) {
-        const result = (imgType === '详情图' || imgType === '白底图')
-          ? ['生成白底图', ...data.prompts.slice(0, count - 1)]
+        const result = (imgType === '详情图' || imgType === '白底图' || imgType === '样机图')
+          ? [imgType === '样机图' ? '生成一个3d效果图，真实立体包装' : '生成白底图', ...data.prompts.slice(0, count - 1)]
           : data.prompts.slice(0, count)
         setPrompts(result)
         return result
@@ -154,6 +154,10 @@ export default function Home() {
 
   const handleImageFile = (f) => {
     if (!f || !f.type?.startsWith('image/')) return
+    if (f.size > 10 * 1024 * 1024) {
+      alert('图片大小不能超过 10MB')
+      return
+    }
     const fr = new FileReader()
     fr.onload = () => {
       setUploadedRef({ url: fr.result, blob: f })
@@ -447,159 +451,26 @@ export default function Home() {
     })
   }
 
-  function NavIcon({ type, active, disabled }) {
-    const c = disabled ? '#D8D8D8' : (active ? '#000' : '#666')
-    if (type === 'video') {
-      return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}><path d="M14 16H2C0.821618 16 0 15.1784 0 14V2C0 0.821618 0.821618 0 2 0H14C15.1784 0 16 0.821618 16 2V14C16 15.1784 15.1784 16 14 16ZM0.666667 2.66667V4H3.33333L2.03808 0.762044C1.2093 1.00261 0.666667 1.71355 0.666667 2.66667ZM3.33333 0.666667L4.66668 4H6.66635L5.33333 0.666667H3.33333ZM6.66635 0.666667L8 4H10L8.66667 0.666667H6.66633H6.66635ZM10 0.666667L11.3333 4H13.3333L12 0.666667H10ZM15.3333 2.66667C15.3333 1.48828 14.5117 0.666667 13.3333 0.666667L14.6667 4H15.3333V2.66667ZM15.3333 4.66667H0.666684V13.3333C0.666684 14.5117 1.4883 15.3333 2.66668 15.3333H13.3334C14.5117 15.3333 15.3334 14.5117 15.3334 13.3333L15.3333 4.66667ZM5.33333 6.66667L11.3333 10L5.33333 13.3333V6.66668V6.66667Z" fill={c}/></svg>
-    }
-    if (type === 'product') {
-      return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}><path d="M15.3151 3.74285L8.57849 0.152349C8.39079 0.0520347 8.18118 -0.000301439 7.96835 1.30601e-06C7.75552 0.000304052 7.54607 0.0532362 7.35865 0.154084L0.681626 3.73784C0.47621 3.84808 0.304417 4.0118 0.184428 4.21168C0.0644391 4.41156 0.000717255 4.64016 6.01973e-06 4.87328C-0.000705216 5.10641 0.0616206 5.33539 0.180388 5.536C0.299155 5.73661 0.469946 5.90138 0.674685 6.01287L7.3841 9.66757C7.57368 9.77131 7.78631 9.82568 8.00241 9.82568C8.21851 9.82568 8.43114 9.77131 8.62072 9.66757L15.3249 6.01962C15.53 5.90805 15.7011 5.74304 15.8199 5.54209C15.9388 5.34114 16.001 5.11176 16 4.8783C15.999 4.64483 15.9348 4.416 15.8142 4.21609C15.6936 4.01617 15.5211 3.85264 15.3151 3.74285Z" fill={c}/><path d="M14.8638 8.05678L8.16012 11.7047C8.11188 11.7311 8.05778 11.745 8.00279 11.745C7.94781 11.745 7.89371 11.7311 7.84547 11.7047L1.13644 8.04945C1.08085 8.01917 1.01984 8.00014 0.9569 7.99343C0.893956 7.98673 0.830308 7.99249 0.769589 8.01038C0.708871 8.02828 0.652272 8.05796 0.603023 8.09772C0.553775 8.13749 0.512841 8.18657 0.48256 8.24216C0.452279 8.29774 0.433243 8.35875 0.426539 8.4217C0.419835 8.48464 0.425595 8.54829 0.443489 8.60901C0.461383 8.66972 0.491061 8.72632 0.530829 8.77557C0.570597 8.82482 0.619676 8.86575 0.675263 8.89604L7.38468 12.5509C7.57428 12.6546 7.7869 12.7089 8.00299 12.7089C8.21907 12.7089 8.43169 12.6546 8.62129 12.5509L15.3249 8.90355C15.4372 8.8424 15.5206 8.73914 15.5568 8.6165C15.5929 8.49385 15.5789 8.36187 15.5177 8.24958C15.4566 8.13729 15.3533 8.05389 15.2307 8.01774C15.108 7.98158 14.976 7.99562 14.8638 8.05678Z" fill={c}/></svg>
-    }
-    if (type === 'ppt') {
-      return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}><g clipPath="url(#pptClip)"><path d="M9 1.49995V1.18589C9 0.5562 8.42344 0.0827627 7.80625 0.204638L0.80625 1.59058C0.3375 1.68276 0 2.0937 0 2.57183V13.4265C0 13.9046 0.339062 14.3171 0.809375 14.4078L7.80937 15.7687C8.42656 15.889 9 15.4156 9 14.7875V14.5H15.5C15.7766 14.5 16 14.2765 16 14V1.99995C16 1.72339 15.7766 1.49995 15.5 1.49995H9Z" fill={c}/><path d="M3.43591 9.13281V10.5266C3.43591 10.6797 3.29998 10.7969 3.14841 10.7734L2.67185 10.7016C2.54998 10.6828 2.45935 10.5781 2.45935 10.4547V5.81406C2.45935 5.56719 2.6406 5.35625 2.88435 5.32031L4.09373 5.1375C5.4781 4.925 6.24998 5.4875 6.24998 6.84375C6.24998 7.50312 6.01091 8.03125 5.54841 8.41562C5.10623 8.78281 4.57966 8.93906 3.98279 8.89531L3.69685 8.88281C3.55466 8.87656 3.43591 8.99062 3.43591 9.13281ZM3.43591 6.38438V7.95937L3.89373 7.95781C4.5531 7.95469 4.89998 7.62656 4.89998 6.97031C4.89998 6.32969 4.55623 6.04375 3.9031 6.11094L3.65935 6.13594C3.53279 6.14844 3.43591 6.25625 3.43591 6.38438ZM10.75 5.29531C11.2937 5.39531 11.7953 5.65625 12.1953 6.05625C12.4687 6.32969 12.6781 6.65156 12.814 7.00156H10.75V5.29531ZM10.25 4.25H9.99998C9.86248 4.25 9.74998 4.3625 9.74998 4.5V7.5C9.74998 7.77656 9.97341 8 10.25 8H13.7406C13.8859 8 14 7.87656 13.9906 7.73125C13.8531 5.78594 12.2312 4.25 10.25 4.25Z" fill={c}/></g><defs><clipPath id="pptClip"><rect width="16" height="16" fill="white"/></clipPath></defs></svg>
-    }
-    return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}><rect x="0.5" y="0.5" width="15" height="15" rx="1.5" stroke={c} strokeWidth="0.66"/><circle cx="5.5" cy="5.5" r="1.17" fill={c}/><path d="M3.47 13.386L2.507 12.96l.213-.48c1.12-2.614 2.933-3.947 5.333-4.107 2.027-.106 3.52-.693 4.427-1.76l.373-.426.8.693-.373.427c-1.12 1.28-2.88 2.026-5.173 2.133-1.974.107-3.414 1.227-4.374 3.467l-.266.48z" fill={c}/></svg>
-  }
-
-  const sidebarSections = [
-    {
-      header: 'AI创作',
-      items: [
-        { label: 'AI 生图', active: true, route: '/workbench', icon: 'frame' },
-        { label: 'AI 海报', route: null, icon: 'frame' },
-        { label: 'AI 视频', route: null, icon: 'video' },
-      ],
-    },
-    {
-      header: '我的',
-      items: [
-        { label: '商品', route: '/my-gifts', icon: 'product' },
-        { label: '画册', route: '/digital-album', icon: 'frame' },
-        { label: '礼册', badge: true, route: null, icon: 'frame' },
-        { label: 'PPT', badge: true, route: null, icon: 'ppt' },
-      ],
-    },
-    {
-      header: '资源',
-      items: [
-        { label: '礼品卡', route: null, icon: 'frame' },
-        { label: '礼品册', route: null, icon: 'frame' },
-        { label: '礼品券', route: null, icon: 'frame' },
-        { label: '画册封面', route: null, icon: 'frame' },
-        { label: '封套', route: null, icon: 'frame' },
-      ],
-    },
-  ]
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#fff' }}>
-      {/* ========== Sidebar ========== */}
-      <div style={{ width: 248, flexShrink: 0, background: '#F9FAFD', borderRight: '1px solid #E6E6E6', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '30px 16px 24px' }}>
-          <img src="https://gift-bucket-0503.oss-cn-beijing.aliyuncs.com/static/site/logo-64.png" alt="" style={{ width: 32, height: 32, borderRadius: 4 }} />
-          <span style={{ fontSize: 16, fontWeight: 900, color: '#000' }}>礼企汇</span>
-        </div>
-
-        {/* Nav Sections */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px' }}>
-          {sidebarSections.map((section, si) => (
-            <div key={si} style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#B1B1B1', marginBottom: 4 }}>{section.header}</div>
-              {section.items.map((item, ii) => (
-                <div key={ii}
-                  onClick={() => { if (item.route) navigate(item.route) }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12, height: 40, padding: '0 12px', borderRadius: 5, cursor: item.route ? 'pointer' : 'default',
-                    background: item.active ? 'rgba(123, 82, 255, 0.1)' : 'transparent',
-                    color: item.active ? '#000' : (item.badge ? '#D8D8D8' : '#000'),
-                    fontSize: 14, fontWeight: item.active ? 500 : 400,
-                    marginBottom: 0, position: 'relative',
-                  }}
-                >
-                  <NavIcon type={item.icon} active={item.active} disabled={!!item.badge} />
-                  {item.label}
-                  {item.badge && (
-                    <span style={{ marginLeft: 'auto', fontSize: 12, padding: '1px 8px', borderRadius: 4, background: '#F4F4F4', color: '#D8D8D8', lineHeight: '18px' }}>敬请期待</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom - User hover panel */}
-        <div style={{ padding: '0 16px 20px', position: 'relative' }}
-          onMouseEnter={() => setUserPop(true)}
-          onMouseLeave={() => setUserPop(false)}
-        >
-          <div style={{ height: 1, background: '#EBEBEB', marginBottom: 12 }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(123,82,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#000', flexShrink: 0 }}>
-              {user?.email?.[0]?.toUpperCase() || 'U'}
-            </div>
-            <span style={{ fontSize: 14, color: '#000' }}>{user?.email?.split('@')[0] || '用户'}</span>
-          </div>
-          {userPop && (
-            <div style={{ position: 'absolute', bottom: '100%', left: 16, right: 16, paddingBottom: 12, zIndex: 1001 }}
-              onMouseEnter={() => setUserPop(true)}
-              onMouseLeave={() => setUserPop(false)}
-            >
-              <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.12)', width: '100%', padding: '8px 0' }}>
-                <div style={{ padding: '10px 16px 8px', fontSize: 13, color: '#999' }}>
-                  <div>{user?.email}</div>
-                  {user?.isAdmin ? (
-                    <span style={{ display: 'inline-block', marginTop: 6, fontSize: 11, padding: '2px 10px', borderRadius: 4, background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 40%, #B91C1C 100%)', color: '#fff', fontWeight: 600, letterSpacing: 0.3, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25)' }}>管理员</span>
-                  ) : null}
-                </div>
-                {user?.isAdmin && (
-                  <>
-                    <div style={{ borderTop: '1px solid #f0f0f0' }} />
-                    <div style={{ padding: '8px 16px 4px', fontSize: 11, color: '#bbb', fontWeight: 500, letterSpacing: 0.5 }}>后台管理</div>
-                    <button style={{ display: 'block', width: '100%', padding: '6px 16px', border: 'none', background: 'none', fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left' }}
-                      onMouseEnter={e => e.target.style.background = '#f5f5f5'}
-                      onMouseLeave={e => e.target.style.background = 'none'}
-                      onClick={() => { navigate('/model-use'); setUserPop(false) }}
-                    >AI模型管理</button>
-                    <button style={{ display: 'block', width: '100%', padding: '6px 16px', border: 'none', background: 'none', fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left' }}
-                      onMouseEnter={e => e.target.style.background = '#f5f5f5'}
-                      onMouseLeave={e => e.target.style.background = 'none'}
-                      onClick={() => { navigate('/template-set'); setUserPop(false) }}
-                    >画册模板</button>
-                  </>
-                )}
-                <div style={{ borderTop: '1px solid #f0f0f0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', fontSize: 14, color: '#555' }}>
-                  <span>图片消耗</span>
-                  <span style={{ fontWeight: 600 }}>{user?.generatedCount ?? 0}/2500</span>
-                </div>
-                <button style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', fontSize: 14, color: '#ff4d4f', cursor: 'pointer', textAlign: 'left' }}
-                  onMouseEnter={e => e.target.style.background = '#fff2f0'}
-                  onMouseLeave={e => e.target.style.background = 'none'}
-                  onClick={() => { logout(); setUserPop(false) }}
-                >退出登录</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <WorkbenchSidebar />
 
       {/* ========== Main Content ========== */}
       <div style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '40px 40px 40px' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 48 }}>
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}><path d="M8.859 5.338H1.789v-.685h7.07v.685z" fill="#ACACAC"/><path d="M4.526 1.75a.49.49 0 0 1 .39.16.54.54 0 0 1 .075.54.44.44 0 0 1-.094.175L2.106 4.996l2.661 2.661a.483.483 0 0 1-.483.792.36.36 0 0 1-.16-.109L1.139 4.996 4.284 1.85a.47.47 0 0 1 .242-.1z" fill="#ACACAC"/></svg>
-          <span style={{ fontSize: 14, color: '#ACACAC' }}>返回首页</span>
-          <div style={{ width: 0, height: 12, borderLeft: '1px solid #D5D5D5' }} />
-          <div style={{ width: 18, height: 18, borderRadius: 3, background: 'linear-gradient(0deg, #72D2FF, #7B52FF)', flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 48 }}>
+
+          <div style={{ width: 18, height: 18, borderRadius: 3, background: 'linear-gradient(0deg, #72D2FF, #7B52FF)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ display: 'block' }}><path d="M13.3333 16H2.66667C1.17333 16 0 14.8267 0 13.3333V2.66667C0 1.17333 1.17333 0 2.66667 0H13.3333C14.8267 0 16 1.17333 16 2.66667V13.3333C16 14.8267 14.8267 16 13.3333 16ZM2.66667 1.06667C1.76 1.06667 1.06667 1.76 1.06667 2.66667V13.3333C1.06667 14.24 1.76 14.9333 2.66667 14.9333H13.3333C14.24 14.9333 14.9333 14.24 14.9333 13.3333V2.66667C14.9333 1.76 14.24 1.06667 13.3333 1.06667H2.66667Z" fill="white"/><path d="M4 5.49331C4 5.62639 4.02621 5.75816 4.07714 5.8811C4.12806 6.00404 4.2027 6.11575 4.2968 6.20985C4.39089 6.30395 4.5026 6.37859 4.62555 6.42951C4.74849 6.48044 4.88026 6.50665 5.01333 6.50665C5.14641 6.50665 5.27818 6.48044 5.40112 6.42951C5.52406 6.37859 5.63577 6.30395 5.72987 6.20985C5.82397 6.11575 5.89861 6.00404 5.94953 5.8811C6.00046 5.75816 6.02667 5.62639 6.02667 5.49331C6.02667 5.36024 6.00046 5.22847 5.94953 5.10553C5.89861 4.98258 5.82397 4.87088 5.72987 4.77678C5.63577 4.68268 5.52406 4.60804 5.40112 4.55712C5.27818 4.50619 5.14641 4.47998 5.01333 4.47998C4.88026 4.47998 4.74849 4.50619 4.62555 4.55712C4.5026 4.60804 4.39089 4.68268 4.2968 4.77678C4.2027 4.87088 4.12806 4.98258 4.07714 5.10553C4.02621 5.22847 4 5.36024 4 5.49331Z" fill="white"/><path d="M3.46671 13.3866L2.50671 12.96L2.72005 12.48C3.84005 9.86665 5.65338 8.53331 8.05338 8.37331C10.08 8.26665 11.5734 7.67998 12.48 6.61331L12.8534 6.18665L13.6534 6.87998L13.28 7.30665C12.16 8.58665 10.4 9.33331 8.10671 9.43998C6.13338 9.54665 4.69338 10.6666 3.73338 12.9066L3.46671 13.3866Z" fill="white"/></svg>
+          </div>
           <span style={{ fontSize: 18, fontWeight: 700, color: '#000' }}>AI 生图</span>
         </div>
 
         <input ref={refInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(f); e.target.value = '' }} />
 
         {/* 3-Column Layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 30, maxWidth: 1400 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 3fr 4fr', gap: 30, maxWidth: 1400 }}>
 
           {/* ========== COL 1: Upload ========== */}
           <div>
@@ -627,7 +498,7 @@ export default function Home() {
                 onDrop={e => { e.preventDefault(); setDragOver(false); e.currentTarget.style.borderColor = '#D3D3D3'; e.currentTarget.style.background = 'rgba(0,0,0,0.02)'; const f = e.dataTransfer.files?.[0]; if (f) handleImageFile(f) }}
               >
                 <div style={{ width: 56, height: 56, borderRadius: 10, background: 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M16 6v13.333M9.333 14.667L16 8l6.667 6.667" stroke="#ACACAC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 24h20" stroke="#ACACAC" strokeWidth="2" strokeLinecap="round"/></svg>
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24.8654 12.3636C24.464 10.3071 23.3602 8.45401 21.7428 7.12182C20.1255 5.78963 18.0953 5.06116 16 5.06116C13.9046 5.06116 11.8744 5.78963 10.2571 7.12182C8.63976 8.45401 7.53588 10.3071 7.1345 12.3636C5.49498 12.4398 3.95288 13.1642 2.84743 14.3773C1.74199 15.5905 1.16376 17.1932 1.23995 18.8327C1.31614 20.4722 2.04051 22.0143 3.2537 23.1198C4.46689 24.2252 6.06952 24.8034 7.70904 24.7272H8.67632C8.8692 24.7272 9.05419 24.6506 9.19058 24.5142C9.32697 24.3778 9.40359 24.1929 9.40359 24C9.40359 23.8071 9.32697 23.6221 9.19058 23.4857C9.05419 23.3493 8.8692 23.2727 8.67632 23.2727H7.70904C7.08825 23.2775 6.47259 23.1599 5.89723 22.9268C5.32186 22.6936 4.79805 22.3494 4.35571 21.9138C3.91336 21.4782 3.56115 20.9598 3.31917 20.3881C3.07719 19.8164 2.95018 19.2026 2.94541 18.5818C2.94063 17.961 3.05818 17.3453 3.29134 16.77C3.52449 16.1946 3.86869 15.6708 4.30428 15.2284C4.73987 14.7861 5.25833 14.4339 5.83004 14.1919C6.40175 13.9499 7.01552 13.8229 7.63632 13.8181L8.36359 13.9854L8.45814 13.1854C8.68652 11.3539 9.57607 9.66892 10.9596 8.44723C12.3431 7.22554 14.1252 6.55131 15.9709 6.55131C17.8166 6.55131 19.5987 7.22554 20.9822 8.44723C22.3657 9.66892 23.2552 11.3539 23.4836 13.1854L23.629 13.9709L24.3563 13.8181C24.9771 13.8229 25.5909 13.9499 26.1626 14.1919C26.7343 14.4339 27.2528 14.7861 27.6884 15.2284C28.1239 15.6708 28.4681 16.1946 28.7013 16.77C28.9345 17.3453 29.052 17.961 29.0472 18.5818C29.0425 19.2026 28.9154 19.8164 28.6735 20.3881C28.4315 20.9598 28.0793 21.4782 27.6369 21.9138C27.1946 22.3494 26.6708 22.6936 26.0954 22.9268C25.52 23.1599 24.9044 23.2775 24.2836 23.2727H23.1927C22.9998 23.2727 22.8148 23.3493 22.6784 23.4857C22.542 23.6221 22.4654 23.8071 22.4654 24C22.4654 24.1929 22.542 24.3778 22.6784 24.5142C22.8148 24.6506 22.9998 24.7272 23.1927 24.7272H24.2909C25.9304 24.8034 27.533 24.2252 28.7462 23.1198C29.9594 22.0143 30.6838 20.4722 30.76 18.8327C30.8361 17.1932 30.2579 15.5905 29.1525 14.3773C28.047 13.1642 26.5049 12.4398 24.8654 12.3636Z" fill="black"/><path d="M16.5164 15.0109C16.4488 14.9427 16.3683 14.8886 16.2797 14.8517C16.1911 14.8148 16.096 14.7958 16 14.7958C15.904 14.7958 15.8089 14.8148 15.7203 14.8517C15.6317 14.8886 15.5512 14.9427 15.4836 15.0109L11.3745 19.12C11.3064 19.1876 11.2523 19.268 11.2154 19.3567C11.1784 19.4453 11.1594 19.5403 11.1594 19.6364C11.1594 19.7324 11.1784 19.8274 11.2154 19.916C11.2523 20.0047 11.3064 20.0851 11.3745 20.1527C11.5108 20.2882 11.6951 20.3642 11.8873 20.3642C12.0794 20.3642 12.2637 20.2882 12.4 20.1527L15.2727 17.28V26.1818C15.2727 26.3747 15.3494 26.5597 15.4857 26.6961C15.6221 26.8325 15.8071 26.9091 16 26.9091C16.1929 26.9091 16.3779 26.8325 16.5143 26.6961C16.6507 26.5597 16.7273 26.3747 16.7273 26.1818V17.28L19.6364 20.1527C19.7043 20.2201 19.7849 20.2735 19.8735 20.3096C19.9621 20.3458 20.057 20.3642 20.1527 20.3636C20.2966 20.363 20.437 20.3198 20.5563 20.2394C20.6755 20.159 20.7683 20.045 20.8227 19.9119C20.8772 19.7788 20.891 19.6325 20.8624 19.4915C20.8337 19.3506 20.7639 19.2213 20.6618 19.12L16.5164 15.0109Z" fill="black"/></svg>
                 </div>
                 <span style={{ fontSize: 14, color: '#ACACAC' }}>拖拽图片到此处或点击上传</span>
               </div>
@@ -641,21 +512,21 @@ export default function Home() {
 
             {/* Upload suggestions */}
             <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 14, color: '#999', marginBottom: 8 }}>上传建议</div>
               <div style={{ border: '1px dashed #D3D3D3', borderRadius: 10, padding: '12px 16px', background: 'rgba(0,0,0,0.02)' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
+                <div style={{ fontSize: 14, color: '#999', marginBottom: 8 }}>上传建议</div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                   <span style={{ color: '#999', flexShrink: 0 }}>•</span>
                   <span style={{ fontSize: 12, color: '#999', lineHeight: 1.6 }}>使用光线充足、对焦清晰的产品图</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                   <span style={{ color: '#999', flexShrink: 0 }}>•</span>
                   <span style={{ fontSize: 12, color: '#999', lineHeight: 1.6 }}>产品主体清晰、背景尽量简洁</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                   <span style={{ color: '#999', flexShrink: 0 }}>•</span>
                   <span style={{ fontSize: 12, color: '#999', lineHeight: 1.6 }}>产品居中放置在画面中间</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                   <span style={{ color: '#999', flexShrink: 0 }}>•</span>
                   <span style={{ fontSize: 12, color: '#999', lineHeight: 1.6 }}>建议分辨率 1024x1024 以上</span>
                 </div>
@@ -682,10 +553,10 @@ export default function Home() {
                         setPrompts(Array.from({ length: c }, () => ''))
                       }}
                       style={{
-                        padding: '6px 18px', fontSize: 14, borderRadius: 8, cursor: 'pointer', userSelect: 'none',
+                        padding: '6px 15px', fontSize: 14, borderRadius: 8, cursor: 'pointer', userSelect: 'none',
                         background: imageType === t ? 'linear-gradient(270deg, #72D2FF, #A083FF)' : 'transparent',
                         color: imageType === t ? '#fff' : '#000',
-                        border: imageType === t ? 'none' : '1px solid transparent',
+                        border: imageType === t ? '1px solid transparent' : '1px solid #EBEBEB',
                         transition: 'all .2s',
                       }}
                     >{t}</div>
@@ -752,7 +623,7 @@ export default function Home() {
           {/* ========== COL 3: Results ========== */}
           <div>
             <div style={{ fontSize: 14, color: '#000', marginBottom: 14 }}>生成结果</div>
-            <div style={{ border: '1px solid #D3D3D3', borderRadius: 10, background: 'rgba(0,0,0,0.02)', minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ border: '1px dashed #D3D3D3', borderRadius: 10, background: 'rgba(0,0,0,0.02)', minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               {(() => {
                 const ratio = imageSize.replace(':', ' / ')
                 if (generations.filter(g => !g.restored).length > 0) {
@@ -785,10 +656,12 @@ export default function Home() {
                   return <div style={{ width: '100%', aspectRatio: ratio, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 13 }}><div className="loading-spinner" /><WipeText text={analyzing ? 'AI 分析中' : 'AI 文案策划中'} /></div>
                 }
                 return (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ marginBottom: 8 }}><rect x="1" y="1" width="14" height="14" rx="2" stroke="#D8D8D8" strokeWidth="1.5"/><circle cx="5.5" cy="5.5" r="1.5" fill="#D8D8D8"/><path d="M15 11l-4-4-6 6" stroke="#D8D8D8" strokeWidth="1.5"/></svg>
-                    <span style={{ fontSize: 14, color: '#000' }}>暂无生成结果</span>
-                  </>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+                    <div style={{ width: 56, height: 56, borderRadius: 10, background: 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g clipPath="url(#resClip)"><path d="M13.3333 16H2.66667C1.17333 16 0 14.8267 0 13.3333V2.66667C0 1.17333 1.17333 0 2.66667 0H13.3333C14.8267 0 16 1.17333 16 2.66667V13.3333C16 14.8267 14.8267 16 13.3333 16ZM2.66667 1.06667C1.76 1.06667 1.06667 1.76 1.06667 2.66667V13.3333C1.06667 14.24 1.76 14.9333 2.66667 14.9333H13.3333C14.24 14.9333 14.9333 14.24 14.9333 13.3333V2.66667C14.9333 1.76 14.24 1.06667 13.3333 1.06667H2.66667Z" fill="#666666"/><path d="M4 5.49331C4 5.62639 4.02621 5.75816 4.07714 5.8811C4.12806 6.00404 4.2027 6.11575 4.2968 6.20985C4.39089 6.30395 4.5026 6.37859 4.62555 6.42951C4.74849 6.48044 4.88026 6.50665 5.01333 6.50665C5.14641 6.50665 5.27818 6.48044 5.40112 6.42951C5.52406 6.37859 5.63577 6.30395 5.72987 6.20985C5.82397 6.11575 5.89861 6.00404 5.94953 5.8811C6.00046 5.75816 6.02667 5.62639 6.02667 5.49331C6.02667 5.36024 6.00046 5.22847 5.94953 5.10553C5.89861 4.98258 5.82397 4.87088 5.72987 4.77678C5.63577 4.68268 5.52406 4.60804 5.40112 4.55712C5.27818 4.50619 5.14641 4.47998 5.01333 4.47998C4.88026 4.47998 4.74849 4.50619 4.62555 4.55712C4.5026 4.60804 4.39089 4.68268 4.2968 4.77678C4.2027 4.87088 4.12806 4.98258 4.07714 5.10553C4.02621 5.22847 4 5.36024 4 5.49331Z" fill="#666666"/><path d="M3.46667 13.3866L2.50667 12.96L2.72 12.48C3.84 9.86665 5.65333 8.53331 8.05333 8.37331C10.08 8.26665 11.5733 7.67998 12.48 6.61331L12.8533 6.18665L13.6533 6.87998L13.28 7.30665C12.16 8.58665 10.4 9.33331 8.10667 9.43998C6.13333 9.54665 4.69333 10.6666 3.73333 12.9066L3.46667 13.3866Z" fill="#666666"/></g><defs><clipPath id="resClip"><rect width="16" height="16" fill="white"/></clipPath></defs></svg>
+                    </div>
+                    <span style={{ fontSize: 14, color: '#ACACAC' }}>暂无生成结果</span>
+                  </div>
                 )
               })()}
             </div>

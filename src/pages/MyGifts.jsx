@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Modal, Checkbox } from 'antd'
 import { API } from '../AuthContext'
+import WorkbenchSidebar from '../components/WorkbenchSidebar'
 
 export default function MyGifts() {
   const navigate = useNavigate()
@@ -81,7 +82,9 @@ export default function MyGifts() {
   }
 
   return (
-    <div style={{ maxWidth: 1060, margin: '0 auto', padding: '0 16px' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#fff' }}>
+      <WorkbenchSidebar />
+      <div style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '40px 40px 40px' }}>
       <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 28, letterSpacing: 0.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span>我的礼品</span>
       </div>
@@ -168,6 +171,7 @@ export default function MyGifts() {
           )}
         </div>
       </Modal>
+    </div>
     </div>
   )
 }
