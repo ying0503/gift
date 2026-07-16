@@ -31,6 +31,7 @@ const sidebarSections = [
   {
     header: '我的',
     items: [
+      { label: '图片', routes: ['/image-list'], icon: 'frame' },
       { label: '商品', routes: ['/my-gifts', '/gift-editor'], icon: 'product' },
       { label: '画册', routes: ['/digital-album'], icon: 'frame' },
       { label: '礼册', badge: true, icon: 'frame' },
