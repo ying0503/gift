@@ -193,11 +193,13 @@ export async function initSchema() {
       price VARCHAR(50) DEFAULT '',
       net_content VARCHAR(100) DEFAULT '',
       shelf_life VARCHAR(100) DEFAULT '',
+      stock VARCHAR(50) DEFAULT '',
       tips TEXT,
       first_image_url TEXT,
       created_at BIGINT NOT NULL,
       updated_at BIGINT NOT NULL
     )`)
+    try { await p.query('ALTER TABLE gifts ADD COLUMN stock VARCHAR(50) DEFAULT \'\'') } catch (e) {}
     console.log('Gifts table ready')
   } catch (e) { console.error('Failed to create gifts table:', e.message) }
 }
@@ -429,8 +431,14 @@ export async function listDigitalAlbums(userId) {
 
 export async function countUserAlbums(userId) {
   const p = await getPool()
-  const [rows] = await p.query('SELECT COUNT(*) as cnt FROM albums a JOIN user_albums ua ON a.id = ua.album_id WHERE ua.user_id = ?', [userId])
-  return rows[0].cnt
+  const [rows] = await p.query('SELECT image_url, image_urls FROM albums a JOIN user_albums ua ON a.id = ua.album_id WHERE ua.user_id = ?', [userId])
+  return rows.reduce((sum, r) => {
+    if (r.image_urls) {
+      const urls = typeof r.image_urls === 'string' ? JSON.parse(r.image_urls) : r.image_urls
+      return sum + urls.filter(u => u !== null).length
+    }
+    return sum + (r.image_url ? 1 : 0)
+  }, 0)
 }
 
 export async function deleteDigitalAlbum(id, userId) {
@@ -544,8 +552,8 @@ export async function createGift(userId, data) {
   const imageUrls = data.imageUrls ? JSON.stringify(data.imageUrls) : '[]'
   const firstImageUrl = data.firstImageUrl || null
   await p.query(
-    'INSERT INTO gifts (id, user_id, name, image_urls, spec, price, net_content, shelf_life, tips, first_image_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, userId, data.name || '', imageUrls, data.spec || '', data.price || '', data.netContent || '', data.shelfLife || '', data.tips || '', firstImageUrl, now, now]
+    'INSERT INTO gifts (id, user_id, name, image_urls, spec, price, net_content, shelf_life, stock, tips, first_image_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, userId, data.name || '', imageUrls, data.spec || '', data.price || '', data.netContent || '', data.shelfLife || '', data.stock || '', data.tips || '', firstImageUrl, now, now]
   )
   return id
 }
@@ -561,6 +569,7 @@ export async function updateGift(id, userId, data) {
   if (data.price !== undefined) { sets.push('price = ?'); vals.push(data.price) }
   if (data.netContent !== undefined) { sets.push('net_content = ?'); vals.push(data.netContent) }
   if (data.shelfLife !== undefined) { sets.push('shelf_life = ?'); vals.push(data.shelfLife) }
+  if (data.stock !== undefined) { sets.push('stock = ?'); vals.push(data.stock) }
   if (data.tips !== undefined) { sets.push('tips = ?'); vals.push(data.tips) }
   if (sets.length) { sets.push('updated_at = ?'); vals.push(now); vals.push(id); vals.push(userId); await p.query(`UPDATE gifts SET ${sets.join(', ')} WHERE id = ? AND user_id = ?`, vals) }
 }
@@ -593,6 +602,7 @@ function rowToGift(row) {
     price: row.price,
     netContent: row.net_content,
     shelfLife: row.shelf_life,
+    stock: row.stock || '',
     tips: row.tips,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

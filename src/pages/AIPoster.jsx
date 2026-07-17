@@ -8,24 +8,25 @@ const UploadZone = ({ img, setImg, inputRef, buttons }) => (
     <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setImg(f); e.target.value = '' }} />
     <div style={{ width: '100%', height: 184, borderRadius: 10, border: '1px dashed #D3D3D3', background: 'rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       {img ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden', borderRadius: '10px 10px 0 0' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden', borderRadius: 10 }}>
           <img src={URL.createObjectURL(img)} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'rgba(0,0,0,0.02)' }} />
           <div onClick={e => { e.stopPropagation(); setImg(null) }} style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 }}>&#10005;</div>
         </div>
-      ) : null}
-      <div style={{ flex: img ? 'unset' : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 27 }}>
-        {buttons?.map((btn, i) => (
-          <div key={i} onClick={btn.onClick} style={{
-            width: 96, height: 36, padding: '0 16px', fontSize: 14, borderRadius: 10,
-            background: 'rgba(0,0,0,0.04)', cursor: 'pointer', color: '#333',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'background .2s, color .2s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(123,82,255,0.1)'; e.currentTarget.style.color = '#7B52FF' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#333' }}
-          >{btn.label}</div>
-        ))}
-      </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 27 }}>
+          {buttons?.map((btn, i) => (
+            <div key={i} onClick={btn.onClick} style={{
+              width: 96, height: 36, padding: '0 16px', fontSize: 14, borderRadius: 10,
+              background: 'rgba(0,0,0,0.04)', cursor: 'pointer', color: '#333',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background .2s, color .2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(123,82,255,0.1)'; e.currentTarget.style.color = '#7B52FF' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.04)'; e.currentTarget.style.color = '#333' }}
+            >{btn.label}</div>
+          ))}
+        </div>
+      )}
     </div>
   </>
 )
@@ -46,6 +47,7 @@ export default function AIPoster() {
   const [pickerType, setPickerType] = useState('')
   const [pickerSelected, setPickerSelected] = useState(new Set())
   const [albumList, setAlbumList] = useState([])
+  const [giftList, setGiftList] = useState([])
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -53,6 +55,10 @@ export default function AIPoster() {
     fetch('http://localhost:3000/api/albums', { headers })
       .then(r => r.json())
       .then(d => setAlbumList((d.albums || []).filter(a => a.imageUrl).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))))
+      .catch(() => {})
+    fetch('http://localhost:3000/api/gifts', { headers })
+      .then(r => r.json())
+      .then(d => setGiftList(d.gifts || []))
       .catch(() => {})
   }, [])
 
@@ -90,8 +96,8 @@ export default function AIPoster() {
     if (pickerSelected.size === 0) return
     const idx = [...pickerSelected][0]
     if (pickerType === 'product') {
-      const album = albumList[idx]
-      const url = album.imageUrls?.[0] || album.imageUrl
+      const gift = giftList[idx]
+      const url = gift.imageUrls?.[0] || gift.firstImageUrl
       if (url) {
         fetch(url).then(r => r.blob()).then(b => setProductImg(new File([b], 'product.jpg', { type: b.type }))).catch(() => {})
       }
@@ -121,7 +127,7 @@ export default function AIPoster() {
         <div>
           <div style={{ fontSize: 14, color: '#000', marginBottom: 10 }}>上传产品图</div>
           <UploadZone img={productImg} setImg={setProductImg} inputRef={productRef} buttons={[
-            { label: '选择图片', onClick: () => openPicker('product') },
+            { label: '选择商品', onClick: () => openPicker('product') },
             { label: '上传图片', onClick: () => productRef.current?.click() },
           ]} />
 
@@ -199,7 +205,10 @@ export default function AIPoster() {
         visible={showPicker}
         onCancel={() => setShowPicker(false)}
         onOk={confirmPicker}
-        albumImages={albumList.map(a => ({ imageUrls: a.imageUrls || (a.imageUrl ? [a.imageUrl] : []), imageUrl: a.imageUrl || '' }))
+        title={pickerType === 'product' ? '选择商品' : '选择模板'}
+        items={pickerType === 'product'
+          ? giftList.map(g => ({ imageUrls: g.imageUrls || [], name: g.name }))
+          : albumList.map(a => ({ imageUrls: a.imageUrls || (a.imageUrl ? [a.imageUrl] : []), imageUrl: a.imageUrl || '' }))
         }
         pickerSelected={pickerSelected}
         setPickerSelected={setPickerSelected}

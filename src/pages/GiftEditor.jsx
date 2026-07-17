@@ -5,6 +5,7 @@ import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragO
 import { arrayMove, SortableContext, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { API } from '../AuthContext'
+import WorkbenchSidebar from '../components/WorkbenchSidebar'
 import AlbumPickerModal from '../components/AlbumPickerModal'
 
 function SortableImage({ url, onDelete }) {
@@ -43,6 +44,7 @@ export default function GiftEditor() {
   const [price, setPrice] = useState('')
   const [netContent, setNetContent] = useState('')
   const [shelfLife, setShelfLife] = useState('')
+  const [stock, setStock] = useState('')
   const [tips, setTips] = useState('')
   const [imageUrls, setImageUrls] = useState([])
   const [saving, setSaving] = useState(false)
@@ -86,6 +88,7 @@ export default function GiftEditor() {
             setPrice(g.price || '')
             setNetContent(g.netContent || '')
             setShelfLife(g.shelfLife || '')
+            setStock(g.stock || '')
             setTips(g.tips || '')
             setImageUrls(g.imageUrls || [])
           }
@@ -156,11 +159,11 @@ export default function GiftEditor() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      message.error('请输入礼品名称')
+      message.error('请输入商品名称')
       return
     }
     if (imageUrls.length === 0) {
-      message.error('请至少添加一张礼品图')
+      message.error('请至少添加一张商品图')
       return
     }
     const token = localStorage.getItem('token')
@@ -173,6 +176,7 @@ export default function GiftEditor() {
         price,
         netContent,
         shelfLife,
+        stock,
         tips,
         imageUrls,
         firstImageUrl: imageUrls[0] || '',
@@ -224,21 +228,18 @@ export default function GiftEditor() {
   }
 
   return (
-    <div style={{ maxWidth: 820, margin: '0 auto', padding: '16px 16px 64px' }}>
-      <div style={{
-        background: '#fff',
-        borderRadius: 16,
-        boxShadow: '0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04)',
-        padding: 24,
-      }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 20, letterSpacing: 0.5 }}>
-          {isNew ? '新建礼品' : '编辑礼品'}
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#fff' }}>
+      <WorkbenchSidebar />
+      <div style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '40px 40px 40px' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto' }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 24, letterSpacing: 0.5 }}>
+          {isNew ? '新建商品' : '编辑商品'}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap', marginTop: 4 }}>礼品图<span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span></div>
-            <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
+          <div style={{ width: 380, flexShrink: 0 }}>
+            <div style={{ fontSize: 14, color: '#475569', marginBottom: 10 }}>商品图<span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span></div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
                 <SortableContext items={imageUrls} strategy={rectSortingStrategy}>
                   {imageUrls.map((url, i) => (
@@ -253,27 +254,24 @@ export default function GiftEditor() {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#f0f5ff' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#d9d9d9'; e.currentTarget.style.background = '#fafafa' }}
               >
-                <button onClick={openAlbumPicker} style={{ padding: '6px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100 }}>选择礼品图</button>
+                <button onClick={openAlbumPicker} style={{ padding: '6px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100 }}>选择商品图</button>
                 <button onClick={uploadImage} style={{ padding: '6px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100 }}>上传图片</button>
               </div>
             </div>
           </div>
+
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>礼品名称<span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span></div>
-              <input
-                value={name} onChange={e => setName(e.target.value)}
-                placeholder="请输入礼品名称"
+              <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>商品名称<span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span></div>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="请输入商品名称"
                 style={{ ...inputStyle }}
                 onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
                 onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
               />
             </div>
             <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap', marginTop: 4 }}>礼品规格</div>
-              <textarea
-                value={spec} onChange={e => setSpec(e.target.value)}
-                placeholder="如：礼盒装 500g" rows={4}
+              <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap', marginTop: 4 }}>商品规格</div>
+              <textarea value={spec} onChange={e => setSpec(e.target.value)} placeholder="如：礼盒装 500g" rows={4}
                 style={{ ...inputStyle, resize: 'vertical' }}
                 onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
                 onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
@@ -283,9 +281,7 @@ export default function GiftEditor() {
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>销售价</div>
                 <div style={{ flex: 1, position: 'relative' }}>
-                  <input
-                    value={price} onChange={e => setPrice(e.target.value)}
-                    placeholder="请输入"
+                  <input value={price} onChange={e => setPrice(e.target.value)} placeholder="请输入"
                     style={{ width: '100%', padding: '9px 12px', border: '1px solid #d9d9d9', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', transition: 'border-color .2s, box-shadow .2s' }}
                     onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
                     onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
@@ -296,9 +292,19 @@ export default function GiftEditor() {
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>净含量</div>
                 <div style={{ flex: 1 }}>
-                  <input
-                    value={netContent} onChange={e => setNetContent(e.target.value)}
-                    placeholder="请输入"
+                  <input value={netContent} onChange={e => setNetContent(e.target.value)} placeholder="请输入"
+                    style={{ width: '100%', padding: '9px 12px', border: '1px solid #d9d9d9', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', transition: 'border-color .2s, box-shadow .2s' }}
+                    onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
+                    onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
+                  />
+                </div>
+              </div>
+            </div>
+            <div style={{ marginBottom: 20, display: 'flex', gap: 16 }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>保质期</div>
+                <div style={{ flex: 1 }}>
+                  <input value={shelfLife} onChange={e => setShelfLife(e.target.value)} placeholder="请输入"
                     style={{ width: '100%', padding: '9px 12px', border: '1px solid #d9d9d9', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', transition: 'border-color .2s, box-shadow .2s' }}
                     onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
                     onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
@@ -306,11 +312,9 @@ export default function GiftEditor() {
                 </div>
               </div>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>保质期</div>
+                <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>库存数</div>
                 <div style={{ flex: 1 }}>
-                  <input
-                    value={shelfLife} onChange={e => setShelfLife(e.target.value)}
-                    placeholder="请输入"
+                  <input value={stock} onChange={e => setStock(e.target.value)} placeholder="请输入"
                     style={{ width: '100%', padding: '9px 12px', border: '1px solid #d9d9d9', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', transition: 'border-color .2s, box-shadow .2s' }}
                     onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
                     onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
@@ -320,9 +324,7 @@ export default function GiftEditor() {
             </div>
             <div style={{ marginBottom: 32, display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 80, fontSize: 14, fontWeight: 500, color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>温馨提示</div>
-              <input
-                value={tips} onChange={e => setTips(e.target.value)}
-                placeholder="如：请置于阴凉干燥处"
+              <input value={tips} onChange={e => setTips(e.target.value)} placeholder="如：请置于阴凉干燥处"
                 style={{ ...inputStyle }}
                 onFocus={e => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,.15)' }}
                 onBlur={e => { e.target.style.borderColor = '#d9d9d9'; e.target.style.boxShadow = 'none' }}
@@ -330,33 +332,26 @@ export default function GiftEditor() {
             </div>
             <div style={{ display: 'flex', gap: 12, paddingTop: 24, borderTop: '1px solid #f1f5f9' }}>
               <div style={{ width: 80 }} />
-              <button
-                className="btn btn-primary"
-                onClick={handleSave}
-                disabled={saving}
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving}
                 style={{ padding: '10px 36px', fontSize: 15, fontWeight: 600, borderRadius: 8, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? .6 : 1 }}
-              >
-                {saving ? '保存中...' : '保存'}
-              </button>
-              <button
-                className="btn btn-outline"
-                onClick={() => navigate('/my-gifts')}
+              >{saving ? '保存中...' : '保存'}</button>
+              <button className="btn btn-outline" onClick={() => navigate('/my-gifts')}
                 style={{ padding: '10px 36px', fontSize: 15, borderRadius: 8, cursor: 'pointer' }}
-              >
-                返回
-              </button>
+              >返回</button>
             </div>
           </div>
         </div>
+
       </div>
 
-       <AlbumPickerModal
-         visible={showAlbumPicker}
-         onCancel={() => setShowAlbumPicker(false)}
-         onOk={confirmAlbumPick}
-         albumImages={albumImages}
-         pickerSelected={pickerSelected}
-         setPickerSelected={setPickerSelected}
-       />
+      <AlbumPickerModal
+        visible={showAlbumPicker}
+        onCancel={() => setShowAlbumPicker(false)}
+        onOk={confirmAlbumPick}
+        items={albumImages}
+        pickerSelected={pickerSelected}
+        setPickerSelected={setPickerSelected}
+      />
+    </div>
     </div>)
 }

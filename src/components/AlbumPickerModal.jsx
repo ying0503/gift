@@ -7,7 +7,8 @@ export default function AlbumPickerModal({
   visible,
   onCancel,
   onOk,
-  albumImages,
+  title,
+  items,
   pickerSelected,
   setPickerSelected,
 }) {
@@ -17,13 +18,13 @@ export default function AlbumPickerModal({
     if (visible) setPage(1)
   }, [visible])
 
-  const total = albumImages.length
+  const total = items.length
   const start = (page - 1) * PAGE_SIZE
-  const pageItems = albumImages.slice(start, start + PAGE_SIZE)
+  const pageItems = items.slice(start, start + PAGE_SIZE)
 
   return (
     <Modal
-      title="选择礼品图"
+      title={title || '选择'}
       open={visible}
       onCancel={onCancel}
       onOk={onOk}
@@ -31,8 +32,8 @@ export default function AlbumPickerModal({
       width={720}
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, maxHeight: 460, overflow: 'auto', minHeight: 300 }}>
-        {pageItems.map((a, i) => {
-          const urls = a.imageUrls && a.imageUrls.length ? a.imageUrls : [a.imageUrl]
+        {pageItems.map((item, i) => {
+          const urls = item.imageUrls && item.imageUrls.length ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : [])
           const idx = start + i
           const selected = pickerSelected.has(idx)
           return (
@@ -47,6 +48,9 @@ export default function AlbumPickerModal({
               })}
             >
               <img src={urls[0]} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+              {item.name && (
+                <div style={{ padding: '4px 6px', fontSize: 12, color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: '#fafafa' }}>{item.name}</div>
+              )}
               {urls.length > 1 && (
                 <div style={{ position: 'absolute', bottom: 4, right: 4, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8 }}>
                   {urls.length}张
@@ -55,7 +59,7 @@ export default function AlbumPickerModal({
             </div>
           )
         })}
-        {albumImages.length === 0 && (
+        {items.length === 0 && (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
             暂无可用图片
           </div>

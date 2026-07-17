@@ -24,7 +24,7 @@ const sidebarSections = [
   {
     header: 'AI创作',
     items: [
-      { label: 'AI 生图', routes: ['/workbench', '/image-list'], icon: 'gen' },
+      { label: 'AI 生图', routes: ['/workbench'], icon: 'gen' },
       { label: 'AI 海报', routes: ['/ai-poster'], icon: 'gen' },
     ],
   },
