@@ -14,6 +14,8 @@ export default function Preview() {
   const [bgTo, setBgTo] = useState('')
   const [menuBgFrom, setMenuBgFrom] = useState('')
   const [menuBgTo, setMenuBgTo] = useState('')
+  const [nameColor, setNameColor] = useState('')
+  const [descColor, setDescColor] = useState('')
   const [selectedCat, setSelectedCat] = useState(null)
   
   const [viewAlbum, setViewAlbum] = useState(null)
@@ -87,6 +89,8 @@ export default function Preview() {
         setBgTo(data.titleBgTo || '')
         setMenuBgFrom(data.menuBgFrom || '')
         setMenuBgTo(data.menuBgTo || '')
+        setNameColor(data.nameColor || '')
+        setDescColor(data.descColor || '')
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -177,8 +181,8 @@ export default function Preview() {
                 display: 'flex', flexDirection: 'column', justifyContent: 'center',
                 overflow: 'hidden',
               }}>
-                <div style={{ fontSize: 24, fontWeight: 400, color: '#3E3E3E', letterSpacing: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'DingTalk JinBuTi', marginTop: -2 }}>{bannerTitle}</div>
-                {bannerSubtitle && <div style={{ fontSize: 12, color: '#3E3E3E', marginTop: -2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerSubtitle}</div>}
+                <div style={{ fontSize: 24, fontWeight: 400, color: nameColor || '#3E3E3E', letterSpacing: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'DingTalk JinBuTi', marginTop: -2 }}>{bannerTitle}</div>
+                {bannerSubtitle && <div style={{ fontSize: 12, color: descColor || '#3E3E3E', marginTop: -2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{bannerSubtitle}</div>}
               </div>
             </div>
           )}

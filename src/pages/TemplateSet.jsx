@@ -66,7 +66,7 @@ export default function TemplateSet() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(0,0,0,.88)' }}>画册模板</div>
           <button className="btn btn-primary" style={{ fontSize: 13, height: 34, padding: '0 16px', borderRadius: 8, border: 'none', cursor: 'pointer' }}
-            onClick={() => { setCreating(true); setEditing({ name: '', templateName: '', icon: '📄', description: '', cover: '', banner: '', categories: [], enabled: true, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' }) }}>
+            onClick={() => { setCreating(true); setEditing({ name: '', templateName: '', icon: '📄', description: '', cover: '', banner: '', categories: [], enabled: true, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '', nameColor: '', descColor: '' }) }}>
             <PlusOutlined /> 新增模板
           </button>
         </div>
@@ -190,7 +190,7 @@ function RightPanel({ data, isNew, onSave, onClose }) {
           </div>
 
           <div style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52, flexShrink: 0, paddingTop: 4 }}>氛围图</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(0,0,0,.65)', whiteSpace: 'nowrap', width: 52, flexShrink: 0, paddingTop: 4 }}>顶部海报</span>
             <div style={{ flex: 1 }}>
               <div
                 onClick={() => document.getElementById('banner-upload')?.click()}
@@ -222,7 +222,7 @@ function RightPanel({ data, isNew, onSave, onClose }) {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#c0c8d4' }}>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                    <span style={{ fontSize: 12 }}>点击上传氛围图</span>
+                    <span style={{ fontSize: 12 }}>点击上传顶部海报</span>
                   </div>
                 )}
               </div>
@@ -239,6 +239,9 @@ function RightPanel({ data, isNew, onSave, onClose }) {
             <input value={form.name} onChange={e => update('name', e.target.value)}
               placeholder="画册主题"
               style={{ flex: 1, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
+            <input value={form.nameColor} onChange={e => update('nameColor', e.target.value)}
+              placeholder="#333"
+              style={{ width: 100, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
           </div>
 
           <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -246,6 +249,9 @@ function RightPanel({ data, isNew, onSave, onClose }) {
             <input value={form.description} onChange={e => update('description', e.target.value)}
               placeholder="画册描述"
               style={{ flex: 1, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
+            <input value={form.descColor} onChange={e => update('descColor', e.target.value)}
+              placeholder="#666"
+              style={{ width: 100, height: 36, padding: '0 12px', fontSize: 14, border: '1px solid #d9d9d9', borderRadius: 6, outline: 'none' }} />
           </div>
 
           <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>

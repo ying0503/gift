@@ -47,6 +47,8 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
   const [titleBgTo, setTitleBgTo] = useState('')
   const [menuBgFrom, setMenuBgFrom] = useState('')
   const [menuBgTo, setMenuBgTo] = useState('')
+  const [nameColor, setNameColor] = useState('')
+  const [descColor, setDescColor] = useState('')
   const [editingTitle, setEditingTitle] = useState(false)
   const [editingSubtitle, setEditingSubtitle] = useState(false)
   const [festival, setFestival] = useState('')
@@ -102,6 +104,8 @@ const [globalBannerProgress, setGlobalBannerProgress] = useState(0)
       if (da.titleBgTo !== undefined) setTitleBgTo(da.titleBgTo)
       if (da.menuBgFrom !== undefined) setMenuBgFrom(da.menuBgFrom)
       if (da.menuBgTo !== undefined) setMenuBgTo(da.menuBgTo)
+      if (da.nameColor !== undefined) setNameColor(da.nameColor)
+      if (da.descColor !== undefined) setDescColor(da.descColor)
       if (al.albums) setAlbums(al.albums)
       if (gl.gifts) setGiftList(gl.gifts)
       setLoading(false)
@@ -313,7 +317,7 @@ menuBgFrom,
 menuBgTo,
 }),
 })
-}, [globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo])
+}, [globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor])
 
 const saveForPreview = useCallback(async () => {
 const token = localStorage.getItem('token')
@@ -321,9 +325,9 @@ if (!token) return
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor }),
 })
-}, [categories, globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo])
+}, [categories, globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor])
 
 useEffect(() => {
 if (setPreviewSave) setPreviewSave(saveForPreview)
@@ -340,7 +344,7 @@ setGlobalBannerUrl(url)
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: url, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: url, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor }),
 }).catch(() => {})
 }
 
@@ -350,7 +354,7 @@ if (!token) return
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor }),
 }).catch(() => {})
 }
 
@@ -360,7 +364,7 @@ if (!token) return
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor }),
 }).catch(() => {})
 }
 
@@ -370,7 +374,7 @@ if (!token) return
 fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor }),
 }).catch(() => {})
 }
 
@@ -395,7 +399,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: globalBann
 await fetch(`${API}/api/digital-album`, {
 method: 'POST',
 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor }),
 }).then(r => r.json()).then(d => { if (d.id && !albumIdRef.current) { albumIdRef.current = d.id; if (setPreviewAlbumId) setPreviewAlbumId(d.id) } })
         if (merged.length > 0 && newCats.length > 0) {
           const firstId = newCats[0].id
@@ -434,7 +438,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
             fetch(`${API}/api/digital-album`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token2}` },
-              body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: data.url, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+              body: JSON.stringify({ id: albumIdRef.current, categories, bannerUrl: data.url, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor }),
             }).then(r => r.json()).then(d => { if (d.id && !albumIdRef.current) { albumIdRef.current = d.id; if (setPreviewAlbumId) setPreviewAlbumId(d.id) } }).catch(() => {})
           }
         } else {
@@ -601,7 +605,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         fetch(`${API}/api/digital-album`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor }),
         }).catch(() => {})
       }
       return next
@@ -622,7 +626,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         fetch(`${API}/api/digital-album`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo }),
+          body: JSON.stringify({ id: albumIdRef.current, categories: next, bannerUrl: globalBannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor }),
         }).catch(() => {})
       }
       return next
@@ -877,7 +881,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 2 }}>画册主题</div>
-              <span style={{ fontSize: 14, color: 'rgba(0,0,0,.65)' }}>{bannerTitle || '未设置主题'}</span>
+              <span style={{ fontSize: 14, color: nameColor || 'rgba(0,0,0,.65)' }}>{bannerTitle || '未设置主题'}</span>
             </div>
             <span onClick={() => setEditingTitle(true)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 16, padding: 4 }}><EditOutlined /></span>
           </div>
@@ -895,7 +899,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 2 }}>描述</div>
-              <span style={{ fontSize: 13, color: 'rgba(0,0,0,.55)' }}>{bannerSubtitle || '添加描述'}</span>
+              <span style={{ fontSize: 13, color: descColor || 'rgba(0,0,0,.55)' }}>{bannerSubtitle || '添加描述'}</span>
             </div>
             <span onClick={() => setEditingSubtitle(true)} style={{ cursor: 'pointer', color: '#bbb', fontSize: 13, padding: 4 }}><EditOutlined /></span>
           </div>
@@ -911,7 +915,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           </div>
         ) : (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', padding: 16 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>顶部氛围图</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(0,0,0,.88)', marginBottom: 10 }}>顶部海报</div>
             {!bannerAiMode ? (
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flex: 1, alignItems: 'center' }}>
                 <button onClick={() => setBannerAiMode(true)}
@@ -962,7 +966,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
                         background: 'linear-gradient(135deg, #8B5CF6, #EC4899)',
                         color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', opacity: festivalPrompt ? 1 : 0.5, transition: 'opacity .2s',
                       }}
-                    >生成氛围图</button>
+                    >生成海报</button>
                   )}
                 </div>
               </div>

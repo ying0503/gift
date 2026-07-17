@@ -35,6 +35,8 @@ export default function TemplatePicker({ visible, onClose, currentTitle, albumId
             titleBgTo: tpl.titleBgTo || '',
             menuBgFrom: tpl.menuBgFrom || '',
             menuBgTo: tpl.menuBgTo || '',
+            nameColor: tpl.nameColor || '',
+            descColor: tpl.descColor || '',
           }),
         })
       }
@@ -48,7 +50,7 @@ export default function TemplatePicker({ visible, onClose, currentTitle, albumId
       const res = await fetch(`${API}/api/digital-album`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ categories: tpl.categories, bannerTitle: tpl.name, albumTitle: currentAlbumTitle || '', bannerSubtitle: tpl.description || '', bannerUrl: tpl.banner || '', titleBgFrom: tpl.titleBgFrom || '', titleBgTo: tpl.titleBgTo || '', menuBgFrom: tpl.menuBgFrom || '', menuBgTo: tpl.menuBgTo || '' }),
+        body: JSON.stringify({ categories: tpl.categories, bannerTitle: tpl.name, albumTitle: currentAlbumTitle || '', bannerSubtitle: tpl.description || '', bannerUrl: tpl.banner || '', titleBgFrom: tpl.titleBgFrom || '', titleBgTo: tpl.titleBgTo || '', menuBgFrom: tpl.menuBgFrom || '', menuBgTo: tpl.menuBgTo || '', nameColor: tpl.nameColor || '', descColor: tpl.descColor || '' }),
       })
       const data = await res.json()
       if (data.id) window.location.href = `/digital-album/${data.id}`
@@ -61,12 +63,12 @@ export default function TemplatePicker({ visible, onClose, currentTitle, albumId
   if (!visible) return null
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div className="card" style={{ width: 720, maxHeight: '80vh', padding: 24, overflow: 'auto' }} onClick={e => e.stopPropagation()}>
+      <div className="card" style={{ width: 840, maxHeight: '80vh', padding: 24, overflow: 'auto' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(0,0,0,.88)' }}>选择画册模板</div>
           <span onClick={onClose} style={{ cursor: 'pointer', fontSize: 16, color: 'rgba(0,0,0,.45)' }}><CloseOutlined /></span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, justifyItems: 'center' }}>
           {templates.map(tpl => {
             const isCurrent = !!(currentTitle && (tpl.name === currentTitle || tpl.templateName === currentTitle))
             return (
@@ -78,7 +80,7 @@ export default function TemplatePicker({ visible, onClose, currentTitle, albumId
                   cursor: 'pointer', borderRadius: 10, overflow: 'hidden',
                   border: isCurrent ? '2px solid #1677FF' : '1px solid #f1f5f9',
                   background: '#fff', transition: 'all .2s',
-                  position: 'relative', aspectRatio: '1/1.7',
+                  position: 'relative', height: 200, width: 125,
                 }}
               >
                 {isCurrent && <div style={{ position: 'absolute', top: 4, right: 4, zIndex: 2, background: '#1677FF', color: '#fff', borderRadius: 4, fontSize: 10, fontWeight: 500, padding: '1px 6px', lineHeight: '18px' }}>当前</div>}

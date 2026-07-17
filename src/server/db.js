@@ -127,6 +127,8 @@ export async function initSchema() {
     title_bg_to VARCHAR(20) DEFAULT '',
     menu_bg_from VARCHAR(20) DEFAULT '',
     menu_bg_to VARCHAR(20) DEFAULT '',
+    name_color VARCHAR(20) DEFAULT '',
+    desc_color VARCHAR(20) DEFAULT '',
     sort_order INT DEFAULT 0,
     created_at BIGINT NOT NULL,
     updated_at BIGINT NOT NULL
@@ -158,6 +160,18 @@ export async function initSchema() {
   } catch (e) {}
   try {
     await p.query(`ALTER TABLE templates ADD COLUMN title_bg_to VARCHAR(20) DEFAULT ''`)
+  } catch (e) {}
+  try {
+    await p.query(`ALTER TABLE templates ADD COLUMN name_color VARCHAR(20) DEFAULT ''`)
+  } catch (e) {}
+  try {
+    await p.query(`ALTER TABLE templates ADD COLUMN desc_color VARCHAR(20) DEFAULT ''`)
+  } catch (e) {}
+  try {
+    await p.query(`ALTER TABLE digital_albums ADD COLUMN name_color VARCHAR(20) DEFAULT ''`)
+  } catch (e) {}
+  try {
+    await p.query(`ALTER TABLE digital_albums ADD COLUMN desc_color VARCHAR(20) DEFAULT ''`)
   } catch (e) {}
   try {
     await p.query(`ALTER TABLE digital_albums ADD COLUMN title_bg_from VARCHAR(20) DEFAULT ''`)
@@ -411,9 +425,11 @@ export async function saveDigitalAlbum(userId, data, id) {
   const titleBgTo = data.titleBgTo ?? null
   const menuBgFrom = data.menuBgFrom ?? null
   const menuBgTo = data.menuBgTo ?? null
-  const sql = 'INSERT INTO digital_albums (id, user_id, categories, banner_url, banner_title, album_title, banner_subtitle, title_bg_from, title_bg_to, menu_bg_from, menu_bg_to, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), banner_title = VALUES(banner_title), album_title = VALUES(album_title), banner_subtitle = VALUES(banner_subtitle), title_bg_from = VALUES(title_bg_from), title_bg_to = VALUES(title_bg_to), menu_bg_from = VALUES(menu_bg_from), menu_bg_to = VALUES(menu_bg_to), updated_at = VALUES(updated_at)'
+  const nameColor = data.nameColor ?? null
+  const descColor = data.descColor ?? null
+  const sql = 'INSERT INTO digital_albums (id, user_id, categories, banner_url, banner_title, album_title, banner_subtitle, title_bg_from, title_bg_to, menu_bg_from, menu_bg_to, name_color, desc_color, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE categories = VALUES(categories), banner_url = VALUES(banner_url), banner_title = VALUES(banner_title), album_title = VALUES(album_title), banner_subtitle = VALUES(banner_subtitle), title_bg_from = VALUES(title_bg_from), title_bg_to = VALUES(title_bg_to), menu_bg_from = VALUES(menu_bg_from), menu_bg_to = VALUES(menu_bg_to), name_color = VALUES(name_color), desc_color = VALUES(desc_color), updated_at = VALUES(updated_at)'
   try {
-    await p.query(sql, [albumId, userId, categories, bannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, now, now])
+    await p.query(sql, [albumId, userId, categories, bannerUrl, bannerTitle, albumTitle, bannerSubtitle, titleBgFrom, titleBgTo, menuBgFrom, menuBgTo, nameColor, descColor, now, now])
   } catch (e) {
     const [colInfo] = await p.query('SHOW COLUMNS FROM digital_albums')
     const colNames = colInfo.map(c => c.Field).join(', ')
@@ -461,6 +477,8 @@ export async function listTemplates() {
     titleBgTo: r.title_bg_to || '',
     menuBgFrom: r.menu_bg_from || '',
     menuBgTo: r.menu_bg_to || '',
+    nameColor: r.name_color || '',
+    descColor: r.desc_color || '',
     categories: typeof r.categories === 'string' ? JSON.parse(r.categories) : (r.categories || []),
     enabled: !!r.enabled,
     sortOrder: r.sort_order,
@@ -478,6 +496,7 @@ export async function getTemplate(id) {
     id: r.id, name: r.name, templateName: r.template_name || '', icon: r.icon, description: r.description, cover: r.cover || '', banner: r.banner || '',
     titleBgFrom: r.title_bg_from || '', titleBgTo: r.title_bg_to || '',
     menuBgFrom: r.menu_bg_from || '', menuBgTo: r.menu_bg_to || '',
+    nameColor: r.name_color || '', descColor: r.desc_color || '',
     categories: typeof r.categories === 'string' ? JSON.parse(r.categories) : (r.categories || []),
     enabled: !!r.enabled, sortOrder: r.sort_order, createdAt: r.created_at, updatedAt: r.updated_at,
   }
@@ -488,8 +507,8 @@ export async function createTemplate(data) {
   const id = crypto.randomUUID()
   const now = Date.now()
   await p.query(
-    'INSERT INTO templates (id, name, icon, description, cover, banner, title_bg_from, title_bg_to, menu_bg_from, menu_bg_to, template_name, categories, enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, data.name, data.icon || '📄', data.description || '', data.cover || '', data.banner || '', data.titleBgFrom || '', data.titleBgTo || '', data.menuBgFrom || '', data.menuBgTo || '', data.templateName || '', JSON.stringify(data.categories || []), data.enabled !== false ? 1 : 0, data.sortOrder || 0, now, now]
+    'INSERT INTO templates (id, name, icon, description, cover, banner, title_bg_from, title_bg_to, menu_bg_from, menu_bg_to, name_color, desc_color, template_name, categories, enabled, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, data.name, data.icon || '📄', data.description || '', data.cover || '', data.banner || '', data.titleBgFrom || '', data.titleBgTo || '', data.menuBgFrom || '', data.menuBgTo || '', data.nameColor || '', data.descColor || '', data.templateName || '', JSON.stringify(data.categories || []), data.enabled !== false ? 1 : 0, data.sortOrder || 0, now, now]
   )
   return id
 }
@@ -507,6 +526,8 @@ export async function updateTemplate(id, data) {
   if (data.titleBgTo !== undefined) { sets.push('title_bg_to = ?'); vals.push(data.titleBgTo) }
   if (data.menuBgFrom !== undefined) { sets.push('menu_bg_from = ?'); vals.push(data.menuBgFrom) }
   if (data.menuBgTo !== undefined) { sets.push('menu_bg_to = ?'); vals.push(data.menuBgTo) }
+  if (data.nameColor !== undefined) { sets.push('name_color = ?'); vals.push(data.nameColor) }
+  if (data.descColor !== undefined) { sets.push('desc_color = ?'); vals.push(data.descColor) }
   if (data.categories !== undefined) { sets.push('categories = ?'); vals.push(JSON.stringify(data.categories)) }
   if (data.enabled !== undefined) { sets.push('enabled = ?'); vals.push(data.enabled ? 1 : 0) }
   if (data.sortOrder !== undefined) { sets.push('sort_order = ?'); vals.push(data.sortOrder) }

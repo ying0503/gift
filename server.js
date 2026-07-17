@@ -640,7 +640,9 @@ app.get('/api/digital-album', auth, async (req, res) => {
       titleBgTo: data.title_bg_to || '',
       menuBgFrom: data.menu_bg_from || '',
       menuBgTo: data.menu_bg_to || '',
-    } : { categories: [], bannerUrl: null, bannerTitle: null, albumTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' })
+      nameColor: data.name_color || '',
+      descColor: data.desc_color || '',
+    } : { categories: [], bannerUrl: null, bannerTitle: null, albumTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '', nameColor: '', descColor: '' })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
@@ -648,7 +650,7 @@ app.post('/api/digital-album', auth, async (req, res) => {
   try {
     const body = req.body
     if (!body || !Array.isArray(body.categories)) return res.status(400).json({ error: 'Invalid data' })
-    const result = await db.saveDigitalAlbum(req.user.userId, { categories: body.categories, bannerUrl: body.bannerUrl, bannerTitle: body.bannerTitle, albumTitle: body.albumTitle, bannerSubtitle: body.bannerSubtitle, titleBgFrom: body.titleBgFrom, titleBgTo: body.titleBgTo, menuBgFrom: body.menuBgFrom, menuBgTo: body.menuBgTo }, body.id)
+    const result = await db.saveDigitalAlbum(req.user.userId, { categories: body.categories, bannerUrl: body.bannerUrl, bannerTitle: body.bannerTitle, albumTitle: body.albumTitle, bannerSubtitle: body.bannerSubtitle, titleBgFrom: body.titleBgFrom, titleBgTo: body.titleBgTo, menuBgFrom: body.menuBgFrom, menuBgTo: body.menuBgTo, nameColor: body.nameColor, descColor: body.descColor }, body.id)
     res.json({ success: true, id: result.id })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -670,11 +672,13 @@ app.get('/api/album', async (req, res) => {
         titleBgTo: data.title_bg_to || '',
         menuBgFrom: data.menu_bg_from || '',
         menuBgTo: data.menu_bg_to || '',
+        nameColor: data.name_color || '',
+        descColor: data.desc_color || '',
       })
     }
     if (userId) {
       const row = await db.getDigitalAlbum(null, userId)
-      if (!row) return res.json({ categories: [], bannerUrl: null, bannerTitle: null, albumTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' })
+      if (!row) return res.json({ categories: [], bannerUrl: null, bannerTitle: null, albumTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '', nameColor: '', descColor: '' })
       return res.json({
         id: row.id,
         categories: typeof row.categories === 'string' ? JSON.parse(row.categories) : row.categories,
@@ -686,9 +690,11 @@ app.get('/api/album', async (req, res) => {
         titleBgTo: row.title_bg_to || '',
         menuBgFrom: row.menu_bg_from || '',
         menuBgTo: row.menu_bg_to || '',
+        nameColor: row.name_color || '',
+        descColor: row.desc_color || '',
       })
     }
-    res.json({ categories: [], bannerUrl: null, bannerTitle: null, albumTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '' })
+    res.json({ categories: [], bannerUrl: null, bannerTitle: null, albumTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '', nameColor: '', descColor: '' })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
