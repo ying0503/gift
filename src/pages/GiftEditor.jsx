@@ -122,9 +122,9 @@ export default function GiftEditor() {
           })
           const data = await res.json()
           if (data.url) {
-            const newUrls = [...imageUrls]
-            newUrls.push(data.url)
-            setImageUrls(newUrls)
+            setImageUrls([data.url])
+            const fileName = file.name.replace(/\.[^.]+$/, '')
+            if (!name) setName(fileName)
           }
         } catch (err) {
           message.error('上传失败')
@@ -148,12 +148,12 @@ export default function GiftEditor() {
   }
 
   const confirmAlbumPick = () => {
-    const newUrls = [...imageUrls]
-    albumImages.filter((_, i) => pickerSelected.has(i)).forEach(a => {
-      const urls = a.imageUrls && a.imageUrls.length ? a.imageUrls : [a.imageUrl]
-      urls.filter(Boolean).forEach(u => { if (!newUrls.includes(u)) newUrls.push(u) })
-    })
-    setImageUrls(newUrls)
+    const selected = albumImages.filter((_, i) => pickerSelected.has(i))
+    if (selected.length === 0) return
+    const a = selected[0]
+    const urls = a.imageUrls && a.imageUrls.length ? a.imageUrls : [a.imageUrl]
+    setImageUrls(urls.filter(Boolean))
+    if (!name && a.name) setName(a.name)
     setShowAlbumPicker(false)
   }
 

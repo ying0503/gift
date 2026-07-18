@@ -1187,7 +1187,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           <div className="card" style={{ padding: 16, marginBottom: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 600, color: '#333', marginBottom: 12 }}>{currentCat.name}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-              {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a, _pageName: i.name, _itemId: i.id }))).filter((a, i, arr) => arr.findIndex(x => x.albumId === a.albumId) === i).map((a, i) => {
+              {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a, _pageName: i.name, _itemId: i.id }))).map((a, i) => {
                 const deleted = isGiftDeleted(a.albumId, a.type)
                 const live = !deleted && giftMap[a.albumId]
                 const coverUrl = live ? (live.imageUrls?.[0] || live.firstImageUrl || '') : getCoverUrl(a)

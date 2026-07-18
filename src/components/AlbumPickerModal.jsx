@@ -41,12 +41,7 @@ export default function AlbumPickerModal({
             <div
               key={idx}
               style={{ width: 220, height: 260, borderRadius: 10, overflow: 'hidden', border: selected ? '2px solid #7B52FF' : '1px solid #E6E6E6', background: '#fff', cursor: 'pointer', position: 'relative', transition: 'border-color .2s' }}
-              onClick={() => setPickerSelected(prev => { 
-                const n = new Set(prev); 
-                if (n.has(idx)) n.delete(idx); 
-                else n.add(idx); 
-                return n;
-              })}
+              onClick={() => setPickerSelected(new Set([idx]))}
               onMouseEnter={e => { if (!selected) e.currentTarget.style.borderColor = '#7B52FF' }}
               onMouseLeave={e => { if (!selected) e.currentTarget.style.borderColor = '#E6E6E6' }}
             >
