@@ -254,7 +254,7 @@ export default function GiftEditor() {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#f0f5ff' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#d9d9d9'; e.currentTarget.style.background = '#fafafa' }}
               >
-                <button onClick={openAlbumPicker} style={{ padding: '6px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100 }}>选择商品图</button>
+                <button onClick={openAlbumPicker} style={{ padding: '6px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100 }}>选择图片</button>
                 <button onClick={uploadImage} style={{ padding: '6px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100 }}>上传图片</button>
               </div>
             </div>
@@ -348,6 +348,7 @@ export default function GiftEditor() {
         visible={showAlbumPicker}
         onCancel={() => setShowAlbumPicker(false)}
         onOk={confirmAlbumPick}
+        title="选择图片"
         items={albumImages}
         pickerSelected={pickerSelected}
         setPickerSelected={setPickerSelected}

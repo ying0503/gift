@@ -126,8 +126,8 @@ function AppContent() {
         </div>
       )}
       <div className="app-body">
-        {user && !['/workbench', '/my-gifts', '/gift-editor', '/ai-poster', '/template-set', '/model-use'].some(p => location.pathname.startsWith(p)) && <WorkbenchSidebar />}
-        <main className="app-main" style={['/workbench', '/my-gifts', '/gift-editor', '/ai-poster', '/template-set', '/model-use'].some(p => location.pathname.startsWith(p)) ? { padding: 0 } : undefined}>
+        {user && location.pathname !== '/digital-album' && !['/workbench', '/my-gifts', '/gift-editor', '/ai-poster', '/template-set', '/model-use', '/image-list'].some(p => location.pathname.startsWith(p)) && <WorkbenchSidebar />}
+        <main className="app-main" style={location.pathname === '/digital-album' || ['/workbench', '/my-gifts', '/gift-editor', '/ai-poster', '/template-set', '/model-use', '/image-list'].some(p => location.pathname.startsWith(p)) ? { padding: 0 } : undefined}>
         <Routes>
           <Route path="/workbench" element={<ErrorBoundary>{user ? <Home /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/digital-album" element={<ErrorBoundary>{user ? <DigitalAlbumList /> : <Navigate to="/" />}</ErrorBoundary>} />

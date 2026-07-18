@@ -29,9 +29,9 @@ export default function AlbumPickerModal({
       onCancel={onCancel}
       onOk={onOk}
       okText="确定"
-      width={720}
+      width={980}
     >
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, maxHeight: 460, overflow: 'auto', minHeight: 300 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 220px)', gap: 16, maxHeight: 460, overflow: 'auto', minHeight: 300 }}>
         {pageItems.map((item, i) => {
           const urls = item.imageUrls && item.imageUrls.length ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : [])
           const idx = start + i
@@ -39,23 +39,27 @@ export default function AlbumPickerModal({
           return (
             <div
               key={idx}
-              style={{ cursor: 'pointer', borderRadius: 6, overflow: 'hidden', border: selected ? '2px solid #1677FF' : '1px solid #e6e6e6', transition: 'all .2s', position: 'relative' }}
+              style={{ width: 220, height: 260, borderRadius: 10, overflow: 'hidden', border: selected ? '2px solid #7B52FF' : '1px solid #E6E6E6', background: '#fff', cursor: 'pointer', position: 'relative', transition: 'border-color .2s' }}
               onClick={() => setPickerSelected(prev => { 
                 const n = new Set(prev); 
                 if (n.has(idx)) n.delete(idx); 
                 else n.add(idx); 
                 return n;
               })}
+              onMouseEnter={e => { if (!selected) e.currentTarget.style.borderColor = '#7B52FF' }}
+              onMouseLeave={e => { if (!selected) e.currentTarget.style.borderColor = '#E6E6E6' }}
             >
-              <img src={urls[0]} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-              {item.name && (
-                <div style={{ padding: '4px 6px', fontSize: 12, color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: '#fafafa' }}>{item.name}</div>
-              )}
+              <img src={urls[0]} alt="" style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block', borderBottom: '1px solid #E6E6E6' }} />
               {urls.length > 1 && (
-                <div style={{ position: 'absolute', bottom: 4, right: 4, background: 'rgba(0,0,0,.55)', color: '#fff', fontSize: 10, padding: '1px 6px', borderRadius: 8 }}>
+                <div style={{ position: 'absolute', bottom: 46, right: 6, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 11, padding: '1px 8px', borderRadius: 10, lineHeight: '20px' }}>
                   {urls.length}张
                 </div>
               )}
+              <div style={{ padding: '10px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {item.name || '未命名'}
+                </div>
+              </div>
             </div>
           )
         })}

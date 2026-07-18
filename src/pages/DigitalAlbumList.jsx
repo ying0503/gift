@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { DeleteOutlined } from '@ant-design/icons'
 import { Modal } from 'antd'
 import { API } from '../AuthContext'
+import WorkbenchSidebar from '../components/WorkbenchSidebar'
 import TemplatePicker from '../components/TemplatePicker'
 
 export default function DigitalAlbumList() {
@@ -43,7 +43,6 @@ export default function DigitalAlbumList() {
     })
   }
 
-
   if (loading) {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: '#94a3b8', fontSize: 14, gap: 10 }}>
       <div className="loading-spinner" style={{ width: 20, height: 20, borderWidth: 2, margin: 0 }} />
@@ -52,41 +51,52 @@ export default function DigitalAlbumList() {
   }
 
   return (
-    <div style={{ maxWidth: 1060, margin: '0 auto', padding: '0 16px' }}>
-      <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 28, letterSpacing: 0.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span>我的画册</span>
-        <button className="btn btn-primary" style={{ fontSize: 13, height: 34, padding: '0 16px', borderRadius: 8, border: 'none', cursor: 'pointer' }} onClick={() => setShowTemplate(true)}>+ 新建画册</button>
-      </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 22 }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#fff' }}>
+      <WorkbenchSidebar />
+      <div style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '40px 40px 40px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24 }}>
+          <div style={{ width: 18, height: 18, borderRadius: 3, background: 'linear-gradient(0deg, #72D2FF, #7B52FF)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M13.3333 16H2.66667C1.17333 16 0 14.8267 0 13.3333V2.66667C0 1.17333 1.17333 0 2.66667 0H13.3333C14.8267 0 16 1.17333 16 2.66667V13.3333C16 14.8267 14.8267 16 13.3333 16ZM2.66667 1.06667C1.76 1.06667 1.06667 1.76 1.06667 2.66667V13.3333C1.06667 14.24 1.76 14.9333 2.66667 14.9333H13.3333C14.24 14.9333 14.9333 14.24 14.9333 13.3333V2.66667C14.9333 1.76 14.24 1.06667 13.3333 1.06667H2.66667Z" fill="white"/><path d="M4 5.49331C4 5.62639 4.02621 5.75816 4.07714 5.8811C4.12806 6.00404 4.2027 6.11575 4.2968 6.20985C4.39089 6.30395 4.5026 6.37859 4.62555 6.42951C4.74849 6.48044 4.88026 6.50665 5.01333 6.50665C5.14641 6.50665 5.27818 6.48044 5.40112 6.42951C5.52406 6.37859 5.63577 6.30395 5.72987 6.20985C5.82397 6.11575 5.89861 6.00404 5.94953 5.8811C6.00046 5.75816 6.02667 5.62639 6.02667 5.49331C6.02667 5.36024 6.00046 5.22847 5.94953 5.10553C5.89861 4.98258 5.82397 4.87088 5.72987 4.77678C5.63577 4.68268 5.52406 4.60804 5.40112 4.55712C5.27818 4.50619 5.14641 4.47998 5.01333 4.47998C4.88026 4.47998 4.74849 4.50619 4.62555 4.55712C4.5026 4.60804 4.39089 4.68268 4.2968 4.77678C4.2027 4.87088 4.12806 4.98258 4.07714 5.10553C4.02621 5.22847 4 5.36024 4 5.49331Z" fill="white"/><path d="M3.46671 13.3866L2.50671 12.96L2.72005 12.48C3.84005 9.86665 5.65338 8.53331 8.05338 8.37331C10.08 8.26665 11.5734 7.67998 12.48 6.61331L12.8534 6.18665L13.6534 6.87998L13.28 7.30665C12.16 8.58665 10.4 9.33331 8.10671 9.43998C6.13338 9.54665 4.69338 10.6666 3.73338 12.9066L3.46671 13.3866Z" fill="white"/></svg>
+          </div>
+          <span style={{ fontSize: 18, fontWeight: 700, color: '#000' }}>画册列表</span>
+        </div>
+
+        {albums.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 0', color: '#ACACAC', fontSize: 14 }}>
+            暂无画册，点击下方新建
+          </div>
+        ) : null}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 220px)', gap: '20px' }}>
           <div
-            style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#f8fafc', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 180 }}
             onClick={() => setShowTemplate(true)}
-            onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.16), 0 16px 48px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0' }}
-            onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)'; e.currentTarget.style.borderColor = '#f1f5f9' }}
+            style={{ width: 220, height: 260, borderRadius: 10, border: '1px solid #E6E6E6', background: '#fff', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, transition: 'border-color .2s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#7B52FF' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E6E6E6' }}
           >
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#94a3b8', transition: 'all .25s' }} className="create-btn-icon">+</div>
-            <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500, marginTop: 6 }}>创建画册</div>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#000', lineHeight: 1 }}>+</div>
+            <div style={{ fontSize: 14, color: '#000' }}>新建画册</div>
           </div>
           {albums.map(album => (
             <div
               key={album.id}
-              style={{ padding: 0, cursor: 'pointer', overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9', boxShadow: '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)', transition: 'all .25s', position: 'relative' }}
+              style={{ width: 220, height: 260, borderRadius: 10, border: '1px solid #E6E6E6', background: '#fff', cursor: 'pointer', position: 'relative', overflow: 'hidden', transition: 'border-color .2s' }}
               onClick={() => navigate(`/digital-album/${album.id}`)}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,.16), 0 16px 48px rgba(0,0,0,.08)'; e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.querySelector('.del-btn').style.opacity = '1' }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 6px 24px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.06)'; e.currentTarget.style.borderColor = '#f1f5f9'; e.currentTarget.querySelector('.del-btn').style.opacity = '0' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#7B52FF'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '1' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E6E6E6'; const d = e.currentTarget.querySelector('.del-btn'); if (d) d.style.opacity = '0' }}
             >
-              <div onClick={e => handleDelete(e, album)} className="del-btn" style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(15,23,42,.5)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 13, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}><DeleteOutlined /></div>
+              <div onClick={e => handleDelete(e, album)} className="del-btn" style={{ position: 'absolute', top: 6, right: 6, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 12, zIndex: 2, opacity: 0, transition: 'opacity .2s', backdropFilter: 'blur(4px)' }}>✕</div>
               {album.bannerUrl ? (
-                <img src={album.bannerUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                <div style={{ position: 'relative' }}>
+                  <img src={album.bannerUrl} alt="" style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block', borderBottom: '1px solid #E6E6E6' }} />
+                </div>
               ) : (
-                <div style={{ width: '100%', aspectRatio: '1', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#94a3b8' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
-                  </div>
+                <div style={{ width: '100%', height: 220, background: 'rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
                 </div>
               )}
-              <div style={{ padding: '10px 14px 12px', borderTop: '1px solid #f8fafc' }}>
-                <div style={{ fontSize: 13, color: '#334155', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ padding: '10px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {album.albumTitle || '未命名画册'}
                 </div>
               </div>
@@ -94,7 +104,8 @@ export default function DigitalAlbumList() {
           ))}
         </div>
 
-      <TemplatePicker visible={showTemplate} onClose={() => setShowTemplate(false)} />
+        <TemplatePicker visible={showTemplate} onClose={() => setShowTemplate(false)} />
+      </div>
     </div>
   )
 }

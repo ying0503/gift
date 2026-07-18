@@ -26,7 +26,7 @@ export default function MyAlbums() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 18, marginBottom: 20 }}>我的画册</h2>
+      <h2 style={{ fontSize: 18, marginBottom: 20 }}>画册列表</h2>
       {albums.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 60, color: '#999' }}>
           暂无画册，去首页生成一个吧

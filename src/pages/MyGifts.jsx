@@ -117,11 +117,6 @@ export default function MyGifts() {
                 {imgUrl ? (
                   <div style={{ position: 'relative' }}>
                     <img src={imgUrl} alt="" style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block', borderBottom: '1px solid #E6E6E6' }} />
-                    {gift.imageUrls && gift.imageUrls.length > 1 && (
-                      <div style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 11, padding: '1px 8px', borderRadius: 10, lineHeight: '20px' }}>
-                        {gift.imageUrls.length}张
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <div style={{ width: '100%', height: 220, background: 'rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -146,33 +141,38 @@ export default function MyGifts() {
       </div>
 
       <Modal
-        title="选择商品图"
+        title="选择图片"
         open={showPicker}
         onCancel={() => setShowPicker(false)}
         onOk={confirmSelect}
         okText="确定"
-        width={720}
+        width={980}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 16, maxHeight: 480, overflow: 'auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 220px)', gap: 16, maxHeight: 480, overflow: 'auto' }}>
           {albums.map(album => {
             const urls = album.imageUrls && album.imageUrls.length ? album.imageUrls : (album.imageUrl ? [album.imageUrl] : [])
             return (
             <div
               key={album.id}
-              style={{ cursor: 'pointer', borderRadius: 8, overflow: 'hidden', border: selectedIds.has(album.id) ? '2px solid #1677FF' : '1px solid #e6e6e6', transition: 'all .2s', position: 'relative' }}
+              style={{ width: 220, height: 260, borderRadius: 10, overflow: 'hidden', border: selectedIds.has(album.id) ? '2px solid #7B52FF' : '1px solid #E6E6E6', background: '#fff', cursor: 'pointer', position: 'relative', transition: 'border-color .2s' }}
               onClick={() => toggleSelect(album.id)}
-              onMouseEnter={e => { if (!selectedIds.has(album.id)) { e.currentTarget.style.borderColor = '#1677FF'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(22,119,255,.15)' }}}
-              onMouseLeave={e => { if (!selectedIds.has(album.id)) { e.currentTarget.style.borderColor = '#e6e6e6'; e.currentTarget.style.boxShadow = 'none' }}}
+              onMouseEnter={e => { if (!selectedIds.has(album.id)) e.currentTarget.style.borderColor = '#7B52FF' }}
+              onMouseLeave={e => { if (!selectedIds.has(album.id)) e.currentTarget.style.borderColor = '#E6E6E6' }}
             >
               <div style={{ position: 'absolute', top: 6, left: 6, zIndex: 1 }}>
                 <Checkbox checked={selectedIds.has(album.id)} />
               </div>
               {urls.length > 1 && (
-                <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 1, background: '#1677FF', color: '#fff', fontSize: 11, padding: '1px 6px', borderRadius: 10, lineHeight: '18px' }}>
+                <div style={{ position: 'absolute', bottom: 46, right: 6, zIndex: 1, background: 'rgba(0,0,0,0.55)', color: '#fff', fontSize: 11, padding: '1px 8px', borderRadius: 10, lineHeight: '20px' }}>
                   {urls.length}张
                 </div>
               )}
-              <img src={album.imageUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+              <img src={album.imageUrl} alt="" style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block', borderBottom: '1px solid #E6E6E6' }} />
+              <div style={{ padding: '10px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 14, color: '#000', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {album.name || '未命名'}
+                </div>
+              </div>
             </div>
             )
           })}
