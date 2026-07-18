@@ -203,7 +203,7 @@ export async function initSchema() {
       user_id VARCHAR(36) NOT NULL,
       name VARCHAR(200) DEFAULT '',
       image_urls JSON,
-      spec VARCHAR(200) DEFAULT '',
+      spec TEXT,
       price VARCHAR(50) DEFAULT '',
       net_content VARCHAR(100) DEFAULT '',
       shelf_life VARCHAR(100) DEFAULT '',
@@ -214,6 +214,7 @@ export async function initSchema() {
       updated_at BIGINT NOT NULL
     )`)
     try { await p.query('ALTER TABLE gifts ADD COLUMN stock VARCHAR(50) DEFAULT \'\'') } catch (e) {}
+    try { await p.query('ALTER TABLE gifts MODIFY COLUMN spec TEXT') } catch (e) {}
     console.log('Gifts table ready')
   } catch (e) { console.error('Failed to create gifts table:', e.message) }
 }

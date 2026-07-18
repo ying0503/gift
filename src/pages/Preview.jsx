@@ -116,7 +116,7 @@ export default function Preview() {
           if (a) { setViewAlbum(a); return }
           for (const combo of (i.albums || []).filter(alb => alb.type === '组合')) {
             const ci = (combo.comboItems || []).find(item => item.albumId === itemAlbumId)
-            if (ci) { setViewAlbum({ ...ci, productName: ci.productName || allAlbums.find(x => x.albumId === ci.albumId)?.productName || '' }); return }
+            if (ci) { const found = allAlbums.find(x => x.albumId === ci.albumId); setViewAlbum({ ...ci, productName: ci.productName || found?._albumData?.productName || found?._albumData?.giftData?.name || '' }); return }
           }
         }
       }
@@ -139,7 +139,7 @@ export default function Preview() {
           if (a) { setViewAlbum(a); return }
           for (const combo of (i.albums || []).filter(alb => alb.type === '组合')) {
             const ci = (combo.comboItems || []).find(item => item.albumId === itemAlbumId)
-            if (ci) { setViewAlbum({ ...ci, productName: ci.productName || allAlbums.find(x => x.albumId === ci.albumId)?.productName || '' }); return }
+            if (ci) { const found = allAlbums.find(x => x.albumId === ci.albumId); setViewAlbum({ ...ci, productName: ci.productName || found?._albumData?.productName || found?._albumData?.giftData?.name || '' }); return }
           }
         }
       }
@@ -157,7 +157,7 @@ export default function Preview() {
           {(bannerTitle || bannerSubtitle) && (
             <div style={{
               position: 'absolute', bottom: -30, left: 0,
-              width: 500, height: 76,
+              maxWidth: 'min(500px, 85vw)', width: '90%', height: 76,
             }}>
               <svg viewBox="0 0 700 140" preserveAspectRatio="none"
                 style={{ width: '100%', height: '100%', display: 'block' }}
@@ -187,8 +187,8 @@ export default function Preview() {
             </div>
           )}
         </div>}
-        <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', minHeight: detailMode ? '100vh' : 'calc(100vh - 60px)', background: bgTo || '#fffdf1', paddingTop: !detailMode && bannerUrl ? 30 : 0 }}>
-          {!detailMode && <div style={{ flex: '0 0 auto', width: 'max-content', background: bgTo || '#fffdf1', border: 'none', borderRadius: '0 20px 20px 0', alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start', minHeight: detailMode ? '100vh' : 'calc(100vh - 60px)', background: bgTo || '#fffdf1', paddingTop: !detailMode && bannerUrl ? 30 : 0, maxWidth: '100%' }}>
+          {!detailMode && <div style={{ flex: '0 0 auto', width: 'max-content', maxWidth: '40vw', background: bgTo || '#fffdf1', border: 'none', borderRadius: '0 20px 20px 0', alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>
             <div className="album-tree-list album-tree-list-preview">
               {categories.length === 0 ? (
                 <div className="album-tree-empty">暂无内容</div>
@@ -211,14 +211,14 @@ export default function Preview() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
             {viewAlbum?.type === '组合' ? (
               <div style={{ background: bgTo || '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
-                <div style={{ fontSize: m ? 15 : 18, fontWeight: 600, color: '#333', marginBottom: 12 }}>{viewAlbum.productName || '产品名称'}</div>
+                <div style={{ fontSize: m ? 15 : 18, fontWeight: 600, color: '#333', marginBottom: 12 }}>{albumMap[viewAlbum.albumId]?.name || (viewAlbum.productName && viewAlbum.productName !== '产品名称' ? viewAlbum.productName : null) || viewAlbum._albumData?.giftData?.name || viewAlbum._albumData?.productName || '产品名称'}</div>
                 {viewAlbum.bannerUrl && (
                   <div style={{ height: m ? 'auto' : 350, aspectRatio: m ? '2/1' : undefined, background: `url(${viewAlbum.bannerUrl}) center/cover no-repeat`, borderRadius: 8, marginBottom: 16 }} />
                 )}
                 <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: m ? 8 : 10, alignItems: 'start' }}>
                   {(viewAlbum.comboItems || []).map(item => {
                     const itemUrl = albumMap[item.albumId]?.imageUrls?.[0] || albumMap[item.albumId]?.imageUrl || item.imageUrls?.[0] || item.imageUrl
-                    const liveName = allAlbums.find(x => x.albumId === item.albumId)?.productName || item.productName || ''
+                    const liveName = albumMap[item.albumId]?.name || (item.productName && item.productName !== '产品名称' ? item.productName : null) || allAlbums.find(x => x.albumId === item.albumId)?._albumData?.productName || allAlbums.find(x => x.albumId === item.albumId)?._albumData?.giftData?.name || ''
                     return (
                       <div key={item.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #eee', cursor: 'pointer' }} onClick={() => { setViewAlbum({ ...item, productName: liveName }); navigate(`/preview/${userId}/${albumId}/${selectedCat}/${item.albumId}?combo=${viewAlbum.albumId}`) }}>
                         <img src={itemUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
@@ -271,7 +271,7 @@ export default function Preview() {
                   {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a }))).map((a, i) => (
                     <div key={a.albumId + '-' + i} style={{ background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${albumId}/${selectedCat}/${a.albumId}`) }}>
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                      <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>{a.productName || '产品名称'}</div>
+                      <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>{albumMap[a.albumId]?.name || (a.productName && a.productName !== '产品名称' ? a.productName : null) || a._albumData?.giftData?.name || a._albumData?.productName || (a.type === '组合' ? '未命名组合' : '产品名称')}</div>
                     </div>
                   ))}
                 </div>
@@ -287,7 +287,7 @@ export default function Preview() {
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>
                         <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{a._catName} / {a._itemName}</div>
-                        <div style={{ fontSize: 13, color: '#333', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{a.productName || '产品名称'}</div>
+                        <div style={{ fontSize: 13, color: '#333', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{albumMap[a.albumId]?.name || (a.productName && a.productName !== '产品名称' ? a.productName : null) || a._albumData?.giftData?.name || a._albumData?.productName || (a.type === '组合' ? '未命名组合' : '产品名称')}</div>
                       </div>
                     </div>
                   ))}
@@ -310,7 +310,7 @@ export default function Preview() {
   }
 
   return (
-    <div style={{ maxHeight: '100vh', overflowY: 'auto', background: bgTo || '#fffdf1' }}>
+    <div style={{ maxHeight: '100vh', overflowY: 'auto', overflowX: 'hidden', maxWidth: '100vw', background: bgTo || '#fffdf1' }}>
       {renderContent(true)}
     </div>
   )
