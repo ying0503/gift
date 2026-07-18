@@ -818,34 +818,50 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       note: gift.tips || '',
     } : null
     const params = liveParams || a.productParams || {}
+    const liveName = gift?.name || a.productName || a._albumData?.giftData?.name || ''
     return (
-      <div style={{ marginTop: 12, borderTop: '1px solid #eee', paddingTop: 12 }}>
-        <div style={{ fontSize: 15, color: '#666', marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>产品参数</div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 8 }}>
-          <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56, marginTop: 4 }}>规格</span>
-          <span style={{ color: '#888', whiteSpace: 'pre-wrap' }}>{params.spec || '-'}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-          <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>零售价</span>
-          <span style={{ color: '#888' }}>{params.price || '-'}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-          <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>净含量</span>
-          <span style={{ color: '#888' }}>{params.totalWeight || '-'}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-          <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>保质期</span>
-          <span style={{ color: '#888' }}>{params.shelfLife || '-'}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-          <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>库存</span>
-          <span style={{ color: '#888' }}>{params.stock || '-'}</span>
-        </div>
-        <div style={{ marginTop: 20 }}>
-          <div style={{ color: '#FF4D4F', fontSize: 12, marginBottom: 2 }}>温馨提示</div>
-          <div style={{ color: '#FF4D4F', whiteSpace: 'pre-wrap', fontSize: 12 }}>{params.note || '-'}</div>
-        </div>
+      <>
+        {liveName ? <div style={{ width: '100%', height: 48, display: 'flex', alignItems: 'center', paddingLeft: 16, background: 'linear-gradient(180deg, #FF0000 0%, #BB0000 100%)', color: '#fff', fontSize: 16 }}>{liveName}</div> : null}
+        <div style={{ padding: '20px' }}>
+          <div style={{ fontSize: 15, color: '#666', marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>产品参数</div>
+        {params.spec ? (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginTop: 8 }}>
+            <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56, marginTop: 4 }}>规格</span>
+            <span style={{ color: '#888', whiteSpace: 'pre-wrap' }}>{params.spec}</span>
+          </div>
+        ) : null}
+        {params.price ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>零售价</span>
+            <span style={{ color: '#888' }}>{params.price}</span>
+          </div>
+        ) : null}
+        {params.totalWeight ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>净含量</span>
+            <span style={{ color: '#888' }}>{params.totalWeight}</span>
+          </div>
+        ) : null}
+        {params.shelfLife ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>保质期</span>
+            <span style={{ color: '#888' }}>{params.shelfLife}</span>
+          </div>
+        ) : null}
+        {params.stock ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>库存</span>
+            <span style={{ color: '#888' }}>{params.stock}</span>
+          </div>
+        ) : null}
+        {params.note ? (
+          <div style={{ marginTop: 20 }}>
+            <div style={{ color: '#FF4D4F', fontSize: 12, marginBottom: 2 }}>温馨提示</div>
+            <div style={{ color: '#FF4D4F', whiteSpace: 'pre-wrap', fontSize: 12 }}>{params.note}</div>
+          </div>
+        ) : null}
       </div>
+      </>
     )
   }
 

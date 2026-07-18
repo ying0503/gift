@@ -178,7 +178,7 @@ export default function Preview() {
     const detailMode = !!itemAlbumId
     return (
       <div>
-        {!detailMode && bannerUrl && <div style={{ width: '100%', aspectRatio: '16/9', background: '#fff', position: 'relative' }}>
+        {!detailMode && bannerUrl && <div style={{ width: '100%', aspectRatio: '16/9', background: '#fff', position: 'sticky', top: 0, zIndex: 10 }}>
           <img src={bannerUrl} alt="" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'fill' }} />
           {(bannerTitle || bannerSubtitle) && (
             <div style={{
@@ -261,13 +261,13 @@ export default function Preview() {
                   return (
                     <>
                       <img src={urls[0]} alt="" style={{ width: '100%', display: 'block', marginBottom: detailMode ? 0 : 12 }} />
-                      <div style={{ marginTop: detailMode ? 0 : 16, borderTop: detailMode ? 'none' : '1px solid #eee', paddingTop: detailMode ? 0 : 16, marginBottom: detailMode ? 0 : 16 }}>
-                        {(() => {
-                          const albumId = viewAlbum.albumId
-                          const gift = giftMap[albumId]
-                          const liveName = gift?.name || albumMap[albumId]?.name || (viewAlbum.productName && viewAlbum.productName !== '产品名称' ? viewAlbum.productName : null) || viewAlbum._albumData?.giftData?.name || viewAlbum._albumData?.productName || ''
-                          return liveName ? <div style={{ fontSize: 17, fontWeight: 600, color: '#333', marginBottom: 10 }}>{liveName}</div> : null
-                        })()}
+                      {(() => {
+                        const albumId = viewAlbum.albumId
+                        const gift = giftMap[albumId]
+                        const liveName = gift?.name || albumMap[albumId]?.name || (viewAlbum.productName && viewAlbum.productName !== '产品名称' ? viewAlbum.productName : null) || viewAlbum._albumData?.giftData?.name || viewAlbum._albumData?.productName || ''
+                        return liveName ? <div style={{ width: '100%', height: 48, display: 'flex', alignItems: 'center', paddingLeft: 16, background: 'linear-gradient(180deg, #FF0000 0%, #BB0000 100%)', color: '#fff', fontSize: 16 }}>{liveName}</div> : null
+                      })()}
+                      <div style={{ marginTop: detailMode ? 0 : 16, borderTop: detailMode ? 'none' : '1px solid #eee', padding: '20px', marginBottom: detailMode ? 0 : 16, background: '#fff' }}>
                         <div style={{ fontSize: 15, color: '#666', marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>产品参数</div>
                         {(() => {
                           const albumId = viewAlbum.albumId
@@ -282,32 +282,44 @@ export default function Preview() {
                           const shelfLife = liveGift?.shelfLife || p.shelfLife || g.shelfLife || live?.shelfLife || '-'
                           const stock = liveGift?.stock || p.stock || g.stock || live?.stock || '-'
                           const note = liveGift?.note || p.note || g.tips || live?.tips || '-'
-                          return (<>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                              <span style={{ width: 56, color: '#888', flexShrink: 0 }}>规格</span>
-                              <span style={{ color: '#888', whiteSpace: 'pre-wrap' }}>{spec}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                              <span style={{ width: 56, color: '#888', flexShrink: 0 }}>零售价</span>
-                              <span style={{ color: '#888' }}>{price}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                              <span style={{ width: 56, color: '#888', flexShrink: 0 }}>净含量</span>
-                              <span style={{ color: '#888' }}>{totalWeight}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                              <span style={{ width: 56, color: '#888', flexShrink: 0 }}>保质期</span>
-                              <span style={{ color: '#888' }}>{shelfLife}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                              <span style={{ width: 56, color: '#888', flexShrink: 0 }}>库存</span>
-                              <span style={{ color: '#888' }}>{stock}</span>
-                            </div>
-                            <div style={{ marginTop: 20 }}>
-                              <div style={{ color: '#FF4D4F', fontSize: 12, marginBottom: 2 }}>温馨提示</div>
-                              <div style={{ color: '#FF4D4F', whiteSpace: 'pre-wrap', fontSize: 12 }}>{note}</div>
-                            </div>
-                          </>)
+                           return (<>
+                             {spec !== '-' ? (
+                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                 <span style={{ width: 56, color: '#888', flexShrink: 0 }}>规格</span>
+                                 <span style={{ color: '#888', whiteSpace: 'pre-wrap' }}>{spec}</span>
+                               </div>
+                             ) : null}
+                             {price !== '-' ? (
+                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                                 <span style={{ width: 56, color: '#888', flexShrink: 0 }}>零售价</span>
+                                 <span style={{ color: '#888' }}>{price}</span>
+                               </div>
+                             ) : null}
+                             {totalWeight !== '-' ? (
+                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                                 <span style={{ width: 56, color: '#888', flexShrink: 0 }}>净含量</span>
+                                 <span style={{ color: '#888' }}>{totalWeight}</span>
+                               </div>
+                             ) : null}
+                             {shelfLife !== '-' ? (
+                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                                 <span style={{ width: 56, color: '#888', flexShrink: 0 }}>保质期</span>
+                                 <span style={{ color: '#888' }}>{shelfLife}</span>
+                               </div>
+                             ) : null}
+                             {stock !== '-' ? (
+                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                                 <span style={{ width: 56, color: '#888', flexShrink: 0 }}>库存</span>
+                                 <span style={{ color: '#888' }}>{stock}</span>
+                               </div>
+                             ) : null}
+                             {note !== '-' ? (
+                               <div style={{ marginTop: 20 }}>
+                                 <div style={{ color: '#FF4D4F', fontSize: 12, marginBottom: 2 }}>温馨提示</div>
+                                 <div style={{ color: '#FF4D4F', whiteSpace: 'pre-wrap', fontSize: 12 }}>{note}</div>
+                               </div>
+                             ) : null}
+                           </>)
                         })()}
                       </div>
                       {urls.slice(1).map((url, i) => (

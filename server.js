@@ -689,7 +689,7 @@ async function enrichCategoriesWithGifts(categories) {
           }
         }
         const g = giftMap[a.albumId]
-        return g ? { ...a, productParams: { spec: g.spec || '', price: g.price || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', stock: g.stock || '', note: g.tips || '' } } : a
+        return g ? { ...a, productName: g.name || a.productName, productParams: { spec: g.spec || '', price: g.price || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', stock: g.stock || '', note: g.tips || '' } } : a
       })
     }))
   }))
