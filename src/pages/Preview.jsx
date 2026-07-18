@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { API } from '../AuthContext'
+import OgMeta from '../components/OgMeta'
 
 export default function Preview() {
   const navigate = useNavigate()
@@ -20,6 +21,7 @@ export default function Preview() {
   
   const [viewAlbum, setViewAlbum] = useState(null)
   const [albums, setAlbums] = useState([])
+  const [gifts, setGifts] = useState([])
   const [loading, setLoading] = useState(true)
   const initialUrlSync = useRef(false)
 
@@ -30,15 +32,35 @@ export default function Preview() {
     return () => s.remove()
   }, [])
 
+  const ogTitle = albumTitle || bannerTitle || '礼企汇 - AI礼品画册'
+  const ogDesc = (bannerTitle || '') + (bannerTitle && bannerSubtitle ? ', ' : '') + (bannerSubtitle || '') || 'AI 智能礼品画册，扫码查看全部礼品'
+  const ogImage = bannerUrl || (() => {
+    for (const c of categories) {
+      for (const i of c.items) {
+        for (const a of i.albums || []) {
+          const u = a.imageUrls?.[0] || a.imageUrl
+          if (u) return u
+        }
+      }
+    }
+    return ''
+  })()
+
   useEffect(() => {
-    document.title = albumTitle || bannerTitle || '礼企汇 - AI礼品画册'
-  }, [albumTitle, bannerTitle])
+    document.title = ogTitle
+  }, [ogTitle])
 
   const albumMap = useMemo(() => {
     const m = {}
     for (const a of albums) m[a.id] = a
     return m
   }, [albums])
+
+  const giftMap = useMemo(() => {
+    const m = {}
+    for (const g of gifts) m[g.id] = g
+    return m
+  }, [gifts])
 
   function getImageUrls(a) {
     const fresh = albumMap[a.albumId]
@@ -98,6 +120,10 @@ export default function Preview() {
       fetch(`${API}/api/albums`, { headers })
         .then(r => r.json())
         .then(d => { if (d.albums) setAlbums(d.albums) })
+        .catch(() => {})
+      fetch(`${API}/api/gifts`, { headers })
+        .then(r => r.json())
+        .then(d => { if (d.gifts) setGifts(d.gifts) })
         .catch(() => {})
     }
   }, [])
@@ -172,7 +198,7 @@ export default function Preview() {
                   </filter>
                 </defs>
                 <path
-                  d="M28 0 H408 Q416 0 422 12 L453 68 Q461 80 467 80 H900 V140 H8 Q8 140 0 132 V28 Q0 0 28 0 Z"
+                  d="M28 0 H398 Q418 0 426 12 L482 68 Q502 80 510 80 H900 V140 H8 Q8 140 0 132 V28 Q0 0 28 0 Z"
                   fill="url(#tabG)" filter="url(#tabS)"
                 />
               </svg>
@@ -211,14 +237,14 @@ export default function Preview() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
             {viewAlbum?.type === '组合' ? (
               <div style={{ background: bgTo || '#fffdf1', borderRadius: 8, padding: m ? 12 : 16, marginBottom: 0, flex: 1 }}>
-                <div style={{ fontSize: m ? 15 : 18, fontWeight: 600, color: '#333', marginBottom: 12 }}>{albumMap[viewAlbum.albumId]?.name || (viewAlbum.productName && viewAlbum.productName !== '产品名称' ? viewAlbum.productName : null) || viewAlbum._albumData?.giftData?.name || viewAlbum._albumData?.productName || '产品名称'}</div>
+                <div style={{ fontSize: m ? 15 : 18, fontWeight: 600, color: '#333', marginBottom: 12 }}>{giftMap[viewAlbum.albumId]?.name || albumMap[viewAlbum.albumId]?.name || (viewAlbum.productName && viewAlbum.productName !== '产品名称' ? viewAlbum.productName : null) || viewAlbum._albumData?.giftData?.name || viewAlbum._albumData?.productName || '产品名称'}</div>
                 {viewAlbum.bannerUrl && (
                   <div style={{ height: m ? 'auto' : 350, aspectRatio: m ? '2/1' : undefined, background: `url(${viewAlbum.bannerUrl}) center/cover no-repeat`, borderRadius: 8, marginBottom: 16 }} />
                 )}
                 <div style={{ display: 'grid', gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: m ? 8 : 10, alignItems: 'start' }}>
                   {(viewAlbum.comboItems || []).map(item => {
                     const itemUrl = albumMap[item.albumId]?.imageUrls?.[0] || albumMap[item.albumId]?.imageUrl || item.imageUrls?.[0] || item.imageUrl
-                    const liveName = albumMap[item.albumId]?.name || (item.productName && item.productName !== '产品名称' ? item.productName : null) || allAlbums.find(x => x.albumId === item.albumId)?._albumData?.productName || allAlbums.find(x => x.albumId === item.albumId)?._albumData?.giftData?.name || ''
+                    const liveName = giftMap[item.albumId]?.name || albumMap[item.albumId]?.name || (item.productName && item.productName !== '产品名称' ? item.productName : null) || allAlbums.find(x => x.albumId === item.albumId)?._albumData?.productName || allAlbums.find(x => x.albumId === item.albumId)?._albumData?.giftData?.name || ''
                     return (
                       <div key={item.albumId} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #eee', cursor: 'pointer' }} onClick={() => { setViewAlbum({ ...item, productName: liveName }); navigate(`/preview/${userId}/${albumId}/${selectedCat}/${item.albumId}?combo=${viewAlbum.albumId}`) }}>
                         <img src={itemUrl} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
@@ -236,23 +262,53 @@ export default function Preview() {
                     <>
                       <img src={urls[0]} alt="" style={{ width: '100%', display: 'block', marginBottom: detailMode ? 0 : 12 }} />
                       <div style={{ marginTop: detailMode ? 0 : 16, borderTop: detailMode ? 'none' : '1px solid #eee', paddingTop: detailMode ? 0 : 16, marginBottom: detailMode ? 0 : 16 }}>
+                        {(() => {
+                          const albumId = viewAlbum.albumId
+                          const gift = giftMap[albumId]
+                          const liveName = gift?.name || albumMap[albumId]?.name || (viewAlbum.productName && viewAlbum.productName !== '产品名称' ? viewAlbum.productName : null) || viewAlbum._albumData?.giftData?.name || viewAlbum._albumData?.productName || ''
+                          return liveName ? <div style={{ fontSize: 17, fontWeight: 600, color: '#333', marginBottom: 10 }}>{liveName}</div> : null
+                        })()}
                         <div style={{ fontSize: 15, color: '#666', marginBottom: 6, fontWeight: 600, letterSpacing: 0.5 }}>产品参数</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                          <span style={{ width: 56, color: '#888', flexShrink: 0 }}>规格</span>
-                          <span style={{ color: '#888', whiteSpace: 'pre-wrap' }}>{(viewAlbum.productParams || {}).spec || '-'}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                          <span style={{ width: 56, color: '#888', flexShrink: 0 }}>保质期</span>
-                          <span style={{ color: '#888' }}>{(viewAlbum.productParams || {}).shelfLife || '-'}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                          <span style={{ width: 56, color: '#888', flexShrink: 0 }}>总重量</span>
-                          <span style={{ color: '#888' }}>{(viewAlbum.productParams || {}).totalWeight || '-'}</span>
-                        </div>
-                        <div style={{ marginTop: 20 }}>
-                          <div style={{ color: '#FF4D4F', fontSize: 12, marginBottom: 2 }}>温馨提示</div>
-                          <div style={{ color: '#FF4D4F', whiteSpace: 'pre-wrap', fontSize: 12 }}>{(viewAlbum.productParams || {}).note || '-'}</div>
-                        </div>
+                        {(() => {
+                          const albumId = viewAlbum.albumId
+                          const gift = giftMap[albumId]
+                          const liveGift = gift ? { spec: gift.spec, price: gift.price, totalWeight: gift.netContent, shelfLife: gift.shelfLife, stock: gift.stock, note: gift.tips } : null
+                          const p = viewAlbum.productParams || {}
+                          const g = viewAlbum.giftData || viewAlbum._albumData?.giftData || {}
+                          const live = albumMap[viewAlbum.albumId]
+                          const spec = liveGift?.spec || p.spec || g.spec || live?.spec || '-'
+                          const price = liveGift?.price || p.price || g.price || live?.price || '-'
+                          const totalWeight = liveGift?.totalWeight || p.totalWeight || g.netContent || live?.netContent || '-'
+                          const shelfLife = liveGift?.shelfLife || p.shelfLife || g.shelfLife || live?.shelfLife || '-'
+                          const stock = liveGift?.stock || p.stock || g.stock || live?.stock || '-'
+                          const note = liveGift?.note || p.note || g.tips || live?.tips || '-'
+                          return (<>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                              <span style={{ width: 56, color: '#888', flexShrink: 0 }}>规格</span>
+                              <span style={{ color: '#888', whiteSpace: 'pre-wrap' }}>{spec}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                              <span style={{ width: 56, color: '#888', flexShrink: 0 }}>零售价</span>
+                              <span style={{ color: '#888' }}>{price}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                              <span style={{ width: 56, color: '#888', flexShrink: 0 }}>净含量</span>
+                              <span style={{ color: '#888' }}>{totalWeight}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                              <span style={{ width: 56, color: '#888', flexShrink: 0 }}>保质期</span>
+                              <span style={{ color: '#888' }}>{shelfLife}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                              <span style={{ width: 56, color: '#888', flexShrink: 0 }}>库存</span>
+                              <span style={{ color: '#888' }}>{stock}</span>
+                            </div>
+                            <div style={{ marginTop: 20 }}>
+                              <div style={{ color: '#FF4D4F', fontSize: 12, marginBottom: 2 }}>温馨提示</div>
+                              <div style={{ color: '#FF4D4F', whiteSpace: 'pre-wrap', fontSize: 12 }}>{note}</div>
+                            </div>
+                          </>)
+                        })()}
                       </div>
                       {urls.slice(1).map((url, i) => (
                         <img key={i} src={url} alt="" style={{ width: '100%', display: 'block', marginBottom: detailMode ? 0 : i < urls.length - 2 ? 12 : 0 }} />
@@ -271,7 +327,7 @@ export default function Preview() {
                   {currentCat.items.flatMap(i => (i.albums || []).map(a => ({ ...a }))).map((a, i) => (
                     <div key={a.albumId + '-' + i} style={{ background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', cursor: 'pointer', position: 'relative', transition: 'all .3s' }} className="album-card-hover" onClick={() => { setViewAlbum(a); navigate(`/preview/${userId}/${albumId}/${selectedCat}/${a.albumId}`) }}>
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                      <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>{albumMap[a.albumId]?.name || (a.productName && a.productName !== '产品名称' ? a.productName : null) || a._albumData?.giftData?.name || a._albumData?.productName || (a.type === '组合' ? '未命名组合' : '产品名称')}</div>
+                      <div style={{ padding: '4px 8px', fontSize: 13, color: '#333', borderTop: '1px solid #f0f0f0', textAlign: 'center' }}>{giftMap[a.albumId]?.name || albumMap[a.albumId]?.name || (a.productName && a.productName !== '产品名称' ? a.productName : null) || a._albumData?.giftData?.name || a._albumData?.productName || (a.type === '组合' ? '未命名组合' : '产品名称')}</div>
                     </div>
                   ))}
                 </div>
@@ -287,7 +343,7 @@ export default function Preview() {
                       <img src={getCoverUrl(a)} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                       <div style={{ padding: '4px 8px', borderTop: '1px solid #f0f0f0' }}>
                         <div style={{ fontSize: 11, color: '#999', marginBottom: 2 }}>{a._catName} / {a._itemName}</div>
-                        <div style={{ fontSize: 13, color: '#333', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{albumMap[a.albumId]?.name || (a.productName && a.productName !== '产品名称' ? a.productName : null) || a._albumData?.giftData?.name || a._albumData?.productName || (a.type === '组合' ? '未命名组合' : '产品名称')}</div>
+                        <div style={{ fontSize: 13, color: '#333', padding: '2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{giftMap[a.albumId]?.name || albumMap[a.albumId]?.name || (a.productName && a.productName !== '产品名称' ? a.productName : null) || a._albumData?.giftData?.name || a._albumData?.productName || (a.type === '组合' ? '未命名组合' : '产品名称')}</div>
                       </div>
                     </div>
                   ))}
@@ -310,8 +366,11 @@ export default function Preview() {
   }
 
   return (
-    <div style={{ maxHeight: '100vh', overflowY: 'auto', overflowX: 'hidden', maxWidth: '100vw', background: bgTo || '#fffdf1' }}>
-      {renderContent(true)}
-    </div>
+    <>
+      <OgMeta title={ogTitle} description={ogDesc} image={ogImage} />
+      <div style={{ maxHeight: '100vh', overflowY: 'auto', overflowX: 'hidden', maxWidth: '100vw', background: bgTo || '#fffdf1' }}>
+        {renderContent(true)}
+      </div>
+    </>
   )
 }

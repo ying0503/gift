@@ -682,8 +682,8 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
       save(catsWithItem)
       setTimeout(() => {
         const finalAdded = pendingType === '组合' && added.length > 0
-          ? [{ albumId: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8), type: '组合', imageUrl: added[0].imageUrl, imageUrls: added[0].imageUrls, prompt: '', config: {}, createdAt: Date.now(), productName: '未命名组合', productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' }, comboItems: added.slice(0, 12).map(a => { const g = giftMap[a.id]; return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: '', productParams: g ? { spec: g.spec || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', note: g.tips || '' } : { spec: '', shelfLife: '', totalWeight: '', note: '' } } }) }]
-          : added.map(a => ({ ...a, albumId: a.id, _albumData: a, type: pendingType || '单品', productName: '产品名称' }))
+          ? [{ albumId: crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8), type: '组合', imageUrl: added[0].imageUrl, imageUrls: added[0].imageUrls, prompt: '', config: {}, createdAt: Date.now(), productName: '未命名组合', productParams: { spec: '', price: '', shelfLife: '', totalWeight: '', stock: '', note: '' }, comboItems: added.slice(0, 12).map(a => { const g = giftMap[a.id]; return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: '', productParams: g ? { spec: g.spec || '', price: g.price || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', stock: g.stock || '', note: g.tips || '' } : { spec: '', price: '', shelfLife: '', totalWeight: '', stock: '', note: '' } } }) }]
+          : added.map(a => { const g = giftMap[a.id]; return { ...a, albumId: a.id, _albumData: a, type: pendingType || '单品', productName: '产品名称', productParams: g ? { spec: g.spec || '', price: g.price || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', stock: g.stock || '', note: g.tips || '' } : { spec: '', price: '', shelfLife: '', totalWeight: '', stock: '', note: '' } } })
         const nextCats = categories.map(c => c.id === catId ? { ...c, items: [...c.items, newItem].map(i => i.id === itemId ? { ...i, albums: finalAdded } : i) } : c)
         save(nextCats)
       }, 100)
@@ -692,10 +692,10 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     }
     if (pendingType === '组合' && added.length > 0) {
       const comboId = crypto.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
-      const comboEntry = { albumId: comboId, type: '组合', imageUrl: added[0].imageUrl, imageUrls: added[0].imageUrls, prompt: '', config: {}, createdAt: Date.now(), productName: '未命名组合', productParams: { spec: '', shelfLife: '', totalWeight: '', note: '' }, comboItems: added.slice(0, 12).map(a => { const g = giftMap[a.id]; return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: '', productParams: g ? { spec: g.spec || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', note: g.tips || '' } : { spec: '', shelfLife: '', totalWeight: '', note: '' } } }) }
+      const comboEntry = { albumId: comboId, type: '组合', imageUrl: added[0].imageUrl, imageUrls: added[0].imageUrls, prompt: '', config: {}, createdAt: Date.now(), productName: '未命名组合', productParams: { spec: '', price: '', shelfLife: '', totalWeight: '', stock: '', note: '' }, comboItems: added.slice(0, 12).map(a => { const g = giftMap[a.id]; return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: '', productParams: g ? { spec: g.spec || '', price: g.price || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', stock: g.stock || '', note: g.tips || '' } : { spec: '', price: '', shelfLife: '', totalWeight: '', stock: '', note: '' } } }) }
       save(categories.map(c => c.id === catId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, albums: [...i.albums, comboEntry] } : i) } : c))
     } else {
-      save(categories.map(c => c.id === catId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, albums: [...i.albums, ...added.map(a => ({ ...a, albumId: a.id, _albumData: a, type: pendingType || '单品', productName: '产品名称' }))] } : i) } : c))
+      save(categories.map(c => c.id === catId ? { ...c, items: c.items.map(i => i.id === itemId ? { ...i, albums: [...i.albums, ...added.map(a => { const g = giftMap[a.id]; return { ...a, albumId: a.id, _albumData: a, type: pendingType || '单品', productName: '产品名称', productParams: g ? { spec: g.spec || '', price: g.price || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', stock: g.stock || '', note: g.tips || '' } : { spec: '', price: '', shelfLife: '', totalWeight: '', stock: '', note: '' } } })] } : i) } : c))
     }
     setShowPicker(false)
   }, [selectedCat, selectedItem, mergedAlbums, giftAlbums, giftMap, picked, categories, save, pendingType])
@@ -787,7 +787,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
         ...i, albums: i.albums.map(alb => alb.albumId === viewAlbum.albumId ? {
           ...alb, comboItems: [...(alb.comboItems || []), ...added.map(a => {
             const g = giftMap[a.id]
-            return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: '', productParams: g ? { spec: g.spec || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', note: g.tips || '' } : { spec: '', shelfLife: '', totalWeight: '', note: '' } }
+            return { albumId: a.id, imageUrl: a.imageUrl, imageUrls: a.imageUrls, prompt: '', productParams: g ? { spec: g.spec || '', price: g.price || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', stock: g.stock || '', note: g.tips || '' } : { spec: '', price: '', shelfLife: '', totalWeight: '', stock: '', note: '' } }
           })]
         } : alb)
       } : i)
@@ -811,8 +811,10 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     const gift = giftMap[a.albumId]
     const liveParams = gift ? {
       spec: gift.spec || '',
+      price: gift.price || '',
       shelfLife: gift.shelfLife || '',
       totalWeight: gift.netContent || '',
+      stock: gift.stock || '',
       note: gift.tips || '',
     } : null
     const params = liveParams || a.productParams || {}
@@ -824,12 +826,20 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
           <span style={{ color: '#888', whiteSpace: 'pre-wrap' }}>{params.spec || '-'}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+          <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>零售价</span>
+          <span style={{ color: '#888' }}>{params.price || '-'}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+          <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>净含量</span>
+          <span style={{ color: '#888' }}>{params.totalWeight || '-'}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
           <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>保质期</span>
           <span style={{ color: '#888' }}>{params.shelfLife || '-'}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-          <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>总重量</span>
-          <span style={{ color: '#888' }}>{params.totalWeight || '-'}</span>
+          <span style={{ color: '#888', whiteSpace: 'nowrap', flexShrink: 0, width: 56 }}>库存</span>
+          <span style={{ color: '#888' }}>{params.stock || '-'}</span>
         </div>
         <div style={{ marginTop: 20 }}>
           <div style={{ color: '#FF4D4F', fontSize: 12, marginBottom: 2 }}>温馨提示</div>

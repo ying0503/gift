@@ -655,15 +655,57 @@ app.post('/api/digital-album', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+async function enrichCategoriesWithGifts(categories) {
+  if (!categories || !categories.length) return categories
+  const albumIds = []
+  for (const c of categories) {
+    for (const i of c.items || []) {
+      for (const a of i.albums || []) {
+        if (a.albumId && a.type !== '组合') albumIds.push(a.albumId)
+        if (a.comboItems) {
+          for (const ci of a.comboItems) {
+            if (ci.albumId) albumIds.push(ci.albumId)
+          }
+        }
+      }
+    }
+  }
+  if (!albumIds.length) return categories
+  const gifts = await db.getGiftsByIds([...new Set(albumIds)])
+  const giftMap = {}
+  for (const g of gifts) giftMap[g.id] = g
+  return categories.map(c => ({
+    ...c,
+    items: (c.items || []).map(i => ({
+      ...i,
+      albums: (i.albums || []).map(a => {
+        if (a.type === '组合') {
+          return {
+            ...a,
+            comboItems: (a.comboItems || []).map(ci => {
+              const g = giftMap[ci.albumId]
+              return g ? { ...ci, productParams: { spec: g.spec || '', price: g.price || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', stock: g.stock || '', note: g.tips || '' } } : ci
+            })
+          }
+        }
+        const g = giftMap[a.albumId]
+        return g ? { ...a, productParams: { spec: g.spec || '', price: g.price || '', shelfLife: g.shelfLife || '', totalWeight: g.netContent || '', stock: g.stock || '', note: g.tips || '' } } : a
+      })
+    }))
+  }))
+}
+
 app.get('/api/album', async (req, res) => {
   try {
     const { id, userId } = req.query
     if (id) {
       const data = await db.getDigitalAlbum(id, userId || null)
       if (!data) return res.status(404).json({ error: 'Not found' })
+      const categories = typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories
+      const enriched = await enrichCategoriesWithGifts(categories)
       return res.json({
         id: data.id,
-        categories: typeof data.categories === 'string' ? JSON.parse(data.categories) : data.categories,
+        categories: enriched,
         bannerUrl: data.banner_url,
         bannerTitle: data.banner_title,
         albumTitle: data.album_title,
@@ -679,9 +721,11 @@ app.get('/api/album', async (req, res) => {
     if (userId) {
       const row = await db.getDigitalAlbum(null, userId)
       if (!row) return res.json({ categories: [], bannerUrl: null, bannerTitle: null, albumTitle: null, bannerSubtitle: null, titleBgFrom: '', titleBgTo: '', menuBgFrom: '', menuBgTo: '', nameColor: '', descColor: '' })
+      const categories = typeof row.categories === 'string' ? JSON.parse(row.categories) : row.categories
+      const enriched = await enrichCategoriesWithGifts(categories)
       return res.json({
         id: row.id,
-        categories: typeof row.categories === 'string' ? JSON.parse(row.categories) : row.categories,
+        categories: enriched,
         bannerUrl: row.banner_url,
         bannerTitle: row.banner_title,
         albumTitle: row.album_title,

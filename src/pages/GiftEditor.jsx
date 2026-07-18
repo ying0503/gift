@@ -250,12 +250,9 @@ export default function GiftEditor() {
                   {dragActiveId ? <div style={{ width: 120, height: 120, borderRadius: 10, border: '1px solid #f0f0f0', boxShadow: '0 8px 24px rgba(0,0,0,.18)', overflow: 'hidden' }}><img src={dragActiveId} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /></div> : null}
                 </DragOverlay>
               </DndContext>
-              <div style={{ width: 120, height: 120, borderRadius: 10, border: '1px dashed #d9d9d9', background: '#fafafa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'border-color .2s, background .2s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#3b82f6'; e.currentTarget.style.background = '#f0f5ff' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#d9d9d9'; e.currentTarget.style.background = '#fafafa' }}
-              >
-                <button onClick={openAlbumPicker} style={{ padding: '6px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100 }}>选择图片</button>
-                <button onClick={uploadImage} style={{ padding: '6px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100 }}>上传图片</button>
+              <div style={{ width: 120, height: 120, borderRadius: 10, border: '1px dashed #d9d9d9', background: '#fafafa', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <button onClick={openAlbumPicker} style={{ padding: '8px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100, transition: 'background .15s, border-color .15s' }} onMouseEnter={e => { e.currentTarget.style.background = '#f0f5ff'; e.currentTarget.style.borderColor = '#3b82f6' }} onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d9d9d9' }}>选择图片</button>
+                <button onClick={uploadImage} style={{ padding: '8px 12px', fontSize: 13, border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#555', whiteSpace: 'nowrap', width: 100, marginTop: 10, transition: 'background .15s, border-color .15s' }} onMouseEnter={e => { e.currentTarget.style.background = '#f0f5ff'; e.currentTarget.style.borderColor = '#3b82f6' }} onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#d9d9d9' }}>上传图片</button>
               </div>
             </div>
           </div>

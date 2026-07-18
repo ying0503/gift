@@ -601,6 +601,14 @@ export async function deleteGift(id, userId) {
   await p.query('DELETE FROM gifts WHERE id = ? AND user_id = ?', [id, userId])
 }
 
+export async function getGiftsByIds(ids) {
+  if (!ids || ids.length === 0) return []
+  const p = await getPool()
+  const placeholders = ids.map(() => '?').join(',')
+  const [rows] = await p.query(`SELECT * FROM gifts WHERE id IN (${placeholders})`, ids)
+  return rows.map(rowToGift)
+}
+
 export async function listGifts(userId) {
   const p = await getPool()
   const [rows] = await p.query('SELECT * FROM gifts WHERE user_id = ? ORDER BY updated_at DESC', [userId])
