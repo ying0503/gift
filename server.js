@@ -617,7 +617,7 @@ app.get('/api/albums', auth, async (req, res) => {
     const albums = await db.getUserAlbumsWithBatch(req.user.userId)
     res.json({ albums: albums.map(a => {
       if (a.imageUrl?.startsWith('https://www.maizitech.xyzhttps://')) a.imageUrl = a.imageUrl.replace('https://www.maizitech.xyz', '')
-      if (a.imageUrls) a.imageUrls = a.imageUrls.map(u => u && u.startsWith('https://www.maizitech.xyzhttps://') ? u.replace('https://www.maizitech.xyz', '') : u)
+      if (a.imageUrls) a.imageUrls = a.imageUrls.filter(Boolean).map(u => u.startsWith('https://www.maizitech.xyzhttps://') ? u.replace('https://www.maizitech.xyz', '') : u)
       return a
     }) })
   } catch (e) { res.status(500).json({ error: e.message }) }

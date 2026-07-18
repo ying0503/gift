@@ -33,7 +33,8 @@ export default function AlbumPickerModal({
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 220px)', gap: 16, maxHeight: 460, overflow: 'auto', minHeight: 300 }}>
         {pageItems.map((item, i) => {
-          const urls = item.imageUrls && item.imageUrls.length ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : [])
+          const rawUrls = item.imageUrls && item.imageUrls.length ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : [])
+          const urls = rawUrls.filter(Boolean)
           const idx = start + i
           const selected = pickerSelected.has(idx)
           return (

@@ -52,7 +52,7 @@ export default function MyGifts() {
     setShowPicker(false)
     const images = []
     albums.filter(a => selectedIds.has(a.id)).forEach(a => {
-      const urls = a.imageUrls && a.imageUrls.length ? a.imageUrls : (a.imageUrl ? [a.imageUrl] : [])
+      const urls = (a.imageUrls && a.imageUrls.length ? a.imageUrls : (a.imageUrl ? [a.imageUrl] : [])).filter(Boolean)
       urls.forEach(u => images.push(u))
     })
     navigate(`/gift-editor/new`, { state: { images } })
@@ -150,7 +150,7 @@ export default function MyGifts() {
       >
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 220px)', gap: 16, maxHeight: 480, overflow: 'auto' }}>
           {albums.map(album => {
-            const urls = album.imageUrls && album.imageUrls.length ? album.imageUrls : (album.imageUrl ? [album.imageUrl] : [])
+            const urls = (album.imageUrls && album.imageUrls.length ? album.imageUrls : (album.imageUrl ? [album.imageUrl] : [])).filter(Boolean)
             return (
             <div
               key={album.id}

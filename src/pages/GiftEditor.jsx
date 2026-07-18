@@ -141,7 +141,7 @@ export default function GiftEditor() {
     fetch(`${API}/api/albums`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(data => {
-        if (data.albums) setAlbumImages(data.albums.filter(a => a.imageUrl).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)))
+        if (data.albums) setAlbumImages(data.albums.filter(a => a.imageUrl && (!a.imageUrls || a.imageUrls.some(Boolean))).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)))
         setShowAlbumPicker(true)
       })
       .catch(() => {})
@@ -151,7 +151,7 @@ export default function GiftEditor() {
     const newUrls = [...imageUrls]
     albumImages.filter((_, i) => pickerSelected.has(i)).forEach(a => {
       const urls = a.imageUrls && a.imageUrls.length ? a.imageUrls : [a.imageUrl]
-      urls.forEach(u => { if (!newUrls.includes(u)) newUrls.push(u) })
+      urls.filter(Boolean).forEach(u => { if (!newUrls.includes(u)) newUrls.push(u) })
     })
     setImageUrls(newUrls)
     setShowAlbumPicker(false)

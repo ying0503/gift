@@ -157,9 +157,9 @@ export default function Preview() {
           {(bannerTitle || bannerSubtitle) && (
             <div style={{
               position: 'absolute', bottom: -30, left: 0,
-              maxWidth: 'min(500px, 85vw)', width: '90%', height: 76,
+              width: '100%', height: 76,
             }}>
-              <svg viewBox="0 0 700 140" preserveAspectRatio="none"
+              <svg viewBox="0 0 900 140" preserveAspectRatio="none"
                 style={{ width: '100%', height: '100%', display: 'block' }}
               >
                 <defs>
@@ -172,7 +172,7 @@ export default function Preview() {
                   </filter>
                 </defs>
                 <path
-                  d="M28 0 H251 Q259 0 265 12 L296 68 Q304 80 310 80 H700 V140 H8 Q8 140 0 132 V28 Q0 0 28 0 Z"
+                  d="M28 0 H408 Q416 0 422 12 L453 68 Q461 80 467 80 H900 V140 H8 Q8 140 0 132 V28 Q0 0 28 0 Z"
                   fill="url(#tabG)" filter="url(#tabS)"
                 />
               </svg>
