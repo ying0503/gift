@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 const navItems = [
   { path: '/template-set', icon: '📋', label: '画册模板' },
+  { path: '/prompt-set', icon: '✏️', label: '生图提示词' },
   { path: '/model-use', icon: '⚙️', label: 'AI模型管理' },
 ]
 

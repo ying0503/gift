@@ -130,6 +130,11 @@ export default function WorkbenchSidebar() {
                   <button style={{ display: 'block', width: '100%', padding: '6px 16px', border: 'none', background: 'none', fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left' }}
                     onMouseEnter={e => e.target.style.background = '#f5f5f5'}
                     onMouseLeave={e => e.target.style.background = 'none'}
+                    onClick={() => { navigate('/prompt-set'); setUserPop(false) }}
+                  >生图提示词</button>
+                  <button style={{ display: 'block', width: '100%', padding: '6px 16px', border: 'none', background: 'none', fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => e.target.style.background = '#f5f5f5'}
+                    onMouseLeave={e => e.target.style.background = 'none'}
                     onClick={() => { navigate('/template-set'); setUserPop(false) }}
                   >画册模板</button>
                 </>

@@ -116,6 +116,7 @@ gift-album/
 **规则红线：**
 没有明确指令不能部署到ECS
 没有明确指令不能push代码到github仓库
+用户说"部署"直接执行，不要询问是否确认部署
 
 push 和 deploy 均需通过 macOS `osascript` 弹窗确认（AI 无法点击按钮，必须用户手动确认）
 部署脚本：`bash deploy-ecs.sh`

@@ -8,6 +8,7 @@ import DigitalAlbum from './pages/DigitalAlbum'
 import DigitalAlbumList from './pages/DigitalAlbumList'
 import ModelUse from './pages/ModelUse'
 import TemplateSet from './pages/TemplateSet'
+import PromptSet from './pages/PromptSet'
 import Resource from './pages/Resource'
 import VipInfo from './pages/VipInfo'
 import Preview from './pages/Preview'
@@ -126,8 +127,8 @@ function AppContent() {
         </div>
       )}
       <div className="app-body">
-        {user && location.pathname !== '/digital-album' && !['/workbench', '/my-gifts', '/gift-editor', '/ai-poster', '/template-set', '/model-use', '/image-list'].some(p => location.pathname.startsWith(p)) && <WorkbenchSidebar />}
-        <main className="app-main" style={location.pathname === '/digital-album' || ['/workbench', '/my-gifts', '/gift-editor', '/ai-poster', '/template-set', '/model-use', '/image-list'].some(p => location.pathname.startsWith(p)) ? { padding: 0 } : undefined}>
+        {user && location.pathname !== '/digital-album' && !['/workbench', '/my-gifts', '/gift-editor', '/ai-poster', '/template-set', '/model-use', '/image-list', '/prompt-set'].some(p => location.pathname.startsWith(p)) && <WorkbenchSidebar />}
+        <main className="app-main" style={location.pathname === '/digital-album' || ['/workbench', '/my-gifts', '/gift-editor', '/ai-poster', '/template-set', '/model-use', '/image-list', '/prompt-set'].some(p => location.pathname.startsWith(p)) ? { padding: 0 } : undefined}>
         <Routes>
           <Route path="/workbench" element={<ErrorBoundary>{user ? <Home /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/digital-album" element={<ErrorBoundary>{user ? <DigitalAlbumList /> : <Navigate to="/" />}</ErrorBoundary>} />
@@ -141,6 +142,7 @@ function AppContent() {
           <Route path="/model-use" element={<ErrorBoundary>{user ? (user.isAdmin ? <ModelUse /> : <Navigate to="/workbench" replace />) : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/my-albums" element={<ErrorBoundary>{user ? <MyAlbums /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/resource" element={<ErrorBoundary>{user ? <Resource /> : <Navigate to="/" />}</ErrorBoundary>} />
+          <Route path="/prompt-set" element={<ErrorBoundary>{user ? (user.isAdmin ? <PromptSet /> : <Navigate to="/workbench" replace />) : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/template-set" element={<ErrorBoundary>{user ? (user.isAdmin ? <TemplateSet /> : <Navigate to="/workbench" replace />) : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/my-gifts" element={<ErrorBoundary>{user ? <MyGifts /> : <Navigate to="/" />}</ErrorBoundary>} />
           <Route path="/image-list" element={<ErrorBoundary>{user ? <ImageList /> : <Navigate to="/" />}</ErrorBoundary>} />

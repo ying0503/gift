@@ -168,7 +168,7 @@ app.get('/api/global-config', async (req, res) => {
 
 app.post('/api/global-config', auth, async (req, res) => {
   try {
-    const allowed = ['defaultImageModel', 'textGenerationModel', 'textTemperature', 'textMaxTokens']
+    const allowed = ['defaultImageModel', 'textGenerationModel', 'textTemperature', 'textMaxTokens', 'prompt_mockup', 'prompt_whitebg', 'prompt_scene']
     const data = {}
     for (const key of allowed) {
       if (req.body[key] !== undefined) data[key] = String(req.body[key])

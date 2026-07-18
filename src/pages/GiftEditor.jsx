@@ -122,7 +122,7 @@ export default function GiftEditor() {
           })
           const data = await res.json()
           if (data.url) {
-            setImageUrls([data.url])
+            setImageUrls(prev => [...prev, data.url])
             const fileName = file.name.replace(/\.[^.]+$/, '')
             if (!name) setName(fileName)
           }
@@ -152,7 +152,7 @@ export default function GiftEditor() {
     if (selected.length === 0) return
     const a = selected[0]
     const urls = a.imageUrls && a.imageUrls.length ? a.imageUrls : [a.imageUrl]
-    setImageUrls(urls.filter(Boolean))
+    setImageUrls(prev => [...prev, ...urls.filter(Boolean)])
     if (!name && a.name) setName(a.name)
     setShowAlbumPicker(false)
   }
