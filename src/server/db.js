@@ -217,6 +217,20 @@ export async function initSchema() {
     try { await p.query('ALTER TABLE gifts MODIFY COLUMN spec TEXT') } catch (e) {}
     console.log('Gifts table ready')
   } catch (e) { console.error('Failed to create gifts table:', e.message) }
+  try {
+    await p.query(`CREATE TABLE IF NOT EXISTS resources (
+      id VARCHAR(36) PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      cover TEXT,
+      resource_url TEXT NOT NULL,
+      category VARCHAR(50) DEFAULT '',
+      user_id VARCHAR(36) NOT NULL,
+      created_at BIGINT NOT NULL,
+      updated_at BIGINT NOT NULL
+    )`)
+    try { await p.query(`ALTER TABLE resources ADD COLUMN category VARCHAR(50) DEFAULT ''`) } catch (e) {}
+    console.log('Resources table ready')
+  } catch (e) { console.error('Failed to create resources table:', e.message) }
 }
 
 export async function bootstrapAdmin() {
@@ -637,4 +651,46 @@ function rowToGift(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+export async function listResources() {
+  const p = await getPool()
+  const [rows] = await p.query('SELECT * FROM resources ORDER BY created_at DESC')
+  return rows.map(r => ({
+    id: r.id,
+    name: r.name,
+    cover: r.cover || '',
+    resourceUrl: r.resource_url,
+    category: r.category || '',
+    userId: r.user_id,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }))
+}
+
+export async function createResource(data) {
+  const p = await getPool()
+  const id = crypto.randomUUID()
+  const now = Date.now()
+  await p.query(
+    'INSERT INTO resources (id, name, cover, resource_url, category, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, data.name, data.cover || '', data.resourceUrl, data.category || '', data.userId, now, now]
+  )
+  return id
+}
+
+export async function updateResource(id, data) {
+  const p = await getPool()
+  const now = Date.now()
+  const sets = []; const vals = []
+  if (data.name !== undefined) { sets.push('name = ?'); vals.push(data.name) }
+  if (data.cover !== undefined) { sets.push('cover = ?'); vals.push(data.cover) }
+  if (data.resourceUrl !== undefined) { sets.push('resource_url = ?'); vals.push(data.resourceUrl) }
+  if (data.category !== undefined) { sets.push('category = ?'); vals.push(data.category) }
+  if (sets.length) { sets.push('updated_at = ?'); vals.push(now); vals.push(id); await p.query(`UPDATE resources SET ${sets.join(', ')} WHERE id = ?`, vals) }
+}
+
+export async function deleteResource(id) {
+  const p = await getPool()
+  await p.query('DELETE FROM resources WHERE id = ?', [id])
 }

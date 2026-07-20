@@ -45,7 +45,7 @@ async function uploadToOSS(sourceUrl) {
 }
 
 app.use(cors())
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({ limit: '50mb' }))
 app.use(express.static(path.join(__dirname, 'dist-current')))
 
 function uuid() { return crypto.randomUUID() }
@@ -774,13 +774,30 @@ app.delete('/api/album/:id', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+const mimeExtMap = {
+  'application/zip': 'zip', 'application/x-zip-compressed': 'zip', 'application/x-rar-compressed': 'rar',
+  'application/vnd.rar': 'rar', 'application/x-7z-compressed': '7z', 'application/x-tar': 'tar',
+  'application/gzip': 'gz', 'application/pdf': 'pdf', 'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.ms-powerpoint': 'ppt', 'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+  'text/plain': 'txt', 'text/csv': 'csv',
+}
+
 app.post('/api/upload', auth, async (req, res) => {
   try {
-    const { image } = req.body
-    if (!image) return res.status(400).json({ error: 'No image data' })
-    const matches = image.match(/^data:image\/(\w+);base64,(.+)$/)
-    if (!matches) return res.status(400).json({ error: 'Invalid image format' })
-    const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1]
+    const { image, filename } = req.body
+    if (!image) return res.status(400).json({ error: 'No file data' })
+    const imageMatch = image.match(/^data:image\/(\w+);base64,(.+)$/)
+    const fileMatch = image.match(/^data:([^;]+);base64,(.+)$/)
+    const matches = imageMatch || fileMatch
+    if (!matches) return res.status(400).json({ error: 'Invalid file format' })
+    const mime = matches[1]
+    let ext = imageMatch ? (mime === 'jpeg' ? 'jpg' : mime) : (mimeExtMap[mime] || mime.split('/')[1] || 'bin')
+    if (filename) {
+      const nameExt = filename.split('.').pop()
+      if (nameExt) ext = nameExt
+    }
     const buffer = Buffer.from(matches[2], 'base64')
     const d = new Date()
     const base = `uploads/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${Date.now()}`
@@ -861,6 +878,34 @@ app.put('/api/gifts/:id', auth, async (req, res) => {
 app.delete('/api/gifts/:id', auth, async (req, res) => {
   try {
     await db.deleteGift(req.params.id, req.user.userId)
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.get('/api/resources', auth, async (req, res) => {
+  try {
+    const resources = await db.listResources()
+    res.json({ resources })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.post('/api/resources', auth, async (req, res) => {
+  try {
+    const id = await db.createResource({ ...req.body, userId: req.user.userId })
+    res.json({ id })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.put('/api/resources/:id', auth, async (req, res) => {
+  try {
+    await db.updateResource(req.params.id, req.body)
+    res.json({ success: true })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.delete('/api/resources/:id', auth, async (req, res) => {
+  try {
+    await db.deleteResource(req.params.id)
     res.json({ success: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })

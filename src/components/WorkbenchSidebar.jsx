@@ -41,11 +41,11 @@ const sidebarSections = [
   {
     header: '资源',
     items: [
-      { label: '礼品卡', icon: 'frame' },
-      { label: '礼品册', icon: 'frame' },
-      { label: '礼品券', icon: 'frame' },
-      { label: '画册封面', icon: 'frame' },
-      { label: '封套', icon: 'frame' },
+      { label: '礼品卡', routes: ['/resource'], hash: 'gift-card', icon: 'frame' },
+      { label: '礼品册', routes: ['/resource'], hash: 'gift-book', icon: 'frame' },
+      { label: '礼品券', routes: ['/resource'], hash: 'gift-coupon', icon: 'frame' },
+      { label: '画册封面', routes: ['/resource'], hash: 'cover', icon: 'frame' },
+      { label: '封套', routes: ['/resource'], hash: 'envelope', icon: 'frame' },
     ],
   },
 ]
@@ -56,7 +56,10 @@ export default function WorkbenchSidebar() {
   const location = useLocation()
   const [userPop, setUserPop] = useState(false)
 
-  const isActive = (item) => item.routes?.some(r => location.pathname.startsWith(r))
+  const isActive = (item) => {
+    if (item.hash) return location.pathname === '/resource' && location.hash === `#${item.hash}`
+    return item.routes?.some(r => location.pathname.startsWith(r))
+  }
 
   return (
     <div style={{ width: 248, flexShrink: 0, background: '#F9FAFD', borderRight: '1px solid #E6E6E6', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
@@ -74,7 +77,7 @@ export default function WorkbenchSidebar() {
               const route = item.routes?.[0]
               return (
               <div key={ii}
-                onClick={() => { if (route) navigate(route) }}
+                onClick={() => { if (item.hash) navigate(`/resource#${item.hash}`); else if (route) navigate(route) }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12, height: 40, padding: '0 12px', borderRadius: 5, cursor: route ? 'pointer' : 'default',
                   background: active ? 'rgba(123, 82, 255, 0.1)' : 'transparent',
@@ -127,6 +130,11 @@ export default function WorkbenchSidebar() {
                     onMouseLeave={e => e.target.style.background = 'none'}
                     onClick={() => { navigate('/model-use'); setUserPop(false) }}
                   >AI模型管理</button>
+                  <button style={{ display: 'block', width: '100%', padding: '6px 16px', border: 'none', background: 'none', fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left' }}
+                    onMouseEnter={e => e.target.style.background = '#f5f5f5'}
+                    onMouseLeave={e => e.target.style.background = 'none'}
+                    onClick={() => { navigate('/resource-manage'); setUserPop(false) }}
+                  >资源管理</button>
                   <button style={{ display: 'block', width: '100%', padding: '6px 16px', border: 'none', background: 'none', fontSize: 14, color: '#555', cursor: 'pointer', textAlign: 'left' }}
                     onMouseEnter={e => e.target.style.background = '#f5f5f5'}
                     onMouseLeave={e => e.target.style.background = 'none'}

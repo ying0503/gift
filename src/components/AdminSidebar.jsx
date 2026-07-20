@@ -4,6 +4,7 @@ const navItems = [
   { path: '/template-set', icon: '📋', label: '画册模板' },
   { path: '/prompt-set', icon: '✏️', label: '生图提示词' },
   { path: '/model-use', icon: '⚙️', label: 'AI模型管理' },
+  { path: '/resource-manage', icon: '📁', label: '资源管理' },
 ]
 
 export default function AdminSidebar() {
