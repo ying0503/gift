@@ -12,6 +12,7 @@ export default function ResourceManage() {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ ...emptyForm })
   const [uploading, setUploading] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [batchOpen, setBatchOpen] = useState(false)
   const [batchClosing, setBatchClosing] = useState(false)
   const [batchFiles, setBatchFiles] = useState([])
@@ -19,6 +20,7 @@ export default function ResourceManage() {
   const [batchProgress, setBatchProgress] = useState(0)
   const [batchTotal, setBatchTotal] = useState(0)
   const [batchUploading, setBatchUploading] = useState(false)
+  const [batchProgresses, setBatchProgresses] = useState({})
 
   const load = () => {
     const token = localStorage.getItem('token')
@@ -31,6 +33,7 @@ export default function ResourceManage() {
   useEffect(() => { load() }, [])
 
   const handleClose = () => {
+    if (uploading && !window.confirm('资源正在上传中，确定关闭吗？')) return
     setClosing(true)
     setTimeout(() => { setClosing(false); setModalOpen(false) }, 250)
   }
@@ -48,30 +51,36 @@ export default function ResourceManage() {
     setModalOpen(true)
   }
 
-  const uploadFile = (file, type) => {
+  const uploadFile = async (file, type) => {
     if (!file) return
     setUploading(type)
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const base64 = ev.target?.result
-      if (typeof base64 === 'string') {
-        fetch(`${API}/api/upload`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-          body: JSON.stringify({ image: base64, filename: file.name }),
-        })
-          .then(r => r.json())
-          .then(data => { if (data.url) setForm(f => ({ ...f, [type === 'cover' ? 'cover' : 'resourceUrl']: data.url, ...(type === 'resource' ? { resourceFileName: file.name } : {}) })); else alert(data.error || '上传失败') })
-          .catch(() => { alert('上传请求失败') })
-          .finally(() => setUploading(''))
-      }
-    }
-    reader.onerror = () => { alert('文件读取失败'); setUploading('') }
-    reader.readAsDataURL(file)
+    setUploadProgress(0)
+    try {
+      const token = localStorage.getItem('token')
+      const presign = await fetch(`${API}/api/upload/presign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ filename: file.name }),
+      }).then(r => r.json())
+      if (!presign.url) { alert(presign.error || '获取上传地址失败'); setUploading(''); return }
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('PUT', presign.url)
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream')
+        xhr.upload.onprogress = e => { if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100)) }
+        xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`${xhr.status} ${xhr.responseText.slice(0, 100)}`))
+        xhr.onerror = () => reject(new Error('网络错误'))
+        xhr.send(file)
+      })
+      setForm(f => ({ ...f, [type === 'cover' ? 'cover' : 'resourceUrl']: presign.ossUrl, ...(type === 'resource' ? { resourceFileName: file.name } : {}) }))
+    } catch (e) { alert('上传失败: ' + e.message); setUploading('') }
+    setUploading('')
+    setUploadProgress(0)
   }
 
   const save = () => {
     if (!form.name) return
+    if (uploading) return
     const token = localStorage.getItem('token')
     const url = editing ? `${API}/api/resources/${editing.id}` : `${API}/api/resources`
     const method = editing ? 'PUT' : 'POST'
@@ -86,23 +95,34 @@ export default function ResourceManage() {
   }
 
   const handleBatchClose = () => {
+    if (batchUploading && !window.confirm('资源正在上传中，确定关闭吗？')) return
     setBatchClosing(true)
-    setTimeout(() => { setBatchClosing(false); setBatchOpen(false); setBatchFiles([]); setBatchCategory(''); setBatchProgress(0); setBatchTotal(0) }, 250)
+    setTimeout(() => { setBatchClosing(false); setBatchOpen(false); setBatchFiles([]); setBatchCategory(''); setBatchProgress(0); setBatchTotal(0); setBatchProgresses({}) }, 250)
   }
 
-  const uploadOne = (file) => {
-    return new Promise((resolve, reject) => {
-      const r = new FileReader()
-      r.onload = e => resolve(e.target.result)
-      r.onerror = reject
-      r.readAsDataURL(file)
-    }).then(base64 => {
-      return fetch(`${API}/api/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ image: base64, filename: file.name }),
-      }).then(r => r.json())
-    })
+  const uploadOne = async (file, onProgress) => {
+    const token = localStorage.getItem('token')
+    const presign = await fetch(`${API}/api/upload/presign`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ filename: file.name }),
+    }).then(r => r.json())
+    if (!presign.url) throw new Error(presign.error || '获取上传地址失败')
+    if (onProgress) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.upload.onprogress = e => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100))
+        xhr.onload = () => xhr.status === 200 ? resolve({ url: presign.ossUrl }) : reject(new Error(String(xhr.status)))
+        xhr.onerror = () => reject(new Error('网络错误'))
+        xhr.open('PUT', presign.url)
+        xhr.setRequestHeader('Content-Type', 'application/octet-stream')
+        xhr.send(file)
+      })
+    } else {
+      const uploadRes = await fetch(presign.url, { method: 'PUT', body: file, headers: { 'Content-Type': 'application/octet-stream' } })
+      if (!uploadRes.ok) { const errText = await uploadRes.text().catch(() => ''); throw new Error(`${uploadRes.status} ${errText.slice(0, 100)}`) }
+      return { url: presign.ossUrl }
+    }
   }
 
   const startBatchUpload = async () => {
@@ -111,9 +131,10 @@ export default function ResourceManage() {
     setBatchTotal(batchFiles.length)
     const token = localStorage.getItem('token')
     let done = 0
-    for (const file of batchFiles) {
+    for (let i = 0; i < batchFiles.length; i++) {
+      const file = batchFiles[i]
       try {
-        const uploadData = await uploadOne(file)
+        const uploadData = await uploadOne(file, p => setBatchProgresses(prev => ({ ...prev, [i]: p })))
         if (uploadData.url) {
           await fetch(`${API}/api/resources`, {
             method: 'POST',
@@ -205,7 +226,7 @@ export default function ResourceManage() {
       </div>
 
       {modalOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000 }} onClick={handleClose}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.15)' }}>
         <div style={{
           position: 'absolute', top: 0, right: 0, bottom: 0, width: 480, background: '#fff',
           boxShadow: '-4px 0 16px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column',
@@ -232,17 +253,26 @@ export default function ResourceManage() {
                     {uploading === 'cover' ? '上传中...' : '点击上传'}
                   </div>
                 )}
+                {form.cover && (
+                  <svg onClick={() => setForm(f => ({ ...f, cover: '' }))} style={{ position: 'absolute', top: 4, right: 4, cursor: 'pointer', background: 'rgba(0,0,0,0.4)', borderRadius: '50%', padding: 2 }} width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M12 4L4 12M4 4l8 8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                )}
               </label>
             </div>
 
             <div style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#333', marginBottom: 6 }}>资源文件</div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: '2px dashed #d9d9d9', borderRadius: 8, cursor: 'pointer', background: '#fafafa' }}>
-                <input type="file" style={{ display: 'none' }} onChange={e => uploadFile(e.target.files[0], 'resource')} />
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2v10m0 0l-3-3m3 3l3-3m-6 6h6" stroke="#999" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <span style={{ fontSize: 14, color: form.resourceUrl ? '#333' : '#999' }}>
-                  {uploading === 'resource' ? '上传中...' : (form.resourceFileName ? `${form.resourceFileName} 已上传成功` : '选择文件')}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', border: '2px dashed #d9d9d9', borderRadius: 8, cursor: uploading ? 'not-allowed' : 'pointer', background: '#fafafa', position: 'relative', overflow: 'hidden', pointerEvents: uploading ? 'none' : 'auto' }}>
+                {uploading === 'resource' && (
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${uploadProgress}%`, background: '#e6f4ff', transition: 'width .3s' }} />
+                )}
+                <input type="file" style={{ display: 'none' }} disabled={!!uploading} onChange={e => uploadFile(e.target.files[0], 'resource')} />
+                <svg style={{ position: 'relative', zIndex: 1 }} width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2v10m0 0l-3-3m3 3l3-3m-6 6h6" stroke="#999" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span style={{ fontSize: 14, color: form.resourceUrl ? '#333' : '#999', flex: 1, position: 'relative', zIndex: 1 }}>
+                  {uploading === 'resource' ? `上传中 ${uploadProgress}%` : (form.resourceFileName ? `${form.resourceFileName} 已上传成功` : '资源文件')}
                 </span>
+                {form.resourceUrl && (
+                  <svg onClick={e => { e.stopPropagation(); setForm(f => ({ ...f, resourceUrl: '', resourceFileName: '' })) }} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', zIndex: 1 }} width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M12 4L4 12M4 4l8 8" stroke="#999" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                )}
               </label>
             </div>
 
@@ -264,7 +294,7 @@ export default function ResourceManage() {
       )}
 
       {batchOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000 }} onClick={handleBatchClose}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.15)' }}>
         <div style={{
           position: 'absolute', top: 0, right: 0, bottom: 0, width: 480, background: '#fff',
           boxShadow: '-4px 0 16px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column',
@@ -285,33 +315,30 @@ export default function ResourceManage() {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#333', marginBottom: 10 }}>选择文件</div>
-              <label style={{ display: 'block', padding: '24px', border: '2px dashed #d9d9d9', borderRadius: 8, cursor: 'pointer', background: '#fafafa', textAlign: 'center' }}>
-                <input type="file" multiple style={{ display: 'none' }} onChange={e => { const files = Array.from(e.target.files || []); setBatchFiles(files) }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#333', marginBottom: 10 }}>资源文件</div>
+              <label style={{ display: 'block', padding: '24px', border: '2px dashed #d9d9d9', borderRadius: 8, cursor: batchUploading ? 'not-allowed' : 'pointer', background: '#fafafa', textAlign: 'center', pointerEvents: batchUploading ? 'none' : 'auto' }}>
+                <input type="file" multiple style={{ display: 'none' }} disabled={batchUploading} onChange={e => { const files = Array.from(e.target.files || []); setBatchFiles(prev => [...prev, ...files]) }} />
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ marginBottom: 8 }}><path d="M12 4v12m0 0l-4-4m4 4l4-4m-6 8h6" stroke="#999" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <div style={{ fontSize: 14, color: '#999' }}>{batchFiles.length ? `已选择 ${batchFiles.length} 个文件` : '点击选择多个文件'}</div>
+                <div style={{ fontSize: 14, color: '#999' }}>{batchFiles.length ? `已选择 ${batchFiles.length} 个文件` : '资源文件'}</div>
               </label>
               {batchFiles.length > 0 && (
                 <div style={{ marginTop: 10 }}>
-                  {batchFiles.map((f, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: '#f9f9f9', borderRadius: 4, marginBottom: 4, fontSize: 13, color: '#555' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{f.name}</span>
-                      <svg onClick={() => setBatchFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ cursor: 'pointer', flexShrink: 0 }} width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M10.5 3.5l-7 7M3.5 3.5l7 7" stroke="#999" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                    </div>
-                  ))}
+                  {batchFiles.map((f, i) => {
+                    const p = batchProgresses[i]
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '6px 10px', background: '#f9f9f9', borderRadius: 4, marginBottom: 4, fontSize: 13, color: '#555', position: 'relative', overflow: 'hidden' }}>
+                        {p != null && <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${p}%`, background: '#e6f4ff', transition: 'width .3s' }} />}
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, position: 'relative', zIndex: 1 }}>{f.name}</span>
+                        {p != null && <span style={{ fontSize: 12, color: '#1677FF', flexShrink: 0, marginLeft: 8, position: 'relative', zIndex: 1 }}>{p}%</span>}
+                        {p == null && !batchUploading && (
+                          <svg onClick={() => setBatchFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ cursor: 'pointer', flexShrink: 0 }} width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M10.5 3.5l-7 7M3.5 3.5l7 7" stroke="#999" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
-            </div>
-
-            {batchUploading && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#333', marginBottom: 6 }}>上传进度</div>
-                <div style={{ height: 8, background: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${batchTotal ? (batchProgress / batchTotal) * 100 : 0}%`, background: '#1677FF', borderRadius: 4, transition: 'width .3s' }} />
-                </div>
-                <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>{batchProgress} / {batchTotal}</div>
-              </div>
-            )}
+          </div>
           </div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', padding: '16px 24px', borderTop: '1px solid #f0f0f0' }}>
             <button onClick={handleBatchClose} disabled={batchUploading} style={{ padding: '8px 20px', border: '1px solid #d9d9d9', borderRadius: 6, background: '#fff', fontSize: 14, cursor: 'pointer' }}>取消</button>

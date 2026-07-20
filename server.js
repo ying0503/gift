@@ -45,6 +45,14 @@ async function uploadToOSS(sourceUrl) {
 }
 
 app.use(cors())
+
+ossClient.putBucketCORS(process.env.OSS_BUCKET, [{
+  allowedOrigin: ['*'],
+  allowedMethod: ['PUT', 'GET', 'HEAD'],
+  allowedHeader: ['*'],
+  exposeHeader: ['ETag'],
+  maxAgeSeconds: 3600,
+}]).then(() => console.log('OSS CORS configured')).catch(e => console.warn('OSS CORS config failed:', e.message))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.static(path.join(__dirname, 'dist-current')))
 
@@ -783,6 +791,20 @@ const mimeExtMap = {
   'application/vnd.ms-powerpoint': 'ppt', 'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
   'text/plain': 'txt', 'text/csv': 'csv',
 }
+
+app.post('/api/upload/presign', auth, async (req, res) => {
+  try {
+    const { filename } = req.body
+    if (!filename) return res.status(400).json({ error: 'Missing filename' })
+    const nameExt = filename.split('.').pop() || 'bin'
+    const d = new Date()
+    const base = `uploads/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${Date.now()}`
+    const key = base + '.' + nameExt
+    const url = ossClient.signatureUrl(key, { expires: 3600, method: 'PUT', 'content-type': 'application/octet-stream' })
+    const ossUrl = `https://${process.env.OSS_BUCKET}.${process.env.OSS_REGION}.aliyuncs.com/${key}`
+    res.json({ url, key, ossUrl })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
 
 app.post('/api/upload', auth, async (req, res) => {
   try {
