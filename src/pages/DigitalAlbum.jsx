@@ -731,6 +731,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     if (!token) return
     const title = currentViewAlbum.productName || '产品展示'
     const promptText = (prompt || title) + `，图中居中大字标题为「${title}」`
+    const comboImgs = Array.from(new Set((currentViewAlbum.comboItems || []).flatMap(i => [i.imageUrl, ...(i.imageUrls || [])]).filter(Boolean))).slice(0, 3)
     setTimeout(() => setComboBannerProgress(2), 200)
     let prog = 2
     const progTimer = setInterval(() => {
@@ -748,7 +749,7 @@ body: JSON.stringify({ id: albumIdRef.current, categories: merged, bannerUrl: gl
     fetch(`${API}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ config: { model: localStorage.getItem('defaultImageModel') || 'maiziai-chatgpt-image-2', prompt: promptText, size: '16:9', banner: true } }),
+      body: JSON.stringify({ config: { model: localStorage.getItem('defaultImageModel') || 'maiziai-chatgpt-image-2', prompt: promptText, size: '16:9', banner: true }, images: comboImgs.length ? comboImgs : undefined }),
     }).then(r => r.json()).then(data => {
       if (data.taskId) {
         const poll = () => {
