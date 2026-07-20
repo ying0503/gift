@@ -1,18 +1,39 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import WorkbenchSidebar from '../components/WorkbenchSidebar'
 import AlbumPickerModal from '../components/AlbumPickerModal'
 
-const UploadZone = ({ img, setImg, inputRef, buttons }) => (
-  <>
-    <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setImg(f); e.target.value = '' }} />
-    <div style={{ width: '100%', height: 184, borderRadius: 10, border: '1px dashed #D3D3D3', background: 'rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-      {img ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden', borderRadius: 10 }}>
-          <img src={URL.createObjectURL(img)} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'rgba(0,0,0,0.02)' }} />
-          <div onClick={e => { e.stopPropagation(); setImg(null) }} style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 }}>&#10005;</div>
-        </div>
-      ) : (
+function WipeText({ text }) {
+  const [display, setDisplay] = useState(text)
+  const [phase, setPhase] = useState('')
+  useEffect(() => {
+    if (text === display) return
+    setPhase('out')
+    const t = setTimeout(() => { setDisplay(text); setPhase('in') }, 240)
+    return () => clearTimeout(t)
+  }, [text, display])
+  return <div className={phase ? `wipe-${phase}` : undefined} style={{ fontSize: 14, color: '#888' }}>{display}</div>
+}
+
+function singleImageStageText(p) {
+  if (p >= 80) return '最后微调一下'
+  if (p >= 60) return '即将完成'
+  if (p >= 40) return '正在润饰细节'
+  if (p >= 20) return '生成初稿中'
+  return null
+}
+
+const UploadZone = ({ img, setImg, inputRef, buttons }) => {
+  const src = typeof img === 'string' ? img : (img ? URL.createObjectURL(img) : null)
+  return (
+    <>
+      <input ref={inputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setImg(f); e.target.value = '' }} />
+      <div style={{ width: '100%', height: 234, borderRadius: 10, border: '1px dashed #D3D3D3', background: 'rgba(0,0,0,0.02)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        {src ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, overflow: 'hidden', borderRadius: 10 }}>
+            <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'rgba(0,0,0,0.02)' }} />
+            <div onClick={e => { e.stopPropagation(); setImg(null) }} style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,0.35)', color: '#fff', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 2 }}>&#10005;</div>
+          </div>
+        ) : (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 27 }}>
           {buttons?.map((btn, i) => (
             <div key={i} onClick={btn.onClick} style={{
@@ -29,10 +50,10 @@ const UploadZone = ({ img, setImg, inputRef, buttons }) => (
       )}
     </div>
   </>
-)
+  )
+}
 
 export default function AIPoster() {
-  const navigate = useNavigate()
   const [name, setName] = useState('')
   const [productImg, setProductImg] = useState(null)
   const [styleImg, setStyleImg] = useState(null)
@@ -40,6 +61,7 @@ export default function AIPoster() {
   const [price, setPrice] = useState('')
   const [netContent, setNetContent] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [statusText, setStatusText] = useState('')
   const [result, setResult] = useState(null)
   const productRef = useRef(null)
   const styleRef = useRef(null)
@@ -52,36 +74,107 @@ export default function AIPoster() {
   useEffect(() => {
     const token = localStorage.getItem('token')
     const headers = { Authorization: `Bearer ${token}` }
-    fetch('http://localhost:3000/api/albums', { headers })
+    fetch('/api/albums', { headers })
       .then(r => r.json())
       .then(d => setAlbumList((d.albums || []).filter(a => a.imageUrl).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))))
       .catch(() => {})
-    fetch('http://localhost:3000/api/gifts', { headers })
+    fetch('/api/gifts', { headers })
       .then(r => r.json())
       .then(d => setGiftList(d.gifts || []))
       .catch(() => {})
   }, [])
 
+  const [styleAnalysis, setStyleAnalysis] = useState('')
+
+  const getRefUrl = async (img, token) => {
+    if (!img) return ''
+    if (typeof img === 'string') return img
+    const base64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(img) })
+    const upRes = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ image: base64 }),
+    })
+    const upData = await upRes.json()
+    return upData.url || ''
+  }
+
   const handleGenerate = async () => {
     if (!name.trim()) return
     setGenerating(true)
     setResult(null)
+    setStatusText('')
     try {
       const token = localStorage.getItem('token')
-      const res = await fetch('http://localhost:3000/api/generate', {
+
+      let analysisText = ''
+      if (styleImg) {
+        setStatusText('AI 分析中')
+        const refUrl = await getRefUrl(styleImg, token)
+        if (refUrl) {
+          const res = await fetch('/api/generate/prompts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ mode: 'style-analyze', refImage: refUrl }),
+          })
+          const d = await res.json()
+          const analysis = d.analysis || ''
+          setStyleAnalysis(analysis)
+          analysisText = analysis ? `\n\n参考风格分析：${analysis}` : ''
+        }
+      }
+
+      const productImgUrl = await getRefUrl(productImg, token)
+
+      const prompt = `制作一张关于"${name}"的礼品海报${specs ? `，规格：${specs}` : ''}${price ? `，零售价：${price}` : ''}${netContent ? `，净含量：${netContent}` : ''}${analysisText}`
+
+      const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          prompt: `制作一张关于"${name}"的礼品海报，规格：${specs}，零售价：${price}，净含量：${netContent}`,
-          size: '1024x1792',
+          config: {
+            model: localStorage.getItem('defaultImageModel') || 'maiziai-chatgpt-image-2',
+            prompt,
+            size: '3:4',
+          },
+          images: productImgUrl ? [productImgUrl] : undefined,
+          name: name.trim(),
         }),
       })
       const data = await res.json()
-      if (data.success) setResult(data)
-      else setResult({ error: data.error || '生成失败' })
+      if (data.taskId) {
+        setStatusText('')
+        const poll = async () => {
+          try {
+            const r = await fetch(`/api/generate/status?taskId=${data.taskId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+            const s = await r.json()
+            if (s.imageUrl) {
+              setResult({ imageUrl: s.imageUrl })
+              setStatusText('')
+              setGenerating(false)
+            } else if (s.taskStatus === 'FAILED') {
+              setResult({ error: s.statusText || '生成失败' })
+              setStatusText('')
+              setGenerating(false)
+            } else {
+              setStatusText(singleImageStageText(s.progress) || s.statusText || '生成中...')
+              setTimeout(poll, 2000)
+            }
+          } catch {
+            setTimeout(poll, 2000)
+          }
+        }
+        poll()
+      } else {
+        setResult({ error: data.error || '生成失败' })
+        setStatusText('')
+        setGenerating(false)
+      }
     } catch {
+      if (!generating) return
       setResult({ error: '网络错误' })
-    } finally {
       setGenerating(false)
     }
   }
@@ -98,15 +191,15 @@ export default function AIPoster() {
     if (pickerType === 'product') {
       const gift = giftList[idx]
       const url = gift.imageUrls?.[0] || gift.firstImageUrl
-      if (url) {
-        fetch(url).then(r => r.blob()).then(b => setProductImg(new File([b], 'product.jpg', { type: b.type }))).catch(() => {})
-      }
+      if (url) setProductImg(url)
+      if (gift.name) setName(gift.name)
+      if (gift.spec) setSpecs(gift.spec)
+      if (gift.price) setPrice(gift.price)
+      if (gift.netContent) setNetContent(gift.netContent)
     } else if (pickerType === 'template') {
       const album = albumList[idx]
       const url = album.imageUrls?.[0] || album.imageUrl
-      if (url) {
-        fetch(url).then(r => r.blob()).then(b => setStyleImg(new File([b], 'template.jpg', { type: b.type }))).catch(() => {})
-      }
+      if (url) setStyleImg(url)
     }
     setShowPicker(false)
   }
@@ -177,14 +270,16 @@ export default function AIPoster() {
         {/* ========== COL 3: Results ========== */}
         <div>
           <div style={{ fontSize: 14, color: '#000', marginBottom: 10 }}>生成结果</div>
-          <div style={{ border: '1px dashed #D3D3D3', borderRadius: 10, background: 'rgba(0,0,0,0.02)', minHeight: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ border: '1px dashed #D3D3D3', borderRadius: 10, background: 'rgba(0,0,0,0.02)', minHeight: 380, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             {generating ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
                 <div className="loading-spinner" />
-                <span style={{ fontSize: 14, color: '#888' }}>AI 生成中…</span>
+                <WipeText text={statusText || '生成中…'} />
               </div>
             ) : result?.imageUrl ? (
-              <img src={result.imageUrl} alt="海报" style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 8, objectFit: 'contain' }} />
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'auto' }}>
+                <img src={result.imageUrl} alt="海报" style={{ maxWidth: '100%', objectFit: 'contain' }} />
+              </div>
             ) : result?.error ? (
               <div style={{ color: '#FF4D4F', fontSize: 13 }}>{result.error}</div>
             ) : (

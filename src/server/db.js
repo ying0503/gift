@@ -301,7 +301,7 @@ export async function getUserAlbumsWithBatch(userId) {
   const p = await getPool()
   const [rows] = await p.query(
     `SELECT a.* FROM albums a JOIN user_albums ua ON a.id = ua.album_id
-     WHERE ua.user_id = ? AND a.batch_id IS NOT NULL ORDER BY ua.position ASC`, [userId])
+     WHERE ua.user_id = ? ORDER BY ua.position ASC`, [userId])
   return rows.map(rowToAlbum)
 }
 

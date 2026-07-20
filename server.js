@@ -206,7 +206,7 @@ app.post('/api/generate', auth, async (req, res) => {
       const maiziaiTaskId = data.data?.[0]?.task_id
       if (!maiziaiTaskId) return res.status(500).json({ error: 'No task_id from MaiziAI' })
       const taskId = maiziaiTaskId
-      await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'PENDING', createdAt: Date.now(), productCount: 0, maiziaiTaskId })
+      await db.createTask({ taskId, userId: req.user.userId, config, prompt, status: 'PENDING', createdAt: Date.now(), productCount: 0, maiziaiTaskId, name: name || null })
       modelLatencies.push({ model: imgModel, ms: Date.now() - imgStart, ts: Date.now() })
       return res.json({ taskId })
     }
@@ -475,9 +475,10 @@ app.post('/api/generate/prompts', auth, async (req, res) => {
   try {
     const { festival, count, refImage, model: modelVal, mode, productInfo, imageType } = req.body
     const isAnalyze = mode === 'analyze'
+    const isStyleAnalyze = mode === 'style-analyze'
     textModel = modelVal || 'qwen3.5-flash'
     startTime = Date.now()
-    if (isAnalyze) {
+    if (isAnalyze || isStyleAnalyze) {
       if (!refImage) return res.status(400).json({ error: 'Missing refImage for analysis' })
     } else {
       if (!count) return res.status(400).json({ error: 'Missing count' })
@@ -487,11 +488,14 @@ app.post('/api/generate/prompts', auth, async (req, res) => {
       'glm-4.6v-flashx': { key: process.env.GLM_API_KEY, url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions', model: 'glm-4.6v-flashx', label: 'GLM' },
       'doubao-seed-2-0-mini-260428': { key: process.env.DOUBAO_API_KEY, url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', model: 'doubao-seed-2-0-mini-260428', label: 'Doubao' },
     }
-    const { temperature = isAnalyze ? 0.7 : 0.8, maxTokens = isAnalyze ? 1000 : 2000 } = req.body
+    const { temperature = (isAnalyze || isStyleAnalyze) ? 0.7 : 0.8, maxTokens = (isAnalyze || isStyleAnalyze) ? 1000 : 2000 } = req.body
     let systemPrompt, userContent
     if (isAnalyze) {
       systemPrompt = '你是一个产品信息智能提取助手。请仔细分析用户提供的产品图片，按以下格式提取信息并返回纯文本（不包含markdown标记）：\n\n品牌名称识别：\n- 中文品牌名：\n- 英文品牌名：\n- 设计风格：\n\n产品类型判断：\n- 产品类别：\n- 产品名称：\n- 产品规格：\n\n详细描述：\n'
       userContent = refImage ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: '请分析这张产品图片，提取所有可见的产品信息。' }] : '请分析产品图片，提取产品信息。'
+    } else if (isStyleAnalyze) {
+      systemPrompt = '你是一个背景风格分析助手。请只分析图片中的背景信息、环境氛围和设计风格，忽略画面中的产品主体，按以下格式返回（纯文本，不包含markdown标记）：\n\n风格类型：\n- 一句话总结背景风格（如简约留白、国潮插画、自然实景、几何抽象等）\n\n背景色彩：\n- 背景主色调：\n- 背景辅助色：\n- 色彩渐变/过渡方式：\n- 色彩给人的感觉：\n\n背景元素：\n- 有哪些装饰图形/纹理/图案\n- 这些元素的颜色、大小、位置\n- 是否有光效/阴影/渐变叠加\n\n排版布局参考：\n- 背景分区方式（如上半部纯色+下半部纹理、中心放射等）\n- 留白区域分布\n- 适合放置文字的位置\n\n环境氛围：\n- 光照方向与类型（自然光/聚光/柔光等）\n- 整体氛围描述（温暖/科技/简约/传统等）'
+      userContent = refImage ? [{ type: 'image_url', image_url: { url: refImage } }, { type: 'text', text: '请忽略图片中的产品主体，只分析背景的风格、配色、元素和整体氛围，用于AI海报排版参考。' }] : '请分析背景风格与氛围信息。'
     } else if (productInfo) {
       systemPrompt = '你是一个礼品营销AI图像提示词生成器。根据产品信息和产品名称，生成4个提示词，每个提示词按以下格式输出：\n主标题（居中大字）：{标题}；副标题（产品主图右侧或者左侧）：{围绕主题的一句话或几个特点描述}；其他参考：{图像生成提示词，至少50字}\n\n4个主题和标题要求：\n1. 主视觉图：标题用产品信息中的"产品名称"，不加任何修饰；副标题（产品主图右侧或者左侧）和其他参考侧重综合展示产品整体形象\n2. 产品卖点：标题用5-8字适合送礼的文案\n3. 品质工艺：标题用5-8字适合送礼的文案\n4. 适用场景：标题用5-8字适合送礼的文案\n\n直接输出4行，不要编号。标题不要包含"主视觉""卖点""品质""场景"等主题类别词。'
       userContent = [{ type: 'text', text: `基于以下产品信息，输出4个提示词。第1个主视觉图的标题必须用产品信息中的"产品名称"，且副标题（产品主图右侧或者左侧）和其他参考都要综合展示产品整体形象，避免过多细节堆砌；其他3个标题用5-8字适合送礼的文案。\n\n产品信息：\n${productInfo}` }]
@@ -528,7 +532,7 @@ app.post('/api/generate/prompts', auth, async (req, res) => {
         textModel = modelName
         startTime = Date.now()
         modelLatencies.push({ model: modelName, ms: Date.now() - startTime, ts: Date.now() })
-        if (isAnalyze) return res.json({ analysis: text })
+        if (isAnalyze || isStyleAnalyze) return res.json({ analysis: text })
         const prompts = text.split('\n').filter(s => s.trim()).map(s => s.replace(/^\d+[\.\)、]\s*/, '').trim())
         textModel = modelName
         startTime = Date.now()
