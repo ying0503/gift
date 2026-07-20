@@ -113,15 +113,34 @@ gift-album/
 
 ---
 
+## Deploy Panel（部署控制台）
+
+**地址：** `http://192.168.31.113:1000`  
+**位置：** Mac Mini（192.168.31.113），独立项目 `~/deploy-panel`  
+**仓库：** `git@github.com:ying0503/gift-deploy.git`
+
+**所有部署操作均通过面板页面进行，不再使用 CLI 命令：**
+
+| 操作 | 面板路径 | 说明 |
+|------|----------|------|
+| 部署测试 | `http://192.168.31.113:1000/deploy` | 点"部署测试"→ 从 GitHub 拉最新代码 → Mac Mini 本地构建 → 重启 gift-album（端口 3000） |
+| 部署生产 | `http://192.168.31.113:1000/deploy` | 点"部署生产"→ SSH 到 ECS → ECS 从 GitHub 拉代码 → 构建 → pm2 重启 |
+| 测试任务 | `http://192.168.31.113:1000/tasks` | CRUD 管理测试用例，一键执行，查看结果 |
+
+**测试环境地址：** `http://192.168.31.113:3000`（Mac Mini 本机 gift-album）
+
+**常规操作：**
+- 本地开发 `npm run dev`，推送代码到 GitHub
+- 需要部署时打开面板点按钮，无需 SSH 或终端命令
+
 **规则红线：**
 没有明确指令不能部署到ECS
 没有明确指令不能push代码到github仓库
 push 和 deploy 均需通过 macOS `osascript` 弹窗确认（AI 无法点击按钮，必须用户手动确认）
-部署脚本：`bash deploy-ecs.sh`
 
 ---
 
-## 重启流程
+## 重启流程（仅当面板不可用时备用）
 
 ```bash
 # 1. 停旧进程
