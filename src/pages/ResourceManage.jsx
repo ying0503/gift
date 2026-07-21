@@ -7,6 +7,8 @@ const emptyForm = { name: '', cover: '', resourceUrl: '', resourceFileName: '', 
 
 export default function ResourceManage() {
   const [resources, setResources] = useState([])
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -22,15 +24,20 @@ export default function ResourceManage() {
   const [batchUploading, setBatchUploading] = useState(false)
   const [batchProgresses, setBatchProgresses] = useState({})
 
-  const load = () => {
+  const load = (p) => {
     const token = localStorage.getItem('token')
-    fetch(`${API}/api/resources`, { headers: { Authorization: `Bearer ${token}` } })
+    const pg = p || page
+    fetch(`${API}/api/resources?page=${pg}&limit=50`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(data => setResources(data.resources || []))
+      .then(data => {
+        setResources(data.resources || [])
+        setTotal(data.total || 0)
+        if (p) setPage(p)
+      })
       .catch(() => {})
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(1) }, [])
 
   const handleClose = () => {
     if (uploading && !window.confirm('资源正在上传中，确定关闭吗？')) return
@@ -90,7 +97,7 @@ export default function ResourceManage() {
       body: JSON.stringify(form),
     })
       .then(r => r.json())
-      .then(() => { handleClose(); load() })
+      .then(() => { handleClose(); load(page) })
       .catch(() => {})
   }
 
@@ -148,7 +155,7 @@ export default function ResourceManage() {
     }
     setBatchUploading(false)
     handleBatchClose()
-    load()
+    load(1)
   }
 
   const remove = (id) => {
@@ -156,7 +163,7 @@ export default function ResourceManage() {
     const token = localStorage.getItem('token')
     fetch(`${API}/api/resources/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(() => load())
+      .then(() => load(page))
       .catch(() => {})
   }
 
@@ -220,6 +227,20 @@ export default function ResourceManage() {
                   ))}
                 </tbody>
               </table>
+            )}
+            {total > 50 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 0' }}>
+                <button onClick={() => load(page - 1)} disabled={page <= 1}
+                  style={{ padding: '4px 12px', border: '1px solid #d9d9d9', borderRadius: 4, background: page <= 1 ? '#f5f5f5' : '#fff', fontSize: 13, color: page <= 1 ? '#ccc' : '#333', cursor: page <= 1 ? 'not-allowed' : 'pointer' }}>
+                  上一页
+                </button>
+                <span style={{ fontSize: 13, color: '#666' }}>{page} / {Math.ceil(total / 50)}</span>
+                <button onClick={() => load(page + 1)} disabled={page >= Math.ceil(total / 50)}
+                  style={{ padding: '4px 12px', border: '1px solid #d9d9d9', borderRadius: 4, background: page >= Math.ceil(total / 50) ? '#f5f5f5' : '#fff', fontSize: 13, color: page >= Math.ceil(total / 50) ? '#ccc' : '#333', cursor: page >= Math.ceil(total / 50) ? 'not-allowed' : 'pointer' }}>
+                  下一页
+                </button>
+                <span style={{ fontSize: 12, color: '#999' }}>共 {total} 条</span>
+              </div>
             )}
           </div>
         </div>

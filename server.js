@@ -18,6 +18,8 @@ const modelLatencies = []
 
 const ossClient = new OSS({
   region: process.env.OSS_REGION,
+  internal: false,
+  secure: true,
   accessKeyId: process.env.OSS_ACCESS_KEY_ID,
   accessKeySecret: process.env.OSS_ACCESS_KEY_SECRET,
   bucket: process.env.OSS_BUCKET,
@@ -906,8 +908,22 @@ app.delete('/api/gifts/:id', auth, async (req, res) => {
 
 app.get('/api/resources', auth, async (req, res) => {
   try {
-    const resources = await db.listResources()
-    res.json({ resources })
+    const { page, limit } = req.query
+    if (page) {
+      const result = await db.listResourcesPublic({ page: parseInt(page), limit: parseInt(limit || 50) })
+      res.json(result)
+    } else {
+      const resources = await db.listResources()
+      res.json({ resources })
+    }
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+app.get('/api/resources/public', async (req, res) => {
+  try {
+    const { category, page = 1, limit = 50 } = req.query
+    const result = await db.listResourcesPublic({ category, page: parseInt(page), limit: parseInt(limit) })
+    res.json(result)
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 

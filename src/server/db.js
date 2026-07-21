@@ -668,6 +668,31 @@ export async function listResources() {
   }))
 }
 
+export async function listResourcesPublic({ category, page = 1, limit = 50 }) {
+  const p = await getPool()
+  const offset = (page - 1) * limit
+  const where = category ? 'WHERE category = ?' : ''
+  const params = category ? [category] : []
+  const [countRows] = await p.query(`SELECT COUNT(*) as total FROM resources ${where}`, params)
+  const total = countRows[0].total
+  const [rows] = await p.query(`SELECT * FROM resources ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [...params, limit, offset])
+  return {
+    total,
+    page,
+    limit,
+    resources: rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      cover: r.cover || '',
+      resourceUrl: r.resource_url,
+      category: r.category || '',
+      userId: r.user_id,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }))
+  }
+}
+
 export async function createResource(data) {
   const p = await getPool()
   const id = crypto.randomUUID()
