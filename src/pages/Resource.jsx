@@ -17,6 +17,8 @@ export default function Resource() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [mag, setMag] = useState(null)
+  const [search, setSearch] = useState('')
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     setPage(1)
@@ -32,6 +34,7 @@ export default function Resource() {
       .catch(() => {})
   }, [categoryId, page, categoryName])
 
+  const filtered = items.filter(item => !query || item.name.toLowerCase().includes(query.toLowerCase()))
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
@@ -41,10 +44,17 @@ export default function Resource() {
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><g clipPath="url(#iconClip)"><path d="M8.33333 10H1.66667C0.733333 10 0 9.26667 0 8.33333V1.66667C0 0.733333 0.733333 0 1.66667 0H8.33333C9.26667 0 10 0.733333 10 1.66667V8.33333C10 9.26667 9.26667 10 8.33333 10ZM1.66667 0.666667C1.1 0.666667 0.666667 1.1 0.666667 1.66667V8.33333C0.666667 8.9 1.1 9.33333 1.66667 9.33333H8.33333C8.9 9.33333 9.33333 8.9 9.33333 8.33333V1.66667C9.33333 1.1 8.9 0.666667 8.33333 0.666667H1.66667Z" fill="white"/><path d="M2.5 3.43338C2.5 3.51655 2.51638 3.59891 2.54821 3.67575C2.58004 3.75259 2.62669 3.82241 2.6855 3.88122C2.74431 3.94003 2.81413 3.98668 2.89097 4.01851C2.96781 4.05033 3.05016 4.06672 3.13333 4.06672C3.2165 4.06672 3.29886 4.05033 3.3757 4.01851C3.45254 3.98668 3.52236 3.94003 3.58117 3.88122C3.63998 3.82241 3.68663 3.75259 3.71846 3.67575C3.75028 3.59891 3.76667 3.51655 3.76667 3.43338C3.76667 3.35021 3.75028 3.26786 3.71846 3.19102C3.68663 3.11418 3.63998 3.04436 3.58117 2.98555C3.52236 2.92674 3.474 2.88009 3.3757 2.84826C3.29886 2.81643 3.2165 2.80005 3.13333 2.80005C3.05016 2.80005 2.96781 2.81643 2.89097 2.84826C2.81413 2.88009 2.74431 2.92674 2.6855 2.98555C2.62669 3.04436 2.58004 3.11418 2.54821 3.19102C2.51638 3.26786 2.5 3.35021 2.5 3.43338Z" fill="white"/><path d="M2.16665 8.3667L1.56665 8.10003L1.69998 7.80003C2.39998 6.1667 3.53332 5.33337 5.03332 5.23337C6.29998 5.1667 7.23332 4.80003 7.79998 4.13337L8.03332 3.8667L8.53332 4.30003L8.29998 4.5667C7.59998 5.3667 6.49998 5.83337 5.06665 5.90003C3.83332 5.9667 2.93332 6.6667 2.33332 8.0667L2.16665 8.3667Z" fill="white"/></g><defs><clipPath id="iconClip"><rect width="10" height="10" fill="white"/></clipPath></defs></svg>
         </div>
         <span style={{ fontSize: 18, fontWeight: 700, color: '#000' }}>{categoryTitle}</span>
+        <div style={{ position: 'relative' }}>
+          <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M7.333 12.667A5.333 5.333 0 107.333 2a5.333 5.333 0 000 10.667zM14 14l-2.9-2.9" stroke="#999" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && setQuery(search)} placeholder="搜索资源..."
+            style={{ width: 200, height: 36, border: '1px solid #d9d9d9', borderRadius: 8, padding: '0 12px 0 34px', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 220px)', gap: '20px', position: 'relative' }}>
-        {items.map((item, i) => (
+        {filtered.length === 0 ? (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0', color: '#999', fontSize: 14 }}>暂无匹配的资源</div>
+        ) : filtered.map((item, i) => (
           <div
             key={item.id}
             style={{ width: 220, height: 260, borderRadius: 10, border: '1px solid #E6E6E6', background: '#fff', cursor: 'pointer', overflow: 'hidden', transition: 'border-color .2s' }}
