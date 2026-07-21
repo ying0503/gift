@@ -16,6 +16,7 @@ export default function Resource() {
   const [items, setItems] = useState([])
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
+  const [mag, setMag] = useState(null)
 
   useEffect(() => {
     setPage(1)
@@ -42,15 +43,21 @@ export default function Resource() {
         <span style={{ fontSize: 18, fontWeight: 700, color: '#000' }}>{categoryTitle}</span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 220px)', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, 220px)', gap: '20px', position: 'relative' }}>
         {items.map((item, i) => (
           <div
             key={item.id}
             style={{ width: 220, height: 260, borderRadius: 10, border: '1px solid #E6E6E6', background: '#fff', cursor: 'pointer', overflow: 'hidden', transition: 'border-color .2s' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = '#7B52FF'}
-            onMouseLeave={e => e.currentTarget.style.borderColor = '#E6E6E6'}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E6E6E6'; setMag(null) }}
           >
-            <div style={{ width: '100%', height: 220, background: item.cover ? `url(${item.cover}) center/cover no-repeat` : thumbColors[i % thumbColors.length], display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #E6E6E6' }}>
+            <div
+              style={{ width: '100%', height: 220, background: item.cover ? `url(${item.cover}) center/cover no-repeat` : thumbColors[i % thumbColors.length], display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #E6E6E6', position: 'relative' }}
+              onMouseEnter={e => {
+                if (!item.cover) return
+                setMag({ clientRect: e.currentTarget.getBoundingClientRect(), img: item.cover })
+              }}
+            >
               {!item.cover && <div style={{ fontSize: 13, color: '#999' }}>暂无预览</div>}
             </div>
             <div style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -68,6 +75,27 @@ export default function Resource() {
           </div>
         ))}
       </div>
+
+      {mag && (() => {
+        const gap = 16
+        const mw = 460
+        const mh = 613
+        const cardRect = mag.clientRect
+        const cardRight = cardRect.right
+        const spaceRight = window.innerWidth - cardRight
+        const left = spaceRight >= mw + gap ? cardRight + gap : cardRect.left - mw - gap
+        const top = Math.max(10, Math.min(cardRect.top, window.innerHeight - mh - 10))
+        return (
+          <div style={{
+            position: 'fixed', zIndex: 9999, pointerEvents: 'none',
+            left, top, width: mw, height: mh,
+            borderRadius: 12, overflow: 'hidden',
+            border: '2px solid #7B52FF',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            background: `url(${mag.img.replace(/\?x-oss-process=image\/.*$/, '')}) center/contain no-repeat #f8f8f8`,
+          }} />
+        )
+      })()}
 
       {totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 32 }}>
