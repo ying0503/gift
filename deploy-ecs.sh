@@ -12,27 +12,30 @@ if ! osascript -e 'display dialog "确认部署到 ECS ('"$ECS_IP"')？" buttons
   exit 1
 fi
 
-echo ">>> 打包代码..."
-tar czf /tmp/gift-album-deploy.tar.gz \
-  --exclude=node_modules \
-  --exclude=.git \
-  --exclude=.wrangler \
-  --exclude=dist \
-  -C "$(dirname "$0")" .
-
-echo ">>> 上传到 ECS..."
-scp /tmp/gift-album-deploy.tar.gz ${SSH_USER}@${ECS_IP}:/root/
-
-echo ">>> 在 ECS 上执行部署..."
+echo ">>> 通过 ECS 从 Codeup 拉取最新代码并部署..."
 ssh ${SSH_USER}@${ECS_IP} << 'CMD'
   set -e
   cd /root
-  rm -rf gift-album
-  mkdir gift-album
-  cd gift-album
-  tar xzf /root/gift-album-deploy.tar.gz
 
-  source .env
+  echo ">>> 备份 .env..."
+  if [ -f /root/gift-album/.env ]; then
+    cp /root/gift-album/.env /tmp/gift-env-backup
+  fi
+
+  echo ">>> 从 Codeup 克隆最新代码..."
+  rm -rf /tmp/gift-album-code
+  git clone --depth 1 https://yyklrexa_liqihui:pt-f7tldMk4vo2vtGFdm8CR4LKl_b4d58ea2-ba3d-4f3a-b9ec-648f8fed2ac3@liqihui-cn-hangzhou.devops.aliyuncs.com/codeup/gift/gift-album.git /tmp/gift-album-code
+  rm -rf gift-album
+  mv /tmp/gift-album-code gift-album
+  cd gift-album
+
+  echo ">>> 恢复 .env..."
+  if [ -f /tmp/gift-env-backup ]; then
+    cp /tmp/gift-env-backup /root/gift-album/.env
+    rm /tmp/gift-env-backup
+  fi
+
+  source .env 2>/dev/null || true
 
   if ! command -v node &> /dev/null || [ "$(node -v | cut -d'.' -f1 | tr -d 'v')" -lt 22 ]; then
     echo ">>> 安装 Node.js v22..."
