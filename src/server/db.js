@@ -1,6 +1,11 @@
 import mysql from 'mysql2/promise'
 import crypto from 'crypto'
 
+const OSS_DOMAIN = 'static.liqihui.com'
+const OSS_OLD = 'gift-bucket-0503.oss-cn-beijing.aliyuncs.com'
+const OSS_PROC = '?x-oss-process=image/resize,w_240'
+const replaceUrl = (url) => url?.replace(OSS_OLD, OSS_DOMAIN) || url || ''
+
 let pool
 
 export async function getPool() {
@@ -659,8 +664,8 @@ export async function listResources() {
   return rows.map(r => ({
     id: r.id,
     name: r.name,
-    cover: r.cover || '',
-    resourceUrl: r.resource_url,
+    cover: r.cover ? replaceUrl(r.cover) + OSS_PROC : '',
+    resourceUrl: replaceUrl(r.resource_url),
     category: r.category || '',
     userId: r.user_id,
     createdAt: r.created_at,
@@ -683,8 +688,8 @@ export async function listResourcesPublic({ category, page = 1, limit = 50 }) {
     resources: rows.map(r => ({
       id: r.id,
       name: r.name,
-      cover: r.cover || '',
-      resourceUrl: r.resource_url,
+      cover: r.cover ? replaceUrl(r.cover) + OSS_PROC : '',
+      resourceUrl: replaceUrl(r.resource_url),
       category: r.category || '',
       userId: r.user_id,
       createdAt: r.created_at,
